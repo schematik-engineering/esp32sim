@@ -66,7 +66,7 @@ impl CircuitBoard {
         for (i,c) in configs.iter().enumerate() {
             let route=(c.sda,c.scl,c.address);
             if self.led_route(route) || self.lcd_route(route) || self.pwm_route(route) {return Err("I2C address overlaps an LED display".into());}
-            if !c.valid() || self.parallel_lcds.iter().any(|p|p.config.id==c.id) || configs[..i].iter().any(|p|p.id==c.id || (p.sda,p.scl,p.address)==route)
+            if !c.valid() || configs[..i].iter().any(|p|p.id==c.id || (p.sda,p.scl,p.address)==route)
                 || self.oleds.iter().any(|p|{let p=p.lock().unwrap().config;(p.sda,p.scl,p.address)==route}) {
                 return Err("invalid sensor model, identity or bus address".into());
             }
@@ -459,6 +459,20 @@ mod rfid_wiring_tests {
 #[cfg(test)]
 mod lcd_wiring_tests {
     use super::*;
+    #[test]
+    fn parallel_lcd_and_sensor_ids_have_independent_namespaces() {
+        let lcd=super::super::lcd::ParallelLcdConfig{id:0,rs:0,enable:1,data:[2,3,4,5],rw:255,columns:16,rows:2};
+        let sensor=super::super::SensorConfig{id:0,sda:6,scl:7,address:0x76,model:1,shunt_milliohms:0};
+        for lcd_first in [false,true] {
+            let mut board=CircuitBoard::new(&[],&[]).unwrap();
+            if lcd_first {board.configure_parallel_lcds(&[lcd],1_000_000).unwrap();}
+            board.configure_sensors(&[sensor],1_000_000).unwrap();
+            if !lcd_first {board.configure_parallel_lcds(&[lcd],1_000_000).unwrap();}
+            assert_eq!(board.project_displays()[0].0,64);
+            assert_eq!(board.sensors[0].lock().unwrap().config.id,0);
+            assert!(board.i2c_devices().iter().any(|(_,address,device)|*address==0x76 && device.pins()==Some((6,7))));
+        }
+    }
     #[test]
     fn lcd_identity_routes_and_frame_pages_are_bounded() {
         let c=super::super::lcd::LcdConfig{id:0,sda:4,scl:5,address:0x27,columns:20,rows:4};

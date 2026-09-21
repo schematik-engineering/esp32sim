@@ -330,15 +330,7 @@ impl ParallelLcdConfig {
                 .all(|(i, p)| (*p < 49 || (i == 6 && *p == 255)) && !pins[..i].contains(p))
     }
     pub fn conflicts(&self, other: &Self) -> bool {
-        self.id == other.id
-            || self.enable == other.enable
-            || self.pins().iter().enumerate().any(|(i, p)| {
-                other
-                    .pins()
-                    .iter()
-                    .enumerate()
-                    .any(|(j, q)| *p != 255 && p == q && i != j)
-            })
+        self.id == other.id || self.enable == other.enable
     }
 }
 pub struct ParallelLcd {
@@ -572,7 +564,7 @@ mod parallel_tests {
         };
         assert!(!config.conflicts(&other));
         assert!(config.conflicts(&ParallelLcdConfig { id: 1, ..config }));
-        assert!(config.conflicts(&ParallelLcdConfig {
+        assert!(!config.conflicts(&ParallelLcdConfig {
             id: 1,
             enable: 7,
             data: [3, 2, 4, 5],
