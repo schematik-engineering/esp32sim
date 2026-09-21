@@ -60,6 +60,7 @@ impl SensorConfig {
                 45 => (1..=127).contains(&self.address),
                 51 => matches!(self.address, 0x68 | 0x69),
                 52 => (0x10..=0x13).contains(&self.address),
+                53 => matches!(self.address, 0x4a | 0x4b),
                 50 => matches!(self.address, 0x68 | 0x69),
                 47 => (0x0c..=0x0f).contains(&self.address),
                 48 => self.address == 0x6b,
@@ -432,6 +433,7 @@ mod pressure;
 mod environment_extra;
 mod bme680;
 mod bno055;
+mod bno08x;
 mod lsm6ds3;
 mod motion;
 mod power;
@@ -546,6 +548,7 @@ impl Sensor {
             35 => Box::new(magnetometers::Lis3mdl::new(clock, hz)),
             51 => Box::new(bmi270::Bmi270::new(clock, hz)),
             52 => Box::new(bmm150::Bmm150::new(clock, hz)),
+            53 => Box::new(bno08x::Bno085::new(clock, hz)),
             50 => Box::new(icm42688::Icm42688::new(clock, hz)),
             47 => Box::new(mlx90393::Mlx90393::new(clock, hz)),
             36 => Box::new(pressure::Dps310::new(clock, hz)),
