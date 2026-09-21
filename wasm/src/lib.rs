@@ -2943,3 +2943,31 @@ mod thermocouple_tests {
         check!(esp32c6::machine([0;6],4<<20),0x60091000);
     }
 }
+
+#[cfg(test)]
+mod particulate_tests {
+    use super::*;
+    use xtensa_lx7::Bus;
+    #[test]
+    fn particulate_all_three_chip_abi_fields_wiring_and_reboot() {
+        macro_rules! check {($machine:expr,$invalid:expr)=>{{
+            let mut m=$machine;
+            let a=esp_soc::devices::SensorConfig{id:0,sda:4,scl:5,address:0x12,model:54,shunt_milliohms:0};
+            let b=esp_soc::devices::SensorConfig{id:1,sda:6,scl:7,..a};
+            MachineApi::configure_circuit(&mut m,&[],&[],&[a,b]).unwrap();
+            assert_eq!(MachineApi::sensor_set(&mut m,0,78,35.),0);assert_eq!(MachineApi::sensor_set(&mut m,1,78,80.),0);
+            assert_eq!(MachineApi::sensor_set(&mut m,0,86,1500.),0);assert_eq!(MachineApi::sensor_set(&mut m,0,91,10.),0);
+            assert_eq!(MachineApi::sensor_set(&mut m,0,79,10.),1);assert_eq!(MachineApi::sensor_set(&mut m,0,91,65536.),1);
+            assert!(MachineApi::sensor_value(&mut m,0,78).is_nan());
+            m.bus.tick(MachineApi::cpu_hz(&m) as u32);
+            assert_eq!(MachineApi::sensor_value(&mut m,0,78),35.);assert_eq!(MachineApi::sensor_value(&mut m,1,78),80.);
+            assert_eq!(MachineApi::sensor_value(&mut m,0,86),1500.);assert_eq!(MachineApi::sensor_value(&mut m,0,91),10.);
+            m.bus.reboot([0;6]);assert_eq!(MachineApi::sensor_set(&mut m,1,78,31.),0);
+            assert!(MachineApi::configure_circuit(&mut m,&[],&[],&[a,esp_soc::devices::SensorConfig{id:1,..a}]).is_err());
+            assert!(MachineApi::configure_circuit(&mut m,&[],&[],&[esp_soc::devices::SensorConfig{sda:$invalid,..a}]).is_err());
+        }};}
+        check!(esp32s3::machine([0;6]),49);
+        check!(esp32c3::machine([0;6],4<<20),22);
+        check!(esp32c6::machine([0;6],4<<20),31);
+    }
+}

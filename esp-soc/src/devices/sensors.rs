@@ -65,6 +65,7 @@ impl SensorConfig {
                 47 => (0x0c..=0x0f).contains(&self.address),
                 48 => self.address == 0x6b,
                 49 => self.address == 0x57,
+                54 => self.address == 0x12,
                 _ => false,
             }
     }
@@ -429,6 +430,7 @@ mod bmm150;
 mod adxl375;
 mod qmi8658;
 mod sen66;
+mod particulate;
 mod pressure;
 mod environment_extra;
 mod bme680;
@@ -448,7 +450,7 @@ mod vl53l1x;
 mod vl53l0x;
 mod ezo_ph;
 mod max30105;
-const FIELD_COUNT: usize = 86;
+const FIELD_COUNT: usize = 92;
 #[derive(Clone, Copy, PartialEq)]
 enum WireFormat {
     Bytes,
@@ -539,6 +541,7 @@ impl Sensor {
     pub fn new(config: SensorConfig, clock: Arc<AtomicU64>, hz: u32) -> Self {
         let device: Box<dyn RegisterSensor> = match config.model {
             49 => Box::new(max30105::Max30105::new(clock, hz)),
+            54 => Box::new(particulate::Pmsa003i::new(clock, hz)),
             26 | 27 => Box::new(humidity_light::Humidity::new(clock, hz, config.model)),
             28 => Box::new(humidity_light::Veml7700::new(clock, hz)),
             30 => Box::new(aht_mcp::Aht20::new(clock, hz)),
@@ -689,13 +692,14 @@ impl I2cDevice for SensorI2c {
             return ack;
         }
         if self.first {
-            if s.config.model == 5 && b > 5 {
+            if (s.config.model == 5 && b > 5) || (s.config.model == 54 && b > 31) {
                 return false;
             }
             self.ptr = b;
             self.first = false;
             return true;
         }
+        if s.config.model == 54 { return false; }
         match format {
             WireFormat::Pairs => {
                 self.first = true;
