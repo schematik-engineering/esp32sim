@@ -67,6 +67,7 @@ impl SensorConfig {
                 49 => self.address == 0x57,
                 54 => self.address == 0x12,
                 55 => (1..=3).contains(&self.address),
+                56 => self.address == 0x33,
                 57 => self.address == 0x42,
                 _ => false,
             }
@@ -454,6 +455,7 @@ mod vl53l0x;
 mod ezo_ph;
 mod max30105;
 mod as3935;
+mod mlx90640;
 const FIELD_COUNT: usize = 103;
 #[derive(Clone, Copy, PartialEq)]
 enum WireFormat {
@@ -544,6 +546,7 @@ pub struct Sensor {
 impl Sensor {
     pub fn new(config: SensorConfig, clock: Arc<AtomicU64>, hz: u32) -> Self {
         let device: Box<dyn RegisterSensor> = match config.model {
+            56 => Box::new(mlx90640::Mlx90640::new(clock, hz)),
             49 => Box::new(max30105::Max30105::new(clock, hz)),
             54 => Box::new(particulate::Pmsa003i::new(clock, hz)),
             55 => Box::new(as3935::As3935::new(clock, hz)),
