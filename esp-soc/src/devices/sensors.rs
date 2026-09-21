@@ -60,6 +60,7 @@ impl SensorConfig {
                 45 => (1..=127).contains(&self.address),
                 47 => (0x0c..=0x0f).contains(&self.address),
                 48 => self.address == 0x6b,
+                49 => self.address == 0x57,
                 _ => false,
             }
     }
@@ -438,7 +439,8 @@ mod nau7802;
 mod vl53l1x;
 mod vl53l0x;
 mod ezo_ph;
-const FIELD_COUNT: usize = 83;
+mod max30105;
+const FIELD_COUNT: usize = 86;
 #[derive(Clone, Copy, PartialEq)]
 enum WireFormat {
     Bytes,
@@ -451,6 +453,7 @@ enum WireFormat {
 }
 
 trait RegisterSensor {
+    fn read_live(&mut self, _reg: u8) -> Option<u8> { None }
     fn general_reset(&mut self) -> bool {
         false
     }
@@ -527,6 +530,7 @@ pub struct Sensor {
 impl Sensor {
     pub fn new(config: SensorConfig, clock: Arc<AtomicU64>, hz: u32) -> Self {
         let device: Box<dyn RegisterSensor> = match config.model {
+            49 => Box::new(max30105::Max30105::new(clock, hz)),
             26 | 27 => Box::new(humidity_light::Humidity::new(clock, hz, config.model)),
             28 => Box::new(humidity_light::Veml7700::new(clock, hz)),
             30 => Box::new(aht_mcp::Aht20::new(clock, hz)),
@@ -775,7 +779,7 @@ impl I2cDevice for SensorI2c {
                 value
             }
             _ => {
-                let value = self.snapshot[self.ptr as usize];
+                let value = s.device.read_live(self.ptr).unwrap_or(self.snapshot[self.ptr as usize]);
                 s.device.read_done(self.ptr);
                 self.ptr = s.device.next_address(self.ptr);
                 value
