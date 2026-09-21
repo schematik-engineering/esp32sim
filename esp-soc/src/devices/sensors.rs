@@ -43,6 +43,8 @@ impl SensorConfig {
                 26 => matches!(self.address, 0x44 | 0x45),
                 27 => self.address == 0x70,
                 28 => self.address == 0x10,
+                30 => self.address == 0x38,
+                31 => (0x18..=0x1f).contains(&self.address),
                 _ => false,
             }
     }
@@ -397,6 +399,7 @@ impl EnvironmentSensor {
 
 mod humidity_light;
 mod analog;
+mod aht_mcp;
 mod environment_extra;
 mod bme680;
 mod bno055;
@@ -494,6 +497,8 @@ impl Sensor {
         let device: Box<dyn RegisterSensor> = match config.model {
             26 | 27 => Box::new(humidity_light::Humidity::new(clock, hz, config.model)),
             28 => Box::new(humidity_light::Veml7700::new(clock, hz)),
+            30 => Box::new(aht_mcp::Aht20::new(clock, hz)),
+            31 => Box::new(aht_mcp::Mcp9808::new(clock, hz)),
             22 => Box::new(vl53l1x::Vl53l1x::new(clock, hz)),
             21 => Box::new(nau7802::Nau7802::new(clock, hz)),
             20 | 23..=25 => Box::new(fuel::Max1704x::new(clock, hz, config.model)),
