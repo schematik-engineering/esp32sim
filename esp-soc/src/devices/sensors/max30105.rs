@@ -417,6 +417,27 @@ mod tests {
         assert_eq!(read(&mut d, 13), 0x1f);
     }
     #[test]
+    fn max30105_fifo_read_clears_status_per_general_description() {
+        let (clock, state, mut d) = device();
+        init(&mut d);
+        assert_eq!(read(&mut d, 0), 1);
+        write(&mut d, 8, 0x0f);
+        clock.store(170_000, Ordering::Relaxed);
+        assert_eq!(read(&mut d, 4), 17);
+        assert_eq!(state.lock().unwrap().device.registers()[0], 0xc0);
+        select(&mut d, 7);
+        d.read();
+        d.stop();
+        assert_eq!(
+            read(&mut d, 0),
+            0,
+            "Rev 1 page14 says a FIFO read clears all status bits"
+        );
+        clock.store(180_000, Ordering::Relaxed);
+        assert_eq!(read(&mut d, 0), 0xc0);
+        assert_eq!(read(&mut d, 0), 0, "status read also clears both flags");
+    }
+    #[test]
     fn max30105_adc_averaging_leds_modes_and_overflow() {
         let (clock, state, mut d) = device();
         init(&mut d);
