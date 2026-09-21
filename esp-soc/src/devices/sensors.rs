@@ -55,6 +55,7 @@ impl SensorConfig {
                 40 => self.address == 0x39,
                 42 => (0x49..=0x4c).contains(&self.address),
                 43 => (0x36..=0x3d).contains(&self.address),
+                46 => matches!(self.address, 0x6a | 0x6b),
                 44 => (0x36..=0x39).contains(&self.address),
                 _ => false,
             }
@@ -414,6 +415,7 @@ mod analog;
 mod aht_mcp;
 mod magnetometers;
 mod adxl375;
+mod qmi8658;
 mod pressure;
 mod environment_extra;
 mod bme680;
@@ -529,6 +531,7 @@ impl Sensor {
             36 => Box::new(pressure::Dps310::new(clock, hz)),
             37 => Box::new(pressure::Lps22df::new(clock, hz)),
             38 => Box::new(ina228::Ina228::new(clock, hz, config.shunt_milliohms)),
+            46 => Box::new(qmi8658::Qmi8658::new(clock, hz)),
             39 => Box::new(adxl375::Adxl375::new(clock, hz)),
             40 => Box::new(as7341::As7341::new(clock, hz)),
             41 => Box::new(vl53l0x::Vl53l0x::new(clock, hz)),
