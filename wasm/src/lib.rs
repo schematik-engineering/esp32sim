@@ -46,6 +46,8 @@ trait MachineApi {
     fn configure_circuit(&mut self, strips: &[(u8, usize)], oleds: &[esp_soc::devices::OledConfig], sensors: &[esp_soc::devices::SensorConfig]) -> Result<(), String>;
     fn configure_parallel_lcds(&mut self,configs:&[esp_soc::devices::lcd::ParallelLcdConfig])->Result<(),String>;
     fn configure_lcds(&mut self,configs:&[esp_soc::devices::lcd::LcdConfig])->Result<(),String>;
+    fn configure_four_wire_steppers(&mut self,configs:&[esp_soc::devices::four_wire_stepper::Config])->Result<(),String>;
+    fn four_wire_stepper_position(&self,id:u32)->f64;
     fn configure_steppers(&mut self,configs:&[esp_soc::devices::stepper::StepperConfig])->Result<(),String>;
     fn stepper_position(&self,id:u32)->f64;
     fn configure_led_displays(&mut self,configs:&[esp_soc::devices::led_display::LedDisplayConfig])->Result<(),String>;
@@ -285,6 +287,12 @@ impl<S: Soc> MachineApi for Machine<S> {
     fn pwm_expander_clock(&mut self,id:u8,hz:u32)->bool{self.bus.board().pwm_expander_clock(id,hz)}
     fn pwm_expander_output(&self,id:u8,channel:u8)->Option<(f64,u32)>{self.bus.board_ref().pwm_expander_output(id,channel)}
     fn has_pwm_expander(&self,id:u8)->bool{self.bus.board_ref().has_pwm_expander(id)}
+    fn configure_four_wire_steppers(&mut self,configs:&[esp_soc::devices::four_wire_stepper::Config])->Result<(),String> {
+        if configs.iter().flat_map(|c|c.pins).any(|pin|self.gpio_state(pin as u32)==u32::MAX || (S::NAME=="esp32s3" && (22..=25).contains(&pin))) {return Err("four-winding GPIO outside chip range".into());}
+        if self.bus.board_ref().name()=="none" {self.bus.set_board(Box::new(esp_soc::devices::CircuitBoard::new(&[],&[])?));}
+        self.bus.board().configure_four_wire_steppers(configs)
+    }
+    fn four_wire_stepper_position(&self,id:u32)->f64 {if id>=16 {f64::NAN}else{self.bus.board_ref().four_wire_stepper_position(id as u8)}}
     fn configure_steppers(&mut self,configs:&[esp_soc::devices::stepper::StepperConfig])->Result<(),String> {
         if configs.iter().flat_map(|c|c.pins()).any(|pin|self.gpio_state(pin as u32)==u32::MAX || (S::NAME=="esp32s3" && (22..=25).contains(&pin))) {return Err("step/direction GPIO outside chip range".into());}
         if self.bus.board_ref().name()=="none" {self.bus.set_board(Box::new(esp_soc::devices::CircuitBoard::new(&[],&[])?));}
@@ -3066,6 +3074,39 @@ mod elm327_tests {
             assert_eq!(esp32sim_elm327_set(e,0,0,1200.),0);assert_eq!(esp32sim_elm327_set(e,0,5,0.5),1);assert_eq!(esp32sim_elm327_set(e,0,4,f64::NAN),1);
             assert_eq!(esp32sim_elm327_generation(e,0),0);assert!(esp32sim_elm327_value(e,0,0).is_nan());assert_eq!(esp32sim_elm327_generation(e,4),u32::MAX);
             (*e).booted=true;assert_eq!(esp32sim_elm327_configure(e,0,4,5,38400),1);esp32sim_delete(e);
+        }}
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn esp32sim_four_wire_steppers(e:*mut Emu,ptr:*const u8,len:usize)->u32 {
+    if e.is_null() || len>128 || len%8!=0 || (len>0 && ptr.is_null()) {return 1;}
+    let e=unsafe{&mut *e};if e.booted{return 1;}
+    let bytes=if len==0{&[]}else{unsafe{std::slice::from_raw_parts(ptr,len)}};
+    let mut configs=Vec::new();for r in bytes.chunks_exact(8){if r[5..]!=[0,0,0]{return 1;}configs.push(esp_soc::devices::four_wire_stepper::Config{id:r[0],pins:[r[1],r[2],r[3],r[4]]});}
+    match e.m.configure_four_wire_steppers(&configs){Ok(())=>0,Err(message)=>{log(&message);1}}
+}
+#[no_mangle]
+pub unsafe extern "C" fn esp32sim_four_wire_stepper_position(e:*mut Emu,id:u32)->f64 {
+    if e.is_null(){f64::NAN}else{unsafe{&*e}.m.four_wire_stepper_position(id)}
+}
+#[cfg(test)]
+mod four_wire_stepper_tests {
+    use super::*;
+    #[test]
+    fn four_wire_stepper_abi_bounds_wiring_and_boot_guard_all_chips() {
+        unsafe {for chip in ["none","esp32c3","esp32c6"] {
+            let e=esp32sim_new(chip.as_ptr(),chip.len(),4,0);assert!(!e.is_null());
+            let record=[0,4,5,6,7,0,0,0];
+            assert_eq!(esp32sim_four_wire_steppers(e,record.as_ptr(),7),1);
+            assert_eq!(esp32sim_four_wire_steppers(e,std::ptr::null(),8),1);
+            assert_eq!(esp32sim_four_wire_steppers(e,record.as_ptr(),8),0);
+            assert!(esp32sim_four_wire_stepper_position(e,0).is_nan());assert!(esp32sim_four_wire_stepper_position(e,16).is_nan());
+            for bad in [[0,4,4,6,7,0,0,0],[0,60,5,6,7,0,0,0],[16,4,5,6,7,0,0,0],[0,4,5,6,7,1,0,0],[0,4,5,6,7,0,1,0],[0,4,5,6,7,0,0,1]] {assert_eq!(esp32sim_four_wire_steppers(e,bad.as_ptr(),8),1);}
+            let invalid_gpio=[0,4,5,6,if chip=="none" {22}else if chip=="esp32c3"{22}else{31},0,0,0];assert_eq!(esp32sim_four_wire_steppers(e,invalid_gpio.as_ptr(),8),1);
+            let duplicate=[record,record].concat();assert_eq!(esp32sim_four_wire_steppers(e,duplicate.as_ptr(),16),1);
+            assert_eq!(esp32sim_four_wire_steppers(e,std::ptr::null(),0),0);
+            (*e).booted=true;assert_eq!(esp32sim_four_wire_steppers(e,record.as_ptr(),8),1);esp32sim_delete(e);
         }}
     }
 }

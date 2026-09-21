@@ -22,6 +22,8 @@ pub struct BoardEdge {
 
 /// What a board does with the SoC's pin-level activity.
 pub trait BoardModel {
+    fn configure_four_wire_steppers(&mut self,_configs:&[crate::devices::four_wire_stepper::Config])->Result<(),String>{Err("board cannot attach four-winding drivers".into())}
+    fn four_wire_stepper_position(&self,_id:u8)->f64{f64::NAN}
     fn configure_steppers(&mut self,_configs:&[crate::devices::stepper::StepperConfig])->Result<(),String>{Err("board cannot attach step/direction drivers".into())}
     fn stepper_position(&self,_id:u8)->f64{f64::NAN}
     fn configure_pwm_expanders(&mut self,_configs:&[crate::devices::pca9685::Config],_hz:u64)->Result<(),String>{Err("board cannot attach PWM expanders".into())}

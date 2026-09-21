@@ -51,3 +51,4 @@ pub mod stepper;
 pub mod thermocouple;
 
 pub mod elm327;
+pub mod four_wire_stepper;

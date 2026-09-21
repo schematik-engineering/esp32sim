@@ -9,6 +9,7 @@ pub struct CircuitBoard {
     sensor_clock: Arc<std::sync::atomic::AtomicU64>,
     sensors: Vec<Arc<Mutex<super::Sensor>>>,
     steppers: Vec<super::stepper::Stepper>,
+    four_wire_steppers: Vec<super::four_wire_stepper::FourWireStepper>,
     inputs: Option<super::inputs::InputDevices>,
     pin_sensors: Option<super::pin_sensor::PinSensors>,
     rfid: Vec<super::rfid::Rfid>,
@@ -59,7 +60,7 @@ impl CircuitBoard {
             }
             displays.push(Arc::new(Mutex::new(Ssd1306::new(*config)?)));
         }
-        Ok(Self { pwm_expanders:Vec::new(), camera: None, sensor_clock: Arc::new(std::sync::atomic::AtomicU64::new(0)), sensors: Vec::new(), inputs: None, steppers: Vec::new(), pin_sensors: None, rfid: Vec::new(), thermocouples: Vec::new(), gestures: Vec::new(), load_cells: Vec::new(), touches: Vec::new(), resistive_touches: Vec::new(), spi_displays: Vec::new(), led_displays: Vec::new(), max_displays: Vec::new(), strips: devices, gpio_hz: 0, oleds: displays, parallel_lcds: Vec::new(), lcds: Vec::new() })
+        Ok(Self { pwm_expanders:Vec::new(), camera: None, sensor_clock: Arc::new(std::sync::atomic::AtomicU64::new(0)), sensors: Vec::new(), inputs: None, steppers: Vec::new(), four_wire_steppers: Vec::new(), pin_sensors: None, rfid: Vec::new(), thermocouples: Vec::new(), gestures: Vec::new(), load_cells: Vec::new(), touches: Vec::new(), resistive_touches: Vec::new(), spi_displays: Vec::new(), led_displays: Vec::new(), max_displays: Vec::new(), strips: devices, gpio_hz: 0, oleds: displays, parallel_lcds: Vec::new(), lcds: Vec::new() })
     }
     pub fn configure_gpio_clock(&mut self, hz: u32) { self.gpio_hz = hz; }
     pub fn configure_sensors(&mut self, configs:&[super::SensorConfig], hz:u32)->Result<(),String> {
@@ -78,6 +79,11 @@ impl CircuitBoard {
 
 }
 impl BoardModel for CircuitBoard {
+    fn configure_four_wire_steppers(&mut self,configs:&[super::four_wire_stepper::Config])->Result<(),String> {
+        if configs.len()>16 || configs.iter().enumerate().any(|(i,c)|!c.valid() || configs[..i].iter().any(|p|p.id==c.id)) {return Err("invalid or duplicate four-winding driver identity".into());}
+        self.four_wire_steppers=configs.iter().map(|c|super::four_wire_stepper::FourWireStepper::new(*c)).collect::<Result<_,_>>()?;Ok(())
+    }
+    fn four_wire_stepper_position(&self,id:u8)->f64 {self.four_wire_steppers.iter().find(|d|d.config.id==id).map_or(f64::NAN,|d|d.position())}
     fn configure_steppers(&mut self,configs:&[super::stepper::StepperConfig])->Result<(),String> {
         if configs.len()>16 || configs.iter().enumerate().any(|(i,c)|!c.valid() || configs[..i].iter().any(|p|p.id==c.id)) {return Err("invalid or duplicate step/direction driver identity".into());}
         self.steppers=configs.iter().map(|c|super::stepper::Stepper::new(*c)).collect::<Result<_,_>>()?;Ok(())
@@ -225,7 +231,7 @@ impl BoardModel for CircuitBoard {
             strip.gpio_drive(cycle,self.gpio_hz,enabled,high);
         }
     }
-    fn gpio_drive(&mut self,cycle:u64,enabled:u64,output:u64) {for d in &mut self.thermocouples {d.advance(cycle);d.drive(enabled,output);}for lcd in &mut self.parallel_lcds {lcd.drive(cycle,enabled,output);}for stepper in &mut self.steppers {stepper.drive(enabled,output);}for p in &self.pwm_expanders {p.lock().unwrap().drive(enabled,output);}for cell in &mut self.load_cells {cell.gpio_drive(cycle,enabled,output);}for display in &self.led_displays {display.lock().unwrap().drive(enabled,output);}if let Some(s)=&mut self.pin_sensors{s.gpio_drive(cycle,enabled,output);}if let Some(inputs)=&mut self.inputs {inputs.gpio_drive(cycle,enabled,output);}}
+    fn gpio_drive(&mut self,cycle:u64,enabled:u64,output:u64) {for d in &mut self.thermocouples {d.advance(cycle);d.drive(enabled,output);}for lcd in &mut self.parallel_lcds {lcd.drive(cycle,enabled,output);}for stepper in &mut self.steppers {stepper.drive(enabled,output);}for stepper in &mut self.four_wire_steppers {stepper.drive(enabled,output);}for p in &self.pwm_expanders {p.lock().unwrap().drive(enabled,output);}for cell in &mut self.load_cells {cell.gpio_drive(cycle,enabled,output);}for display in &self.led_displays {display.lock().unwrap().drive(enabled,output);}if let Some(s)=&mut self.pin_sensors{s.gpio_drive(cycle,enabled,output);}if let Some(inputs)=&mut self.inputs {inputs.gpio_drive(cycle,enabled,output);}}
     fn released_inputs(&self)->Vec<u8> {
         let driven=self.input_levels();
         self.inputs.as_ref().map_or_else(Vec::new,|i|i.released_inputs()).into_iter()
