@@ -18,12 +18,12 @@ impl SensorConfig {
         self.sda < 49
             && self.scl < 49
             && self.sda != self.scl
-            && (self.model == 5 || self.shunt_milliohms == 0)
+            && (matches!(self.model, 5 | 38) || self.shunt_milliohms == 0)
             && match self.model {
                 1 | 2 | 10 => matches!(self.address, 0x76 | 0x77),
                 3 => matches!(self.address, 0x23 | 0x5c),
                 4 => matches!(self.address, 0x68 | 0x69),
-                5 => (0x40..=0x4f).contains(&self.address),
+                5 | 38 => (0x40..=0x4f).contains(&self.address),
                 6 | 29 => self.address == 0x68,
                 7 => self.address == 0x44,
                 8 => (0x48..=0x4b).contains(&self.address),
@@ -415,6 +415,7 @@ mod bno055;
 mod lsm6ds3;
 mod motion;
 mod power;
+mod ina228;
 mod rtc;
 mod temperature;
 mod fuel;
@@ -456,6 +457,7 @@ trait RegisterSensor {
         reg.wrapping_add(1)
     }
     fn register_width(&self, _reg: u8) -> u8 { 1 }
+    fn register_offset(&self, reg: u8) -> usize { reg as usize * 4 }
     fn read_ready(&self) -> bool {
         true
     }
@@ -516,6 +518,7 @@ impl Sensor {
             35 => Box::new(magnetometers::Lis3mdl::new(clock, hz)),
             36 => Box::new(pressure::Dps310::new(clock, hz)),
             37 => Box::new(pressure::Lps22df::new(clock, hz)),
+            38 => Box::new(ina228::Ina228::new(clock, hz, config.shunt_milliohms)),
             22 => Box::new(vl53l1x::Vl53l1x::new(clock, hz)),
             21 => Box::new(nau7802::Nau7802::new(clock, hz)),
             20 | 23..=25 => Box::new(fuel::Max1704x::new(clock, hz, config.model)),
@@ -698,7 +701,7 @@ impl I2cDevice for SensorI2c {
         match format {
             WireFormat::Block => {
                 let width=s.device.register_width(self.ptr);
-                let offset=self.ptr as usize*4+self.index as usize;
+                let offset=s.device.register_offset(self.ptr)+self.index as usize;
                 let value=if self.index<width && offset<256 {self.snapshot[offset]} else {0xff};
                 self.index=self.index.saturating_add(1);
                 if self.index==width {s.device.read_done(self.ptr);}
