@@ -45,6 +45,8 @@ impl SensorConfig {
                 28 => self.address == 0x10,
                 30 => self.address == 0x38,
                 31 => (0x18..=0x1f).contains(&self.address),
+                32 => self.address == 0x58,
+                33 => self.address == 0x59,
                 _ => false,
             }
     }
@@ -397,6 +399,7 @@ impl EnvironmentSensor {
     }
 }
 
+mod gas;
 mod humidity_light;
 mod analog;
 mod aht_mcp;
@@ -411,7 +414,7 @@ mod temperature;
 mod fuel;
 mod nau7802;
 mod vl53l1x;
-const FIELD_COUNT: usize = 59;
+const FIELD_COUNT: usize = 64;
 #[derive(Clone, Copy, PartialEq)]
 enum WireFormat {
     Bytes,
@@ -424,6 +427,9 @@ enum WireFormat {
 }
 
 trait RegisterSensor {
+    fn general_reset(&mut self) -> bool {
+        false
+    }
     fn format(&self) -> WireFormat {
         WireFormat::Bytes
     }
@@ -499,6 +505,7 @@ impl Sensor {
             28 => Box::new(humidity_light::Veml7700::new(clock, hz)),
             30 => Box::new(aht_mcp::Aht20::new(clock, hz)),
             31 => Box::new(aht_mcp::Mcp9808::new(clock, hz)),
+            32 | 33 => Box::new(gas::Gas::new(clock, hz, config.model, config.id)),
             22 => Box::new(vl53l1x::Vl53l1x::new(clock, hz)),
             21 => Box::new(nau7802::Nau7802::new(clock, hz)),
             20 | 23..=25 => Box::new(fuel::Max1704x::new(clock, hz, config.model)),
@@ -534,6 +541,7 @@ impl Sensor {
     }
 }
 pub struct SensorI2c {
+    general_call: bool,
     state: Arc<Mutex<Sensor>>,
     ptr: u8,
     wide_ptr: u16,
@@ -547,6 +555,7 @@ impl SensorI2c {
     pub fn new(state: Arc<Mutex<Sensor>>) -> Self {
         Self {
             state,
+            general_call: false,
             ptr: 0,
             wide_ptr: 0,
             first: true,
@@ -558,6 +567,14 @@ impl SensorI2c {
     }
 }
 impl I2cDevice for SensorI2c {
+    fn matches_address(&self, configured: u8, address: u8, read: bool) -> bool {
+        self.address(configured) == address
+            || (address == 0 && !read && matches!(self.state.lock().unwrap().config.model, 32 | 33))
+    }
+    fn start_address(&mut self, address: u8, read: bool) -> bool {
+        self.general_call = address == 0;
+        self.start(read)
+    }
     fn address(&self, configured: u8) -> u8 {
         self.state.lock().unwrap().device.address(configured)
     }
@@ -591,6 +608,13 @@ impl I2cDevice for SensorI2c {
     fn write(&mut self, b: u8) -> bool {
         let mut s = self.state.lock().unwrap();
         let format = s.device.format();
+        if self.general_call {
+            if !self.first {
+                return false;
+            }
+            self.first = false;
+            return b == 6 && s.device.general_reset();
+        }
         if format == WireFormat::Command {
             return s.device.write(0, b as u16);
         }
