@@ -66,6 +66,10 @@ trait MachineApi {
     fn audio_input(&mut self, target: (u32, u32, u32)) -> Option<&mut Option<esp_periph::pcm::PcmInput>>;
     fn audio_info(&mut self, target: (u32, u32, u32), field: u32) -> u32;
     fn gps_configure(&mut self,id:u32,pin:u32,baud:u32)->u32;
+    fn elm327_configure(&mut self,id:u32,tx:u32,rx:u32,baud:u32)->u32;
+    fn elm327_set(&mut self,id:u32,field:u32,value:f64)->u32;
+    fn elm327_generation(&self,id:u32)->u32;
+    fn elm327_value(&self,id:u32,field:u32)->f64;
     fn pzem_configure(&mut self,id:u32,tx:u32,rx:u32,range:u32,address:u32)->u32;
     fn pzem_set(&mut self,id:u32,field:u32,value:f64)->u32;
     fn pzem_generation(&self,id:u32)->u32;
@@ -310,6 +314,13 @@ impl<S: Soc> MachineApi for Machine<S> {
             match field { 0 => input.sample_rate, 1 => 16, 2 => input.channels, 3 => 1, _ => 0 }
         }
     }
+    fn elm327_configure(&mut self,id:u32,tx:u32,rx:u32,baud:u32)->u32 {
+        if self.gpio_state(tx)==u32::MAX || self.gpio_state(rx)==u32::MAX || (S::NAME=="esp32s3" && [tx,rx].iter().any(|p|(22..=25).contains(p))) {return 1;}
+        u32::from(!self.configure_elm327(id as usize,tx as u8,rx as u8,baud))
+    }
+    fn elm327_set(&mut self,id:u32,field:u32,value:f64)->u32 {u32::from(!self.set_elm327(id as usize,field,value))}
+    fn elm327_generation(&self,id:u32)->u32 {self.elm327_generation(id as usize)}
+    fn elm327_value(&self,id:u32,field:u32)->f64 {self.elm327_value(id as usize,field)}
     fn pzem_configure(&mut self,id:u32,tx:u32,rx:u32,range:u32,address:u32)->u32 {
         if self.gpio_state(tx)==u32::MAX || self.gpio_state(rx)==u32::MAX || (S::NAME=="esp32s3" && [tx,rx].iter().any(|p|(22..=25).contains(p))) || ![10,100].contains(&range) || !(1..=247).contains(&address) {return 1;}
         u32::from(!self.configure_pzem(id as usize,tx as u8,rx as u8,range as u8,address as u8))
@@ -3026,5 +3037,35 @@ mod vl53l5cx_tests {
         check!(esp32s3::machine([0;6]),49);
         check!(esp32c3::machine([0;6],4<<20),22);
         check!(esp32c6::machine([0;6],4<<20),31);
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn esp32sim_elm327_configure(e:*mut Emu,id:u32,tx:u32,rx:u32,baud:u32)->u32 {if e.is_null() || unsafe{&*e}.booted{return 1;}unsafe{&mut *e}.m.elm327_configure(id,tx,rx,baud)}
+#[no_mangle]
+pub unsafe extern "C" fn esp32sim_elm327_set(e:*mut Emu,id:u32,field:u32,value:f64)->u32 {if e.is_null(){return 1;}unsafe{&mut *e}.m.elm327_set(id,field,value)}
+#[no_mangle]
+pub unsafe extern "C" fn esp32sim_elm327_generation(e:*const Emu,id:u32)->u32 {if e.is_null(){return u32::MAX;}unsafe{&*e}.m.elm327_generation(id)}
+#[no_mangle]
+pub unsafe extern "C" fn esp32sim_elm327_value(e:*const Emu,id:u32,field:u32)->f64 {if e.is_null(){return f64::NAN;}unsafe{&*e}.m.elm327_value(id,field)}
+
+#[cfg(test)]
+mod elm327_tests {
+    use super::*;
+    #[test]
+    fn elm327_abi_validates_all_chips_fields_and_uart_conflicts() {
+        unsafe { for chip in ["none","esp32c3","esp32c6"] {
+            let e=esp32sim_new(chip.as_ptr(),chip.len(),4,0); assert!(!e.is_null());
+            assert_eq!(esp32sim_elm327_configure(e,0,4,5,38400),0);
+            assert_eq!(esp32sim_elm327_configure(e,1,6,7,38400),0);
+            for (id,tx,rx,baud) in [(4,8,9,38400),(2,49,9,38400),(2,8,8,38400),(2,8,9,9600),(2,5,9,38400)] { assert_eq!(esp32sim_elm327_configure(e,id,tx,rx,baud),1); }
+            assert_eq!(esp32sim_pzem_configure(e,0,4,8,100,1),1);assert_eq!(esp32sim_gps_configure(e,0,5,9600),1);assert_eq!(esp32sim_radar_configure(e,0,9,6),1);
+            assert_eq!(esp32sim_pzem_configure(e,0,10,11,100,1),0);assert_eq!(esp32sim_elm327_configure(e,2,11,12,38400),1);
+            assert_eq!(esp32sim_gps_configure(e,0,12,9600),0);assert_eq!(esp32sim_elm327_configure(e,2,12,13,38400),1);
+            assert_eq!(esp32sim_radar_configure(e,0,13,14),0);assert_eq!(esp32sim_elm327_configure(e,2,15,14,38400),1);
+            assert_eq!(esp32sim_elm327_set(e,0,0,1200.),0);assert_eq!(esp32sim_elm327_set(e,0,5,0.5),1);assert_eq!(esp32sim_elm327_set(e,0,4,f64::NAN),1);
+            assert_eq!(esp32sim_elm327_generation(e,0),0);assert!(esp32sim_elm327_value(e,0,0).is_nan());assert_eq!(esp32sim_elm327_generation(e,4),u32::MAX);
+            (*e).booted=true;assert_eq!(esp32sim_elm327_configure(e,0,4,5,38400),1);esp32sim_delete(e);
+        }}
     }
 }

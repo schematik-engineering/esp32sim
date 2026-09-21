@@ -49,3 +49,5 @@ pub mod pca9685;
 pub mod stepper;
 
 pub mod thermocouple;
+
+pub mod elm327;

@@ -85,6 +85,7 @@ pub struct Machine<S: Soc> {
     gps: [Option<crate::devices::gps::Gps>;4],
     gps_next: u64,
     radars: [Option<crate::devices::radar::Radar>;4],
+    elm327_adapters: [Option<crate::devices::elm327::Elm327>;4],
     pzem_meters: [Option<crate::devices::pzem::Pzem>;4],
     pub max_cycles: u64,
     pub console: Console,
@@ -179,6 +180,7 @@ impl<S: Soc> Machine<S> {
             exceptions: 0, interrupts: 0, irq_hist: vec![[0; 32]; S::CORES],
             gps: std::array::from_fn(|_|None), gps_next:u64::MAX,
             radars: std::array::from_fn(|_|None),
+            elm327_adapters: std::array::from_fn(|_|None),
             pzem_meters: std::array::from_fn(|_|None),
             script: Script { events: Vec::new(), pos: 0, log: true, knob_next: 0 }, max_cycles: u64::MAX,
             console: Console { all: Vec::new(), usb: Vec::new(), uart0: Vec::new(), mask: 3, prefix: false, capture: false },
@@ -324,6 +326,11 @@ impl<S: Soc> Machine<S> {
         use std::io::Write;
         let streams = self.bus.console_take();
         for (port, bytes) in streams.iter().enumerate().skip(1) {
+            for adapter in self.elm327_adapters.iter_mut().flatten() {
+                if self.bus.uart_tx_route(port-1,adapter.rx_pin,crate::devices::elm327::BAUD) {
+                    for &byte in bytes {adapter.receive(byte,self.bus.cycles(),S::CPU_HZ);}
+                }
+            }
             for meter in self.pzem_meters.iter_mut().flatten() {
                 if self.bus.uart_tx_route(port - 1, meter.rx_pin, crate::devices::pzem::BAUD) {
                     for &byte in bytes {meter.receive(byte,self.bus.cycles(),S::CPU_HZ);}
@@ -587,7 +594,7 @@ impl<S: Soc> Machine<S> {
     }
 
     pub fn configure_gps(&mut self, id: usize, pin: u8, baud: u32) -> bool {
-        if self.pzem_meters.iter().flatten().any(|m|m.tx_pin==pin||m.rx_pin==pin) || id >= self.gps.len()
+        if self.elm327_adapters.iter().flatten().any(|m|m.tx_pin==pin||m.rx_pin==pin) || self.pzem_meters.iter().flatten().any(|m|m.tx_pin==pin||m.rx_pin==pin) || id >= self.gps.len()
             || pin >= 49
             || !(1200..=115200).contains(&baud)
             || self
@@ -608,7 +615,7 @@ impl<S: Soc> Machine<S> {
         self.gps_next=self.bus.cycles();true
     }
     pub fn configure_radar(&mut self, id: usize, tx: u8, rx: u8) -> bool {
-        if self.pzem_meters.iter().flatten().any(|m|[m.tx_pin,m.rx_pin].iter().any(|p|*p==tx||*p==rx)) || id >= 4
+        if self.elm327_adapters.iter().flatten().any(|m|[m.tx_pin,m.rx_pin].iter().any(|p|*p==tx||*p==rx)) || self.pzem_meters.iter().flatten().any(|m|[m.tx_pin,m.rx_pin].iter().any(|p|*p==tx||*p==rx)) || id >= 4
             || tx >= 49
             || rx >= 49
             || tx == rx
@@ -640,7 +647,7 @@ impl<S: Soc> Machine<S> {
     pub fn radar_generation(&self,id:usize)->u32 {self.radars.get(id).and_then(Option::as_ref).map_or(u32::MAX,|r|r.generation)}
     pub fn radar_value(&self,id:usize,field:u32)->f64 {self.radars.get(id).and_then(Option::as_ref).and_then(|r|r.readings.get(field as usize)).copied().unwrap_or(f64::NAN)}
     pub fn configure_pzem(&mut self,id:usize,tx:u8,rx:u8,current_range:u8,address:u8)->bool {
-        if id>=4 || tx>=49 || rx>=49 || tx==rx || ![10,100].contains(&current_range) || !(1..=247).contains(&address)
+        if self.elm327_adapters.iter().flatten().any(|m|[m.tx_pin,m.rx_pin].iter().any(|p|*p==tx||*p==rx)) || id>=4 || tx>=49 || rx>=49 || tx==rx || ![10,100].contains(&current_range) || !(1..=247).contains(&address)
             || self.pzem_meters.iter().enumerate().any(|(i,m)|i!=id && m.as_ref().is_some_and(|m|[m.tx_pin,m.rx_pin].iter().any(|p|*p==tx||*p==rx)))
             || self.radars.iter().flatten().any(|m|[m.tx_pin,m.rx_pin].iter().any(|p|*p==tx||*p==rx))
             || self.gps.iter().flatten().any(|g|g.pin==tx||g.pin==rx) {return false;}
@@ -651,6 +658,17 @@ impl<S: Soc> Machine<S> {
     }
     pub fn pzem_generation(&self,id:usize)->u32 {self.pzem_meters.get(id).and_then(Option::as_ref).map_or(u32::MAX,|m|m.generation)}
     pub fn pzem_value(&self,id:usize,field:u32)->f64 {self.pzem_meters.get(id).and_then(Option::as_ref).and_then(|m|m.readings.get(field as usize)).copied().unwrap_or(f64::NAN)}
+    pub fn configure_elm327(&mut self,id:usize,tx:u8,rx:u8,baud:u32)->bool {
+        if id>=4 || tx>=49 || rx>=49 || tx==rx || baud!=crate::devices::elm327::BAUD
+            || self.elm327_adapters.iter().enumerate().any(|(i,m)|i!=id && m.as_ref().is_some_and(|m|[m.tx_pin,m.rx_pin].iter().any(|p|*p==tx||*p==rx)))
+            || self.pzem_meters.iter().flatten().any(|m|[m.tx_pin,m.rx_pin].iter().any(|p|*p==tx||*p==rx))
+            || self.radars.iter().flatten().any(|m|[m.tx_pin,m.rx_pin].iter().any(|p|*p==tx||*p==rx))
+            || self.gps.iter().flatten().any(|g|g.pin==tx||g.pin==rx) {return false;}
+        self.elm327_adapters[id]=Some(crate::devices::elm327::Elm327::new(tx,rx));true
+    }
+    pub fn set_elm327(&mut self,id:usize,field:u32,value:f64)->bool {self.elm327_adapters.get_mut(id).and_then(Option::as_mut).is_some_and(|m|m.set(field,value))}
+    pub fn elm327_generation(&self,id:usize)->u32 {self.elm327_adapters.get(id).and_then(Option::as_ref).map_or(u32::MAX,|m|m.generation)}
+    pub fn elm327_value(&self,id:usize,field:u32)->f64 {self.elm327_adapters.get(id).and_then(Option::as_ref).and_then(|m|m.readings.get(field as usize)).copied().unwrap_or(f64::NAN)}
     fn next_uart_deadline(&self) -> Option<u64> {
         let next = self
             .radars
@@ -658,6 +676,7 @@ impl<S: Soc> Machine<S> {
             .flatten()
             .map(|r| r.deadline())
             .chain(self.pzem_meters.iter().flatten().map(|m|m.deadline()))
+            .chain(self.elm327_adapters.iter().flatten().map(|m|m.deadline(S::CPU_HZ)))
             .min()
             .unwrap_or(u64::MAX)
             .min(self.gps_next);
@@ -984,6 +1003,9 @@ impl<S: Soc> Machine<S> {
     #[inline]
     fn apply_script_events(&mut self) -> bool {
         self.apply_gps();
+        for adapter in self.elm327_adapters.iter_mut().flatten() {
+            if let Some(byte)=adapter.take_byte(self.bus.cycles(),S::CPU_HZ) {self.bus.uart_pin_input(adapter.tx_pin,crate::devices::elm327::BAUD,byte);}
+        }
         for meter in self.pzem_meters.iter_mut().flatten() {
             if let Some(byte)=meter.take_byte(self.bus.cycles(),S::CPU_HZ) {self.bus.uart_pin_input(meter.tx_pin,crate::devices::pzem::BAUD,byte);}
         }
