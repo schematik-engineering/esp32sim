@@ -67,6 +67,7 @@ impl SensorConfig {
                 49 => self.address == 0x57,
                 54 => self.address == 0x12,
                 55 => (1..=3).contains(&self.address),
+                57 => self.address == 0x42,
                 _ => false,
             }
     }
@@ -437,6 +438,7 @@ mod environment_extra;
 mod bme680;
 mod bno055;
 mod bno08x;
+mod ublox;
 mod lsm6ds3;
 mod motion;
 mod power;
@@ -452,7 +454,7 @@ mod vl53l0x;
 mod ezo_ph;
 mod max30105;
 mod as3935;
-const FIELD_COUNT: usize = 96;
+const FIELD_COUNT: usize = 103;
 #[derive(Clone, Copy, PartialEq)]
 enum WireFormat {
     Bytes,
@@ -555,6 +557,7 @@ impl Sensor {
             51 => Box::new(bmi270::Bmi270::new(clock, hz)),
             52 => Box::new(bmm150::Bmm150::new(clock, hz)),
             53 => Box::new(bno08x::Bno085::new(clock, hz)),
+                57 => Box::new(ublox::SamM8q::new(clock, hz)),
             50 => Box::new(icm42688::Icm42688::new(clock, hz)),
             47 => Box::new(mlx90393::Mlx90393::new(clock, hz)),
             36 => Box::new(pressure::Dps310::new(clock, hz)),
