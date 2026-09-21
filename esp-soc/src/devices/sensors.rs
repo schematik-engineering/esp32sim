@@ -57,6 +57,7 @@ impl SensorConfig {
                 43 => (0x36..=0x3d).contains(&self.address),
                 46 => matches!(self.address, 0x6a | 0x6b),
                 44 => (0x36..=0x39).contains(&self.address),
+                45 => (1..=127).contains(&self.address),
                 _ => false,
             }
     }
@@ -432,7 +433,8 @@ mod fuel;
 mod nau7802;
 mod vl53l1x;
 mod vl53l0x;
-const FIELD_COUNT: usize = 76;
+mod ezo_ph;
+const FIELD_COUNT: usize = 77;
 #[derive(Clone, Copy, PartialEq)]
 enum WireFormat {
     Bytes,
@@ -536,6 +538,7 @@ impl Sensor {
             40 => Box::new(as7341::As7341::new(clock, hz)),
             41 => Box::new(vl53l0x::Vl53l0x::new(clock, hz)),
             42..=44 => Box::new(seesaw::Seesaw::new(clock, hz, config.model)),
+            45 => Box::new(ezo_ph::EzoPh::new(clock, hz, config.address)),
             22 => Box::new(vl53l1x::Vl53l1x::new(clock, hz)),
             21 => Box::new(nau7802::Nau7802::new(clock, hz)),
             20 | 23..=25 => Box::new(fuel::Max1704x::new(clock, hz, config.model)),
