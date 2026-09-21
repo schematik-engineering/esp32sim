@@ -44,6 +44,8 @@ pub trait BoardModel {
     fn distance_mm(&mut self, _id:u8, _value:u32)->bool {false}
     fn keypad_press(&mut self, _id:u8, _row:usize, _column:usize)->bool {false}
     fn encoder_steps(&mut self, _id:u8, _steps:i32)->bool {false}
+    /// CPU-driven GPIO pulse timing; peripheral matrix routes are decoded by their own devices.
+    fn gpio_waveform(&mut self, _cycle:u64, _gpio:&esp_periph::gpio::Gpio, _signal:u32) {}
     fn gpio_drive(&mut self, _cycle:u64, _enabled:u64, _output:u64) {}
     fn released_inputs(&self)->Vec<u8> {Vec::new()}
     fn configure_pin_sensors(&mut self,_configs:&[crate::devices::pin_sensor::Config],_hz:u64)->Result<(),String>{Err("board cannot attach GPIO sensors".into())}

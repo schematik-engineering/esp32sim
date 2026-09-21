@@ -39,6 +39,7 @@ pub struct SocBus {
     /// a bare module: nothing on the pins
     pub board: esp_soc::Board,
     pub cycles: u64,
+    gpio_cycle: u64,
     pub last_fault: Option<(u32, bool)>,
     /// a peripheral write may have moved an interrupt line: re-derive before the next instruction
     pub irq_dirty: bool,
@@ -73,7 +74,7 @@ impl SocBus {
             flash: vec![0xff; flash_size],
             mmu: [0; MMU_ENTRIES], mmu_index: 0, mmu_power_ctrl: 0,
             periph: Peripherals::new(mac), board: Box::new(esp_soc::NoBoard),
-            cycles: 0, last_fault: None, irq_dirty: true, gpio_events: None, debug: Default::default(),
+            cycles: 0, gpio_cycle: 0, last_fault: None, irq_dirty: true, gpio_events: None, debug: Default::default(),
         }
     }
 
@@ -142,6 +143,7 @@ impl SocBus {
         let v = if size == 4 { v } else { merge(self.periph.read32(a)) };
         let old_drive=(self.periph.gpio.enable,self.periph.gpio.out);
         self.periph.write32(a, v);
+        if (PERIPH_BASE+0x90000..PERIPH_BASE+0x92000).contains(&a) { self.board.gpio_waveform(self.gpio_cycle.max(self.cycles),&self.periph.gpio,128); }
         if old_drive!=(self.periph.gpio.enable,self.periph.gpio.out) {
             self.board.gpio_drive(self.cycles,self.periph.gpio.enable,self.periph.gpio.out);
             self.sync_board_inputs();
@@ -611,9 +613,12 @@ impl Bus for SocBus {
     }
     fn tick(&mut self, cycles: u32) -> u32 {
         self.cycles += cycles as u64;
+        self.gpio_cycle = self.cycles;
         self.devices(cycles);
         1
     }
+    #[inline(always)]
+    fn note_instruction_cycles(&mut self, cycles:u32) { self.gpio_cycle += u64::from(cycles); }
     #[inline(always)]
     fn note_pc(&mut self, pc: u32) { self.periph.misc.cur_pc = pc; }
     /// a peripheral write may have moved a line: the core's run stops so the machine re-derives it

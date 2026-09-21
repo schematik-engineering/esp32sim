@@ -17,6 +17,7 @@ pub struct CircuitBoard {
     touches: Vec<Arc<Mutex<super::touch::TouchController>>>,
     resistive_touches: Vec<Arc<Mutex<super::resistive_touch::ResistiveTouch>>>,
     strips: Vec<(u8, Ws2812Chain)>,
+    gpio_hz: u32,
     max_displays: Vec<super::max7219::Max7219>,
     led_displays: Vec<Arc<Mutex<super::led_display::LedDisplay>>>,
     spi_displays: Vec<super::spi_display::SpiDisplay>,
@@ -56,8 +57,9 @@ impl CircuitBoard {
             }
             displays.push(Arc::new(Mutex::new(Ssd1306::new(*config)?)));
         }
-        Ok(Self { pwm_expanders:Vec::new(), camera: None, sensor_clock: Arc::new(std::sync::atomic::AtomicU64::new(0)), sensors: Vec::new(), inputs: None, steppers: Vec::new(), pin_sensors: None, rfid: Vec::new(), gestures: Vec::new(), load_cells: Vec::new(), touches: Vec::new(), resistive_touches: Vec::new(), spi_displays: Vec::new(), led_displays: Vec::new(), max_displays: Vec::new(), strips: devices, oleds: displays, lcds: Vec::new() })
+        Ok(Self { pwm_expanders:Vec::new(), camera: None, sensor_clock: Arc::new(std::sync::atomic::AtomicU64::new(0)), sensors: Vec::new(), inputs: None, steppers: Vec::new(), pin_sensors: None, rfid: Vec::new(), gestures: Vec::new(), load_cells: Vec::new(), touches: Vec::new(), resistive_touches: Vec::new(), spi_displays: Vec::new(), led_displays: Vec::new(), max_displays: Vec::new(), strips: devices, gpio_hz: 0, oleds: displays, lcds: Vec::new() })
     }
+    pub fn configure_gpio_clock(&mut self, hz: u32) { self.gpio_hz = hz; }
     pub fn configure_sensors(&mut self, configs:&[super::SensorConfig], hz:u32)->Result<(),String> {
         if configs.len()>16 || hz==0 {return Err("invalid sensor count or clock".into());}
         for (i,c) in configs.iter().enumerate() {
@@ -138,7 +140,7 @@ impl BoardModel for CircuitBoard {
     fn pin_sensor_generation(&self,id:u8)->u32{self.pin_sensors.as_ref().map_or(u32::MAX,|s|s.generation(id))}
     fn pin_sensor_value(&self,id:u8,field:u32)->f64{self.pin_sensors.as_ref().map_or(f64::NAN,|s|s.value(id,field))}
 
-    fn advance_to(&mut self, cycle:u64) {for p in &self.pwm_expanders {p.lock().unwrap().advance(cycle);}for display in &self.led_displays {display.lock().unwrap().advance(cycle);}for cell in &mut self.load_cells {cell.advance(cycle);}for sensor in &self.gestures {sensor.lock().unwrap().advance(cycle);}for reader in &mut self.rfid {reader.advance_to(cycle);} if let Some(s)=&mut self.pin_sensors{s.advance(cycle);} if let Some(inputs)=&mut self.inputs {inputs.advance_to(cycle);} self.sensor_clock.store(cycle,std::sync::atomic::Ordering::Relaxed); for lcd in &self.lcds {lcd.lock().unwrap().advance();} for t in &self.touches {t.lock().unwrap().advance(cycle);} for t in &self.resistive_touches {t.lock().unwrap().advance(cycle);} }
+    fn advance_to(&mut self, cycle:u64) {for (_,strip) in &mut self.strips {strip.advance_gpio(cycle,self.gpio_hz);}for p in &self.pwm_expanders {p.lock().unwrap().advance(cycle);}for display in &self.led_displays {display.lock().unwrap().advance(cycle);}for cell in &mut self.load_cells {cell.advance(cycle);}for sensor in &self.gestures {sensor.lock().unwrap().advance(cycle);}for reader in &mut self.rfid {reader.advance_to(cycle);} if let Some(s)=&mut self.pin_sensors{s.advance(cycle);} if let Some(inputs)=&mut self.inputs {inputs.advance_to(cycle);} self.sensor_clock.store(cycle,std::sync::atomic::Ordering::Relaxed); for lcd in &self.lcds {lcd.lock().unwrap().advance();} for t in &self.touches {t.lock().unwrap().advance(cycle);} for t in &self.resistive_touches {t.lock().unwrap().advance(cycle);} }
     fn configure_load_cells(&mut self,configs:&[super::hx711::LoadCellConfig],hz:u64)->Result<(),String>{
         if configs.len()>16||hz==0{return Err("invalid load cell count or clock".into());}
         for (i,c) in configs.iter().enumerate(){
@@ -186,6 +188,15 @@ impl BoardModel for CircuitBoard {
     fn distance_mm(&mut self,id:u8,value:u32)->bool {self.inputs.as_mut().is_some_and(|inputs|inputs.distance_mm(id,value))}
     fn keypad_press(&mut self,id:u8,row:usize,column:usize)->bool {self.inputs.as_mut().is_some_and(|inputs|inputs.keypad_press(id,row,column))}
     fn encoder_steps(&mut self,id:u8,steps:i32)->bool {self.inputs.as_mut().is_some_and(|inputs|inputs.encoder_steps(id,steps))}
+    fn gpio_waveform(&mut self, cycle:u64, gpio:&esp_periph::gpio::Gpio, signal:u32) {
+        for (pin,strip) in &mut self.strips {
+            let route=gpio.func_out_sel[*pin as usize];
+            let enabled=gpio.enable & (1u64<<*pin)!=0 && route & (signal*2-1)==signal
+                && route & (signal*8)==0 && (gpio.io_mux[*pin as usize]>>12)&7==1;
+            let high=(gpio.out & (1u64<<*pin)!=0) ^ (route & (signal*2)!=0);
+            strip.gpio_drive(cycle,self.gpio_hz,enabled,high);
+        }
+    }
     fn gpio_drive(&mut self,cycle:u64,enabled:u64,output:u64) {for stepper in &mut self.steppers {stepper.drive(enabled,output);}for p in &self.pwm_expanders {p.lock().unwrap().drive(enabled,output);}for cell in &mut self.load_cells {cell.gpio_drive(cycle,enabled,output);}for display in &self.led_displays {display.lock().unwrap().drive(enabled,output);}if let Some(s)=&mut self.pin_sensors{s.gpio_drive(cycle,enabled,output);}if let Some(inputs)=&mut self.inputs {inputs.gpio_drive(cycle,enabled,output);}}
     fn released_inputs(&self)->Vec<u8> {
         let driven=self.input_levels();
@@ -356,6 +367,34 @@ mod tests {
         assert_eq!(board.strip_frames().len(),1);
         assert!(board.configure_led_displays(&[c,c],1000).is_err());assert_eq!(board.project_displays().len(),3);
     }
+    #[test]
+    fn gpio_ws2812_routes_ignore_peripherals_input_pins_and_other_mux_functions() {
+        for signal in [128,256] {
+            for (route,mux,enable,inverted,valid) in [
+                (signal,1<<12,1<<4,false,true),
+                (signal | signal*2,1<<12,1<<4,true,true),
+                (71,1<<12,1<<4,false,false),
+                (signal,0,1<<4,false,false),
+                (signal,1<<12,0,false,false),
+                (signal | signal*8,1<<12,1<<4,false,false),
+            ] {
+                let mut board=CircuitBoard::new(&[(4,1),(5,1)],&[]).unwrap();board.configure_gpio_clock(160_000_000);
+                let mut gpio=esp_periph::gpio::Gpio::new();gpio.func_out_sel[4]=route;gpio.io_mux[4]=mux;gpio.enable=enable;
+                let mut at=0;
+                for byte in [0x12u8,0x34,0x56] {for i in (0..8).rev() {
+                    let one=byte & (1<<i)!=0;
+                    gpio.out=if inverted {0}else{1<<4};board.gpio_waveform(at,&gpio,signal);
+                    at+=if one {128}else{64};gpio.out=if inverted {1<<4}else{0};board.gpio_waveform(at,&gpio,signal);
+                    at+=if one {72}else{136};
+                }}
+                board.advance_to(at+8000);
+                assert_eq!(board.strips[0].1.updates,u64::from(valid));
+                assert_eq!(board.strips[1].1.updates,0,"wrong pin cannot get another strip's frame");
+                if valid {assert_eq!(board.strips[0].1.leds,vec![[0x34,0x12,0x56]]);}
+            }
+        }
+    }
+
     #[test]
     fn strips_keep_their_pin_identity_and_wire_color_order() {
         let mut board = CircuitBoard::new(&[(4, 2), (5, 1)], &[]).unwrap();

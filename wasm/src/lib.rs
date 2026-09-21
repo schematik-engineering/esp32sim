@@ -236,6 +236,7 @@ impl<S: Soc> MachineApi for Machine<S> {
         }
         if sensors.iter().any(|device| [device.sda,device.scl].iter().any(|pin|self.gpio_state(*pin as u32)==u32::MAX)) {return Err("Sensor pin outside chip register range".into());}
         let mut board=esp_soc::devices::CircuitBoard::new(strips,oleds)?;
+        board.configure_gpio_clock(S::CPU_HZ as u32);
         board.configure_sensors(sensors,S::CPU_HZ as u32)?;
         board.camera=self.bus.board_ref().camera();
         self.bus.set_board(Box::new(board));
@@ -2750,5 +2751,45 @@ mod stepper_tests {
             let duplicate=[record,record].concat();assert_eq!(esp32sim_steppers(e,duplicate.as_ptr(),16),1);
             (*e).booted=true;assert_eq!(esp32sim_steppers(e,record.as_ptr(),8),1);esp32sim_delete(e);
         }}
+    }
+}
+
+#[cfg(test)]
+mod gpio_strip_timing_tests {
+    use super::*;
+    #[test]
+    fn risc_v_gpio_pulses_keep_instruction_timing_inside_scheduler_quanta() {
+        macro_rules! check {($machine:expr,$ram:expr)=>{{
+            let mut m=$machine;assert!(m.bus.periph.gpio.func_out_sel.iter().all(|v|*v==128),"RV32 GPIO reset selects CPU output without inversion");m.configure_circuit(&[(4,1)],&[],&[]).unwrap();
+            m.bus.periph.gpio.enable=1<<4;m.bus.periph.gpio.func_out_sel[4]=128;m.bus.periph.gpio.io_mux[4]=1<<12;
+            let mut words=vec![0x00000013u32;31];
+            for byte in [0x13u8,0x11,0x17] {for bit in (0..8).rev() {
+                words.push(0x0020a423); // sw x2,8(x1): GPIO_OUT_W1TS
+                words.extend(std::iter::repeat_n(0x00000013,if byte&(1<<bit)!=0{117}else{53}));
+                words.push(0x0020a623); // sw x2,12(x1): GPIO_OUT_W1TC
+                words.extend(std::iter::repeat_n(0x00000013,81));
+            }}
+            words.push(0x10500073); // wfi
+            let bytes:Vec<u8>=words.into_iter().flat_map(u32::to_le_bytes).collect();
+            m.bus.load_bytes($ram,&bytes).unwrap();m.cores[0].pc=$ram;m.cores[0].x[1]=if $ram==0x40800000{0x60091000}else{0x60004000};m.cores[0].x[2]=1<<4;
+            m.run_until_cycle(40_000);
+            let frames=m.bus.board_ref().strip_frames();assert_eq!(frames[0].1,&[[0x11,0x13,0x17]]);assert_eq!(frames[0].2,1);
+            m.bus.periph.gpio.func_out_sel[4]|=256;
+            let inverse:Vec<u8>=bytes.chunks_exact(4).flat_map(|b| {let word=u32::from_le_bytes(b.try_into().unwrap());match word {0x0020a423=>0x0020a623u32,0x0020a623=>0x0020a423u32,_=>word}.to_le_bytes()}).collect();
+            m.bus.load_bytes($ram,&inverse).unwrap();m.cores[0].waiting=false;m.cores[0].pc=$ram;
+            m.run_until_cycle(80_000);
+            assert_eq!(m.bus.board_ref().strip_frames()[0].1,&[[0x11,0x13,0x17]]);
+            assert_eq!(m.bus.board_ref().strip_frames()[0].2,2,"matrix inversion is applied once");
+            m.bus.reboot([0;6]);assert!(m.bus.periph.gpio.func_out_sel.iter().all(|v|*v==128),"chip reset clears inversion");
+            // A reset can end a scheduler quantum before all 64 CPU cycles execute.
+            m.reboot();m.cores[0].cycle_count-=47;
+            m.bus.periph.gpio.enable=1<<4;m.bus.periph.gpio.io_mux[4]=1<<12;
+            m.bus.load_bytes($ram,&bytes).unwrap();m.cores[0].pc=$ram;m.cores[0].x[1]=if $ram==0x40800000{0x60091000}else{0x60004000};m.cores[0].x[2]=1<<4;
+            m.run_until_cycle(120_000);
+            assert_eq!(m.bus.board_ref().strip_frames()[0].1,&[[0x11,0x13,0x17]]);
+            assert_eq!(m.bus.board_ref().strip_frames()[0].2,3,"CPU reset cannot shift GPIO pulse timing");
+        }};}
+        check!(esp32c3::machine([0;6],4<<20),0x40380000);
+        check!(esp32c6::machine([0;6],4<<20),0x40800000);
     }
 }

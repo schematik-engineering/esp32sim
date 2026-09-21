@@ -282,6 +282,7 @@ impl SocBus {
         let old_gpio_out = self.periph.gpio.out;
         let old_drive=(self.periph.gpio.enable,self.periph.gpio.out);
         self.periph.write32(a, v);
+        if (PERIPH_BASE+0x4000..PERIPH_BASE+0x5000).contains(&a) || (PERIPH_BASE+0x9000..PERIPH_BASE+0xa000).contains(&a) { self.board.gpio_waveform(self.cycles,&self.periph.gpio,256); }
         if old_drive!=(self.periph.gpio.enable,self.periph.gpio.out) {
             self.board.gpio_drive(self.cycles,self.periph.gpio.enable,self.periph.gpio.out);
             self.sync_board_inputs();

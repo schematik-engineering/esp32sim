@@ -61,6 +61,10 @@ pub trait Bus {
     /// The pc of the instruction about to execute, for buses that attribute accesses to code.
     #[inline(always)]
     fn note_pc(&mut self, pc: u32) { let _ = pc; }
+    /// Advance the local instruction-completion timestamp before its bus accesses.
+    /// Pulse timing only: the shared scheduler/device horizon still advances through `tick`.
+    #[inline(always)]
+    fn note_instruction_cycles(&mut self, _cycles:u32) {}
     /// True when the last instruction may have changed an interrupt line, so a block must end
     /// and let the machine re-derive the CPU's interrupt inputs before the next instruction.
     #[inline(always)]

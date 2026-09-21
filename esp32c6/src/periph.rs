@@ -504,7 +504,7 @@ impl Peripherals {
             adc: Adc::new(AdcLayout::C6),
             rf_cal: RfCal::default(),
             uart: [Uart::new(UartLayout::C6), Uart::new(UartLayout::C6)], usb: UsbSerialJtag::new(CPU_HZ), systimer: Systimer::new(),
-            timg: [TimerGroup::new(), TimerGroup::new()], gpio: Gpio::new(), ledc: Ledc::new(LedcLayout::C6),
+            timg: [TimerGroup::new(), TimerGroup::new()], gpio: {let mut gpio=Gpio::new();gpio.func_out_sel.fill(128);gpio}, ledc: Ledc::new(LedcLayout::C6),
             efuse: efuse_c6(mac, 0, 1, 1, 0, 3),
             spi0: SpiMemC6({ let mut s = SpiMem::new(false); s.has_psram = false; s }),
             spi1: SpiMemC6({ let mut s = SpiMem::new(true); s.has_psram = false; s }),   // no PSRAM on the C6

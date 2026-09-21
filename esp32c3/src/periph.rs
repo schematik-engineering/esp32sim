@@ -337,7 +337,7 @@ impl Peripherals {
             fe_iq: FeIq::default(),
             wifi: WifiMac::new(CPU_HZ, esp_periph::DMA_ADDR_BASE),
             uart: [Uart::new(UartLayout::C3), Uart::new(UartLayout::C3)], usb: UsbSerialJtag::new(CPU_HZ), systimer: Systimer::new(),
-            timg: [TimerGroup::new(), TimerGroup::new()], gpio: Gpio::new(), rmt: RmtCompact::new(CPU_HZ), ledc: Ledc::new(LedcLayout::C3), rtc: RtcCntl::new(),
+            timg: [TimerGroup::new(), TimerGroup::new()], gpio: {let mut gpio=Gpio::new();gpio.func_out_sel.fill(128);gpio}, rmt: RmtCompact::new(CPU_HZ), ledc: Ledc::new(LedcLayout::C3), rtc: RtcCntl::new(),
             efuse: efuse_c3(mac, 0, 4, 3), system: SystemRegs::new(0x28), extmem: Extmem::new(), intc: Intc::new(),
             spi0: { let mut s = SpiMem::new(false); s.has_psram = false; s },
             spi1: { let mut s = SpiMem::new(true); s.has_psram = false; s },   // the C3 has no PSRAM
