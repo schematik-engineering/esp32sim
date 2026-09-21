@@ -40,6 +40,9 @@ impl SensorConfig {
                 20 | 23..=25 => self.address == 0x36,
                 21 => self.address == 0x2a,
                 22 => self.address == 0x29,
+                26 => matches!(self.address, 0x44 | 0x45),
+                27 => self.address == 0x70,
+                28 => self.address == 0x10,
                 _ => false,
             }
     }
@@ -392,6 +395,7 @@ impl EnvironmentSensor {
     }
 }
 
+mod humidity_light;
 mod analog;
 mod environment_extra;
 mod bme680;
@@ -488,6 +492,8 @@ pub struct Sensor {
 impl Sensor {
     pub fn new(config: SensorConfig, clock: Arc<AtomicU64>, hz: u32) -> Self {
         let device: Box<dyn RegisterSensor> = match config.model {
+            26 | 27 => Box::new(humidity_light::Humidity::new(clock, hz, config.model)),
+            28 => Box::new(humidity_light::Veml7700::new(clock, hz)),
             22 => Box::new(vl53l1x::Vl53l1x::new(clock, hz)),
             21 => Box::new(nau7802::Nau7802::new(clock, hz)),
             20 | 23..=25 => Box::new(fuel::Max1704x::new(clock, hz, config.model)),
