@@ -51,6 +51,7 @@ impl SensorConfig {
                 35 => matches!(self.address, 0x1c | 0x1e),
                 36 => matches!(self.address, 0x76 | 0x77),
                 37 => matches!(self.address, 0x5c | 0x5d),
+                39 => matches!(self.address, 0x53 | 0x1d),
                 _ => false,
             }
     }
@@ -408,6 +409,7 @@ mod humidity_light;
 mod analog;
 mod aht_mcp;
 mod magnetometers;
+mod adxl375;
 mod pressure;
 mod environment_extra;
 mod bme680;
@@ -519,6 +521,7 @@ impl Sensor {
             36 => Box::new(pressure::Dps310::new(clock, hz)),
             37 => Box::new(pressure::Lps22df::new(clock, hz)),
             38 => Box::new(ina228::Ina228::new(clock, hz, config.shunt_milliohms)),
+            39 => Box::new(adxl375::Adxl375::new(clock, hz)),
             22 => Box::new(vl53l1x::Vl53l1x::new(clock, hz)),
             21 => Box::new(nau7802::Nau7802::new(clock, hz)),
             20 | 23..=25 => Box::new(fuel::Max1704x::new(clock, hz, config.model)),
