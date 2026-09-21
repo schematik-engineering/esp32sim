@@ -708,6 +708,7 @@ pub unsafe extern "C" fn esp32sim_boot(e: *mut Emu, app_direct: u32) -> u32 {
 /// Configure project devices before boot using eight-byte records.
 /// Kind 1: [1, pin, count_lo, count_hi, 0, 0, 0, 0].
 /// Kind 2: [2, id, SDA, SCL, address, width, height, 0] for SSD1306.
+/// Kind 4: [4, id, SDA, SCL, address, width, height, columnOffset] for SH1106.
 /// Kind 3: [3, id, SDA, SCL, address, model, shunt_lo, shunt_hi].
 /// Models: 1 BME280, 2 BMP280, 3 BH1750, 4 MPU6050, 5 INA219, 6 DS3231.
 /// Shunt is milliohms for INA219 (0 defaults to 100); other models require 0.
@@ -728,7 +729,7 @@ pub unsafe extern "C" fn esp32sim_configure_circuit(e: *mut Emu, data: *const u8
     for record in bytes.chunks_exact(8) {
         match record[0] {
             1 => strips.push((record[1], u16::from_le_bytes([record[2], record[3]]) as usize)),
-            2 => oleds.push(esp_soc::devices::OledConfig { id: record[1], sda: record[2], scl: record[3], address: record[4], width: record[5], height: record[6] }),
+            2 | 4 => oleds.push(esp_soc::devices::OledConfig { id: record[1], sda: record[2], scl: record[3], address: record[4], width: record[5], height: record[6], controller: if record[0] == 4 { esp_soc::devices::OledController::Sh1106 } else { esp_soc::devices::OledController::Ssd1306 }, column_offset: record[7] }),
             3 => sensors.push(esp_soc::devices::SensorConfig{id:record[1],sda:record[2],scl:record[3],address:record[4],model:record[5],shunt_milliohms:u16::from_le_bytes([record[6],record[7]])}),
             _ => return 1,
         }

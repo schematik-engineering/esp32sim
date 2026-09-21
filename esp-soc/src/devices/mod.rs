@@ -14,7 +14,7 @@ pub mod circuit;
 pub use circuit::CircuitBoard;
 
 pub mod ssd1306;
-pub use ssd1306::{OledConfig, Ssd1306, Ssd1306I2c};
+pub use ssd1306::{OledConfig, OledController, Ssd1306, Ssd1306I2c};
 
 pub mod gps;
 pub mod camera;

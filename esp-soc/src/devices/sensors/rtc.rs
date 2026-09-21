@@ -227,9 +227,152 @@ impl RegisterSensor for Ds3231 {
     }
 }
 
+pub(super) struct Ds1307 {
+    s: SampleState,
+    epoch: u64,
+    anchor: u64,
+    weekday: u8,
+    pending: Option<[u8; 7]>,
+}
+impl Ds1307 {
+    pub fn new(clock: Arc<AtomicU64>, hz: u32) -> Self {
+        let mut s = SampleState::new(clock, hz);
+        s.regs[..7].copy_from_slice(&date(EPOCH));
+        s.regs[0] |= 0x80;
+        s.regs[3] = 1;
+        s.regs[7] = 3;
+        Self { s, epoch: EPOCH, anchor: 0, weekday: 1, pending: None }
+    }
+    fn elapsed(&self) -> u64 {
+        if self.s.regs[0] & 0x80 != 0 { 0 } else { self.s.now.saturating_sub(self.anchor) / self.s.hz }
+    }
+    fn current(&self) -> u64 { EPOCH + (self.epoch - EPOCH + self.elapsed()) % (END + 1 - EPOCH) }
+}
+impl RegisterSensor for Ds1307 {
+    fn next_address(&self, reg: u8) -> u8 { reg.wrapping_add(1) & 63 }
+    fn start(&mut self, _read: bool) { self.pending = None; }
+    fn sync(&mut self) {
+        self.s.time();
+        let current = self.current();
+        let halt = self.s.regs[0] & 0x80;
+        let mode12 = self.s.regs[2] & 0x40;
+        self.s.regs[..7].copy_from_slice(&date(current));
+        self.s.regs[0] |= halt;
+        let days = (self.epoch % 86400 + self.elapsed()) / 86400;
+        self.s.regs[3] = if days == 0 { self.weekday } else { ((self.weekday as u64 + days - 1) % 7 + 1) as u8 };
+        if mode12 != 0 {
+            let h = (current / 3600 % 24) as u32;
+            self.s.regs[2] = 0x40 | if h >= 12 { 0x20 } else { 0 } | bcd(if h % 12 == 0 { 12 } else { h % 12 });
+        }
+        if self.s.readings[14] != current as f64 {
+            self.s.readings[14] = current as f64;
+            self.s.publish(1);
+        }
+    }
+    fn registers(&self) -> [u8; 256] {
+        std::array::from_fn(|i| self.s.regs[i & 63])
+    }
+    fn write(&mut self, reg: u8, value: u16) -> bool {
+        self.sync();
+        let reg = reg & 63;
+        match reg {
+            0..=6 => {
+                let pending = self.pending.get_or_insert_with(|| self.s.regs[..7].try_into().unwrap());
+                pending[reg as usize] = value as u8 & [0xff,0x7f,0x7f,7,0x3f,0x1f,0xff][reg as usize];
+                let regs = *pending;
+                if let Some(seconds) = epoch(&regs) {
+                    let fraction = if reg == 0 || self.s.regs[0] & 0x80 != 0 { 0 } else { self.s.now.saturating_sub(self.anchor) % self.s.hz };
+                    self.epoch = seconds;
+                    self.anchor = self.s.now - fraction;
+                    self.weekday = regs[3];
+                    self.s.regs[..7].copy_from_slice(&regs);
+                    self.sync();
+                }
+            }
+            7 => self.s.regs[7] = value as u8 & 0x93,
+            _ => self.s.regs[reg as usize] = value as u8,
+        }
+        true
+    }
+    fn stop(&mut self) { self.pending = None; }
+    fn set(&mut self, field: u32, value: f64) -> bool {
+        if field != 14 || !value.is_finite() || value.fract() != 0. || !(EPOCH as f64..=END as f64).contains(&value) { return false; }
+        self.sync();
+        self.epoch = value as u64;
+        self.anchor = self.s.now;
+        self.weekday = date(self.epoch)[3];
+        self.sync();
+        true
+    }
+    fn generation(&mut self) -> u32 { self.sync(); self.s.generation }
+    fn value(&mut self, field: u32) -> f64 { self.sync(); self.s.value(field) }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn ds1307_only_seconds_writes_reset_the_divider() {
+        let clock = Arc::new(AtomicU64::new(0));
+        let mut d = Ds1307::new(clock.clone(), 1_000_000);
+        d.write(0, 0); d.stop();
+        clock.store(750_000, Ordering::Relaxed);
+        d.write(1, 1); d.stop();
+        clock.store(1_000_000, Ordering::Relaxed);
+        assert_eq!(d.value(14), (EPOCH + 61) as f64);
+        clock.store(1_500_000, Ordering::Relaxed);
+        d.write(0, 0); d.stop();
+        clock.store(2_000_000, Ordering::Relaxed);
+        assert_eq!(d.value(14), (EPOCH + 60) as f64);
+        clock.store(2_500_000, Ordering::Relaxed);
+        assert_eq!(d.value(14), (EPOCH + 61) as f64);
+    }
+    #[test]
+    fn ds1307_unused_weekday_does_not_prevent_rtclib_adjust() {
+        let clock = Arc::new(AtomicU64::new(0));
+        let mut d = Ds1307::new(clock.clone(), 1_000_000);
+        for (reg, value) in [0x58,0x59,0x23,0,0x28,0x02,0x24].into_iter().enumerate() { d.write(reg as u8, value); }
+        d.stop();
+        assert_eq!(d.value(14),1709164798.);
+        assert_eq!(d.registers()[3],0);
+        clock.store(3_000_000,Ordering::Relaxed);
+        assert_eq!(d.value(14),1709164801.);
+        assert_eq!(d.registers()[3],1);
+    }
+    #[test]
+    fn ds1307_halt_calendar_ram_pointer_wrap_and_repeated_start() {
+        let clock = Arc::new(AtomicU64::new(0));
+        let mut d = Ds1307::new(clock.clone(), 1_000_000);
+        assert_eq!(d.registers()[0], 0x80);
+        clock.store(9_000_000, Ordering::Relaxed);
+        assert_eq!(d.value(14), EPOCH as f64);
+        for (reg, value) in [0x58, 0x59, 0x71, 3, 0x28, 0x02, 0x24].into_iter().enumerate() { d.write(reg as u8, value); }
+        d.start(true);
+        clock.store(13_000_000, Ordering::Relaxed);
+        d.sync();
+        assert_eq!(&d.registers()[..7], &[0x02,0,0x52,4,0x29,0x02,0x24]);
+        d.write(0, 0x82);
+        assert_eq!(d.registers()[0], 0x82);
+        d.stop();
+        let frozen = d.value(14);
+        clock.store(23_000_000, Ordering::Relaxed);
+        assert_eq!(d.value(14), frozen);
+        assert_eq!(d.registers()[0], 0x82);
+        d.write(8, 0xab); d.write(63, 0xcd); d.write(7, 0xff); d.stop();
+        assert_eq!(d.registers()[8], 0xab);
+        assert_eq!(d.registers()[63], 0xcd);
+        assert_eq!(d.registers()[7], 0x93);
+        assert_eq!(d.next_address(63), 0);
+        d.write(0, 2); d.stop();
+        clock.store(24_000_000, Ordering::Relaxed);
+        assert_eq!(d.value(14), frozen + 1.);
+        assert_eq!(d.registers()[63], 0xcd);
+        assert!(!d.set(0, 25.));
+        assert!(!d.set(14, f64::NAN));
+        assert!(d.set(14, END as f64));
+        clock.store(25_000_000, Ordering::Relaxed);
+        assert_eq!(d.value(14), EPOCH as f64);
+    }
     #[test]
     fn bcd_clock_advances_through_leap_day_and_respects_12_hour_mode() {
         let clock = Arc::new(AtomicU64::new(0));

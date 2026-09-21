@@ -343,7 +343,7 @@ mod tests {
     use super::*;
     #[test]
     fn led_displays_preserve_existing_devices_and_route_same_address_by_wires() {
-        let mut board=CircuitBoard::new(&[(10,2)],&[OledConfig{id:0,sda:4,scl:5,address:0x3c,width:128,height:64}]).unwrap();
+        let mut board=CircuitBoard::new(&[(10,2)],&[OledConfig{id:0,sda:4,scl:5,address:0x3c,width:128,height:64,controller:crate::devices::OledController::Ssd1306,column_offset:0}]).unwrap();
         let c=super::super::led_display::LedDisplayConfig{id:0,controller:1,layout:3,a:4,b:5,address:0x70,digits:4,colon:false};
         board.configure_led_displays(&[c,super::super::led_display::LedDisplayConfig{id:1,a:6,b:7,..c}],1000).unwrap();
         let mut devices=board.i2c_devices();
@@ -422,7 +422,7 @@ mod lcd_wiring_tests {
         assert!(devices.iter().any(|(bus,a,d)|*bus==1 && *a==0x27 && d.pins()==Some((6,7))));
         assert!(board.configure_lcds(&[c,super::super::lcd::LcdConfig{id:1,..c}],1_000_000).is_err());
         assert_eq!(board.project_displays().len(),2);
-        let mut board=CircuitBoard::new(&[],&[OledConfig{id:0,sda:4,scl:5,address:0x3c,width:128,height:64}]).unwrap();
+        let mut board=CircuitBoard::new(&[],&[OledConfig{id:0,sda:4,scl:5,address:0x3c,width:128,height:64,controller:crate::devices::OledController::Ssd1306,column_offset:0}]).unwrap();
         assert!(board.configure_lcds(&[super::super::lcd::LcdConfig{address:0x3c,..c}],1_000_000).is_err());
     }
 }

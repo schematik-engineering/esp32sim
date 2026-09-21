@@ -1,6 +1,9 @@
 use esp_periph::i2c::I2cDevice;
 use std::sync::{Arc, Mutex};
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum OledController { Ssd1306, Sh1106 }
+
 #[derive(Clone, Copy)]
 pub struct OledConfig {
     pub id: u8,
@@ -9,11 +12,13 @@ pub struct OledConfig {
     pub address: u8,
     pub width: u8,
     pub height: u8,
+    pub controller: OledController,
+    pub column_offset: u8,
 }
 
 pub struct Ssd1306 {
     pub config: OledConfig,
-    ram: [u8; 1024],
+    ram: [u8; 1056],
     column: u8,
     page: u8,
     columns: (u8, u8),
@@ -33,12 +38,17 @@ impl Ssd1306 {
         if config.sda >= 49 || config.scl >= 49 || config.sda == config.scl
             || ![0x3c, 0x3d].contains(&config.address)
             || config.width == 0 || config.width > 128 || ![32, 64].contains(&config.height) {
-            return Err("invalid SSD1306 configuration".into());
+            return Err("invalid OLED configuration".into());
         }
-        Ok(Self { config, ram: [0; 1024], column: 0, page: 0, columns: (0, 127), pages: (0, 7),
+        if (config.controller == OledController::Ssd1306 && config.column_offset != 0)
+            || config.column_offset as u16 + config.width as u16 > if config.controller == OledController::Sh1106 { 132 } else { 128 } {
+            return Err("invalid OLED visible columns".into());
+        }
+        Ok(Self { config, ram: [0; 1056], column: 0, page: 0, columns: (0, 127), pages: (0, 7),
             mode: 2, command: 0, arguments: Vec::new(), remaining: 0, on: false,
             inverse: false, all_on: false, start_line: 0, version: 0 })
     }
+    fn ram_width(&self) -> usize { if self.config.controller == OledController::Sh1106 { 132 } else { 128 } }
     // Solomon Systech SSD1306 rev1.1, command table and GDDRAM addressing.
     fn command(&mut self, byte: u8) {
         if self.remaining != 0 {
@@ -56,8 +66,10 @@ impl Ssd1306 {
         self.command = byte;
         self.arguments.clear();
         match byte {
-            0x00..=0x0f => self.column = (self.column & 0x70) | byte,
-            0x10..=0x1f => self.column = (self.column & 15) | ((byte & 7) << 4),
+            0x00..=0x0f => self.column = (self.column & 0xf0) | byte,
+            0x10..=0x1f => self.column = (self.column & 15) | ((byte & if self.config.controller == OledController::Sh1106 { 15 } else { 7 }) << 4),
+            0x20..=0x22 | 0x8d | 0xa3 | 0x26 | 0x27 | 0x29 | 0x2a if self.config.controller == OledController::Sh1106 => {},
+            0xad if self.config.controller == OledController::Sh1106 => self.remaining = 1,
             0x20 | 0x81 | 0x8d | 0xa8 | 0xd3 | 0xd5 | 0xd9 | 0xda | 0xdb => self.remaining = 1,
             0x21 | 0x22 | 0xa3 => self.remaining = 2,
             0x26 | 0x27 => self.remaining = 6,
@@ -71,8 +83,9 @@ impl Ssd1306 {
         }
     }
     fn data(&mut self, byte: u8) {
-        let index = self.page as usize * 128 + self.column as usize;
-        if self.ram[index] != byte { self.ram[index] = byte; self.version += 1; }
+        let width = self.ram_width();
+        let index = self.page as usize * width + self.column as usize;
+        if (self.column as usize) < width && self.ram[index] != byte { self.ram[index] = byte; self.version += 1; }
         if self.mode == 1 {
             if self.page >= self.pages.1 {
                 self.page = self.pages.0;
@@ -83,7 +96,7 @@ impl Ssd1306 {
                 self.column = self.columns.0;
                 self.page = if self.page >= self.pages.1 { self.pages.0 } else { self.page + 1 };
             } else { self.column += 1; }
-        } else { self.column = (self.column + 1) & 127; }
+        } else { self.column = if self.column as usize + 1 >= width { 0 } else { self.column + 1 }; }
     }
     pub fn frame(&self) -> Vec<u8> {
         let width = self.config.width as usize;
@@ -94,7 +107,7 @@ impl Ssd1306 {
         for y in 0..height {
             let row = (y + self.start_line as usize) % 64;
             for x in 0..width {
-                let lit = self.all_on || ((self.ram[row / 8 * 128 + x] >> (row % 8) & 1 != 0) ^ self.inverse);
+                let lit = self.all_on || ((self.ram[row / 8 * self.ram_width() + x + self.config.column_offset as usize] >> (row % 8) & 1 != 0) ^ self.inverse);
                 if lit { bits[y / 8 * width + x] |= 1 << (y % 8); }
             }
         }
@@ -134,8 +147,31 @@ impl I2cDevice for Ssd1306I2c {
 mod tests {
     use super::*;
     #[test]
+    fn sh1106_has_132_columns_page_only_addressing_and_a_physical_window() {
+        let config = OledConfig { id: 1, sda: 4, scl: 5, address: 0x3c, width: 128, height: 64, controller: OledController::Sh1106, column_offset: 2 };
+        assert!(Ssd1306::new(OledConfig { column_offset: 5, ..config }).is_err());
+        let mut d = Ssd1306::new(config).unwrap();
+        for c in [0xaf,0xb0,0x02,0x10] { d.command(c); }
+        d.data(1);
+        for c in [0xb7,0x01,0x18] { d.command(c); }
+        d.data(128);
+        assert_eq!(d.frame()[0], 1);
+        assert_eq!(d.frame()[1023], 128);
+        // SH1106 ignores SSD1306 horizontal addressing commands. Column132 wraps on the same page.
+        for c in [0x20,0,0xb1,0x03,0x18] { d.command(c); }
+        d.data(0xaa); d.data(0xbb);
+        assert_eq!(d.ram[132+131],0xaa);
+        assert_eq!(d.ram[132],0xbb);
+        assert_eq!(d.page,1);
+        for c in [0xb0,0x0f,0x1f] { d.command(c); }
+        d.data(255);
+        assert_eq!(d.column,0);
+        d.command(0xae);
+        assert!(d.frame().iter().all(|b| *b==0));
+    }
+    #[test]
     fn commands_and_wire_data_change_pixels_and_wrap_in_both_address_modes() {
-        let state = Arc::new(Mutex::new(Ssd1306::new(OledConfig { id: 0, sda: 4, scl: 5, address: 0x3c, width: 128, height: 64 }).unwrap()));
+        let state = Arc::new(Mutex::new(Ssd1306::new(OledConfig { id: 0, sda: 4, scl: 5, address: 0x3c, width: 128, height: 64, controller: OledController::Ssd1306, column_offset: 0 }).unwrap()));
         let mut device = Ssd1306I2c::new(state.clone());
         assert!(!device.start(true));
         assert!(device.start(false));
