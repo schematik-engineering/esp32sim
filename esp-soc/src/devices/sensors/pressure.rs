@@ -203,6 +203,7 @@ pub(super) struct Lps22df {
     s: SampleState,
     next: Option<u64>,
     boot: Option<u64>,
+    read_mask: [u8; 2],
 }
 impl Lps22df {
     pub fn new(clock: Arc<AtomicU64>, hz: u32) -> Self {
@@ -210,6 +211,7 @@ impl Lps22df {
             s: SampleState::new(clock, hz),
             next: None,
             boot: None,
+            read_mask: [0; 2],
         };
         d.s.inputs[0] = 23.;
         d.s.inputs[2] = 101325.;
@@ -218,6 +220,7 @@ impl Lps22df {
     }
     fn reset(&mut self) {
         self.s.regs = [0; 256];
+        self.read_mask = [0; 2];
         self.s.regs[15] = 0xb4;
         self.s.regs[18] = 1;
         self.s.regs[25] = 0x80;
@@ -241,19 +244,26 @@ impl Lps22df {
             .max(self.conversion())
     }
     fn capture(&mut self, count: u64) {
-        if self.s.regs[17] & 8 != 0 && self.s.regs[0x27] & 1 != 0 {
-            return;
+        let pressure = self.read_mask[0] == 0;
+        let temperature = self.read_mask[1] == 0;
+        if pressure {
+            let offset =
+                i16::from_le_bytes([self.s.regs[0x1a], self.s.regs[0x1b]]) as f64 * 100. / 16.;
+            let raw = ((self.s.inputs[2] - offset) * 4096. / 100.).round() as i32;
+            self.s.regs[0x28..0x2b].copy_from_slice(&raw.to_le_bytes()[..3]);
+            self.s.readings[2] = raw as f64 * 100. / 4096.;
         }
-        let offset = i16::from_le_bytes([self.s.regs[0x1a], self.s.regs[0x1b]]) as f64 * 100. / 16.;
-        let raw = ((self.s.inputs[2] - offset) * 4096. / 100.).round() as i32;
-        self.s.regs[0x28..0x2b].copy_from_slice(&raw.to_le_bytes()[..3]);
-        let t = (self.s.inputs[0] * 100.).round() as i16;
-        self.s.regs[0x2b..0x2d].copy_from_slice(&t.to_le_bytes());
-        self.s.regs[0x27] |= (self.s.regs[0x27] & 3) << 4;
-        self.s.regs[0x27] |= 3;
-        self.s.readings[0] = t as f64 / 100.;
-        self.s.readings[2] = raw as f64 * 100. / 4096.;
-        self.s.publish(count);
+        if temperature {
+            let t = (self.s.inputs[0] * 100.).round() as i16;
+            self.s.regs[0x2b..0x2d].copy_from_slice(&t.to_le_bytes());
+            self.s.readings[0] = t as f64 / 100.;
+        }
+        let updated = pressure as u8 | ((temperature as u8) << 1);
+        self.s.regs[0x27] |= (self.s.regs[0x27] & updated) << 4;
+        self.s.regs[0x27] |= updated;
+        if updated != 0 {
+            self.s.publish(count);
+        }
     }
 }
 impl RegisterSensor for Lps22df {
@@ -324,12 +334,17 @@ impl RegisterSensor for Lps22df {
                         self.s.regs[reg] = 0;
                     }
                     self.s.regs[18] = 1;
+                    self.read_mask = [0; 2];
                     self.next = None;
                     self.s.regs[17] = 4;
                     self.boot = Some(self.s.now + self.s.ticks(50));
                 } else {
+                    if (self.s.regs[17] ^ value) & 8 != 0 {
+                        self.read_mask = [0; 2];
+                    }
                     self.s.regs[17] = value;
                     if value & 0x80 != 0 {
+                        self.read_mask = [0; 2];
                         self.s.regs[0x1a..0x1c].fill(0);
                         self.s.regs[16] &= 7;
                         self.next = None;
@@ -348,11 +363,19 @@ impl RegisterSensor for Lps22df {
         true
     }
     fn read_done(&mut self, reg: u8) {
-        if reg == 0x2a {
-            self.s.regs[0x27] &= !0x11;
+        let (channel, first, last) = match reg {
+            0x28..=0x2a => (0, 0x28, 0x2a),
+            0x2b..=0x2c => (1, 0x2b, 0x2c),
+            _ => return,
+        };
+        if self.s.regs[17] & 8 != 0 {
+            self.read_mask[channel] |= 1 << (reg - first);
+            if reg == last && self.read_mask[channel] == (1 << (last - first + 1)) - 1 {
+                self.read_mask[channel] = 0;
+            }
         }
-        if reg == 0x2c {
-            self.s.regs[0x27] &= !0x22;
+        if reg == last {
+            self.s.regs[0x27] &= !(0x11 << channel);
         }
     }
     fn set(&mut self, field: u32, value: f64) -> bool {
@@ -429,9 +452,10 @@ mod tests {
         assert_eq!(d.value(0), -17.25);
         d.write(16, 0x18);
         d.write(17, 8);
+        d.read_done(0x2b);
         clock.store(1_100_000, Ordering::Relaxed);
         assert_eq!(d.value(0), -17.25);
-        d.read_done(0x2a);
+        d.read_done(0x2c);
         clock.store(1_200_000, Ordering::Relaxed);
         assert_eq!(d.value(0), 30.);
         d.write(18, 0);
@@ -489,5 +513,58 @@ mod tests {
         l.sync();
         assert_eq!(l.registers()[0x1a], 0);
         assert_eq!(l.registers()[16] & 0x78, 0);
+    }
+    #[test]
+    fn lps_bdu_locks_only_partial_reads_and_each_channel_separately() {
+        let clock = Arc::new(AtomicU64::new(0));
+        let mut d = Lps22df::new(clock.clone(), 1_000_000);
+        clock.store(10000, Ordering::Relaxed);
+        d.sync();
+        d.write(17, 8);
+        d.capture(1);
+        // Data-ready alone never freezes unread output.
+        d.set(0, 30.);
+        d.set(2, 100000.);
+        d.capture(1);
+        assert_eq!(d.value(0), 30.);
+        assert!((d.value(2) - 100000.).abs() < 0.03);
+        d.read_done(0x28);
+        d.read_done(0x2b);
+        d.set(0, 40.);
+        d.set(2, 110000.);
+        d.capture(1);
+        assert_eq!(d.value(0), 30.);
+        assert!((d.value(2) - 100000.).abs() < 0.03);
+        // Reading only pressure's high byte cannot release its missing middle byte.
+        d.read_done(0x2a);
+        d.capture(1);
+        assert!((d.value(2) - 100000.).abs() < 0.03);
+        d.read_done(0x29);
+        d.capture(1);
+        assert!((d.value(2) - 100000.).abs() < 0.03);
+        d.read_done(0x2a);
+        d.capture(1);
+        assert!((d.value(2) - 110000.).abs() < 0.03);
+        assert_eq!(d.value(0), 30.);
+        d.read_done(0x2c);
+        d.capture(1);
+        assert_eq!(d.value(0), 40.);
+        // A lone high-byte read is also partial, not an unconditional unlock.
+        d.read_done(0x2c);
+        d.set(0, 50.);
+        d.capture(1);
+        assert_eq!(d.value(0), 40.);
+        d.read_done(0x2b);
+        d.read_done(0x2c);
+        d.capture(1);
+        assert_eq!(d.value(0), 50.);
+        d.read_done(0x28);
+        d.read_done(0x2b);
+        d.write(17, 0);
+        d.set(0, 60.);
+        d.set(2, 90000.);
+        d.capture(1);
+        assert_eq!(d.value(0), 60.);
+        assert!((d.value(2) - 90000.).abs() < 0.03);
     }
 }
