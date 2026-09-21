@@ -491,7 +491,11 @@ impl RegisterSensor for Vl53l5cx {
                     self.s.publish(count);
                 } else {
                     self.next = None;
+                    self.frame = vec![255, 0, 0, 0];
+                    self.snapshot = self.frame.clone();
+                    self.fail();
                     self.s.readings[58] = f64::NAN;
+                    self.s.publish(1);
                 }
             }
         }
@@ -777,6 +781,38 @@ mod vl53l5cx_tests {
         assert!(a.value(58).is_nan());
         init(&mut a);
         assert!(a.configured);
+    }
+    #[test]
+    fn vl53l5cx_active_unsupported_schema_invalidates_generation_and_frame() {
+        let (c, mut d) = device();
+        init(&mut d);
+        configure(&mut d, 64);
+        assert!(send(&mut d, 0x2ffc, &[0, 3, 0, 0]));
+        c.store(100_000, Ordering::Relaxed);
+        assert_eq!(d.value(58), 500.);
+        let generation = d.generation();
+        d.select_extended(0);
+        assert_eq!(d.read_extended(1), 5);
+        let mut enables = d.dci[&0xcd68].clone();
+        enables[1] = 7;
+        assert!(dci(&mut d, 0xcd68, &enables));
+        c.store(200_000, Ordering::Relaxed);
+        assert!(d.value(58).is_nan());
+        assert_eq!(d.generation(), generation + 1);
+        assert_eq!(d.read_extended(0), 255);
+        d.select_extended(0);
+        assert_eq!(
+            (0..4).map(|r| d.read_extended(r)).collect::<Vec<_>>(),
+            [255, 0, 0, 0]
+        );
+        assert_eq!(d.read_extended(0x2c02), 0x80);
+        c.store(300_000, Ordering::Relaxed);
+        assert_eq!(d.generation(), generation + 1);
+        configure(&mut d, 64);
+        assert!(send(&mut d, 0x2ffc, &[0, 3, 0, 0]));
+        c.store(400_000, Ordering::Relaxed);
+        assert_eq!(d.value(58), 500.);
+        assert_eq!(d.read_extended(0x2c02), 0);
     }
     #[test]
     fn vl53l5cx_dci_invalid_commands_and_rate() {
