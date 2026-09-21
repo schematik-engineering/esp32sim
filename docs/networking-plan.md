@@ -8,9 +8,9 @@ real hosts (Home Assistant, price APIs, a browser on the Mac), with no root priv
 the unmodified Espressif blob (docs/wifi-plan.md), and the Ethernet traffic that comes out of the
 MAC is handled by two layers in front of the host network:
 
-- `esp32s3/src/net.rs` — the emulated subnet 10.0.2.0/24 (station 10.0.2.15, gateway 10.0.2.2,
+- `esp-wifi/src/net.rs` — the emulated subnet 10.0.2.0/24 (station 10.0.2.15, gateway 10.0.2.2,
   resolver 10.0.2.3): ARP, DHCP, ICMP echo, DNS and an SNTP server serving the host clock.
-- `esp32s3/src/nat.rs` — `--net nat` (the default): everything addressed past the gateway is
+- `esp-wifi/src/nat.rs` — `--net nat` (the default): everything addressed past the gateway is
   terminated in the emulator and relayed over ordinary host sockets, which is how Contiki-NG's
   NAT64 does it. A guest SYN becomes a `TcpStream::connect` on a worker thread, guest payload is
   written to that socket, socket reads come back as segments the emulator sequences, acknowledges
@@ -39,3 +39,27 @@ accelerator, SHA over GDMA (including SHA-384) and AES-CTR — see docs/peripher
   driver for) instead of emulating the 802.11 MAC: cheaper, but it needs a firmware config change,
   so binaries would no longer be the ones that run on the board. Emulating the MAC kept "unmodified
   firmware" true; neither route is built.
+
+## Browser Ethernet relay transport
+
+The WASM ABI exposes `esp32sim_net_enable`, `esp32sim_net_rx`,
+`esp32sim_net_tx_take`, `esp32sim_net_tx_ptr`, and `esp32sim_net_tx_len`.
+Configure the virtual AP before enabling transport. Enabling an unmodeled radio
+fails. S3 forwards Ethernet II frames through bounded64-frame queues instead of
+its local VirtualNet. Frames are14..1518 bytes; copy output bytes before the next
+`take`/`enable`. Keep relay mode enabled when the host connection fails so the
+emulator does not silently resume local network responses.
+
+`cargo build --release -p esp32sim --bin esp32sim-relay` builds a separate native
+subnet process. Stdin/stdout use a4-byte little-endian length followed by one
+Ethernet frame. Input length0 polls sockets. The process never opens a listening
+socket; a trusted authenticated WebSocket service owns its lifetime and pipes.
+Do not expose these pipes directly to untrusted clients.
+
+This relay uses16 TCP and16 UDP flows, bounded TCP windows, numeric public IPv4
+destinations checked immediately before socket creation, and a public DNS
+resolver at1.1.1.1. It rejects private/reserved IPv4, all IPv6, fragments and IP
+options. DNS answers cannot bypass the destination policy. TCP forwards opaque
+bytes, so TLS remains in the guest. UDP replies are accepted only from the
+connected remote socket and datagrams exceeding the Ethernet MTU are dropped.
+Guest HTTP server injection is not yet implemented by this binary.

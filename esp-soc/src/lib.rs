@@ -15,9 +15,10 @@ pub mod observers;
 pub mod picture;
 pub mod png;
 pub mod soc;
+pub mod spi;
 pub mod web;
 
-pub use board::{Board, BoardModel, NoBoard};
+pub use board::{Board, BoardModel, NoBoard, SpiPins};
 pub use debug::DebugFlags;
 pub use machine::{Console, Debug, Machine, Realtime, Script, ScriptAction};
 pub use observe::{Ctx, Observer, Wants};

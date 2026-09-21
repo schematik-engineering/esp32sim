@@ -1,0 +1,10 @@
+[package]
+name = "esp-wifi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Shared ESP Wi-Fi MAC, virtual access point and virtual network"
+
+[dependencies]
+esp-periph = { path = "../esp-periph" }
+esp-soc = { path = "../esp-soc" }

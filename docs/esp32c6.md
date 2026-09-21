@@ -334,14 +334,15 @@ machine wants to see, as the Xtensa block interpreter always did.
 ## Not there yet
 
 - **TF card, backlight PWM.** The SD slot on SPI2 has nothing behind it; the LEDC backlight is
-  register RAM (the panel is shown regardless).
+  not connected to the panel brightness (the panel is shown regardless). Static LEDC
+  duty and frequency are observable through the generic PWM interface.
 - **The PHY's baseband calibration** (above): a stub, not a model.
 - **`--boot app`** maps the image through the unified MMU and jumps to it, but the system
   registers the bootloader would have set up are not preset; ROM boot is the tested path.
 - **Watchdogs.** The LP_WDT and the TIMG watchdogs are register RAM: they never fire.
 - **WiFi 6, BLE, the LP core** — nothing of those radios or the second core is modelled. The
   802.15.4 MAC sends, receives, acknowledges and filters (above); enhanced ACKs and security are not there.
-- **Peripherals on demand**: GDMA, I2C, SPI2, LEDC, RMT, ADC, TWAI, PARL_IO. Each shows up as an
+- **Peripherals on demand**: GDMA, I2C, SPI2, RMT, ADC, TWAI, PARL_IO. Each shows up as an
   unknown register with `--log-periph` the moment a firmware wants it. The registers hello_world
   still touches without a model are PMU, IO_MUX, HP_SYSTEM, APB_SARADC and a few LP blocks —
   all of them configuration the firmware only writes and reads back.

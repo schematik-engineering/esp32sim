@@ -17,7 +17,7 @@ projects end to end. No cloud, no accounts. MIT.
 | Decoder vs `objdump` | 977 k instructions, 0 mismatches | 161 k instructions, 0 mismatches | 126 k instructions, 0 mismatches |
 | Boots | ROM → bootloader → FreeRTOS → app | ROM → bootloader → FreeRTOS → app | ROM → bootloader → FreeRTOS → app |
 | Boards / displays | ST7735, ST7701S 480×480 + touch, WS2812, camera, audio | none — console only | ST7789 172×320 over SPI+DMA, WS2812, an 802.15.4 energy-detect stand-in |
-| WiFi | virtual AP, WPA2, DHCP/DNS/NTP, NAT to the real network, HTTPS | not modelled | not modelled |
+| WiFi | virtual AP, WPA2, DHCP/DNS/NTP, NAT to the real network, HTTPS | scan, WPA2, DHCP verified; external protocols pending | scan, WPA2, DHCP verified; external protocols pending |
 | Speed | block interpreter + **AArch64 JIT**, ~150–240 Minsn/s | plain interpreter (no block cache or JIT yet) — still well above real time on hello_world | same interpreter |
 | In the browser | yes (WebAssembly) | yes (WebAssembly) | yes (WebAssembly) |
 | Checked against silicon | JTAG lock-step, 8000 steps, 0 PC divergences | console diff, 205/208 lines identical | console diff, 203/204 lines identical |
@@ -133,7 +133,7 @@ prints the ROM banner, the bootloader log, `Hello world!` and the reboot, three 
 Checked line-for-line against a physical C3 module: **205 of 208 console lines identical** over
 three boot cycles — the difference is the ROM's `Saved PC:` line. `--mac`, `--reset-cause` and
 `--strap` let a run adopt a board's identity so the comparison is meaningful. Still a draft: no
-WiFi, no boards, `--boot app` unsupported. See [docs/esp32c3.md](docs/esp32c3.md) for what works,
+boards, `--boot app` unsupported. See [docs/esp32c3.md](docs/esp32c3.md) for what works,
 what does not, and the five emulator bugs the hardware found.
 
 ## Run — ESP32-C6
@@ -166,7 +166,7 @@ exchanging broadcasts with emulated MSP430 nodes). See [docs/esp32c6.md](docs/es
 5.0  stop
 ```
 
-## WiFi (ESP32-S3)
+## WiFi (ESP32-S3, C3, C6)
 
 `--wifi ssid=NAME[,psk=PASS,chan=N,bssid=..]` attaches a virtual access point that the **unmodified**
 Espressif WiFi blob associates with — scan, authentication, association and, with a passphrase, the
@@ -186,6 +186,9 @@ electricity prices over **HTTPS** and polls a real Home Assistant on the LAN.
 [docs/networking-howto.md](docs/networking-howto.md) is the how-to (flags, debugging, limits);
 [docs/wifi-plan.md](docs/wifi-plan.md) and [docs/networking-plan.md](docs/networking-plan.md)
 describe how the MAC model and the packet path work.
+
+C3 and C6 pass the unchanged Arduino scan/WPA2/DHCP fixture through native and WASM execution.
+External HTTP/TLS and other protocol parity remain separate checks; see the [C6 MAC notes](docs/wifi-plan.md#c6-mac-v2).
 
 ## In the browser (WebAssembly)
 

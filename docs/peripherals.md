@@ -33,8 +33,29 @@ ESP32-S3 peripheral MMIO reads and writes must be aligned 32-bit accesses. Byte 
 | regi2c / I2C_MST (PLL, RF analog) | 0x6000E000 | stub | reads back what was written; BBPLL and pkdet calibration-done bits set |
 | GP-SPI2 master | 0x60024000 | partial | CPU-driven command/address/data phases; board MISO responses; bounded GDMA TX descriptor completion; RX DMA is not modeled |
 | PCNT | 0x60017000 | full | 4 units × 2 channels, pos/neg/ctrl modes via the GPIO matrix, limits/thresholds/zero events, counter reset/pause |
-| LEDC, ADC, SPI3, TWAI, SDMMC, USB-OTG | — | — | |
+| LEDC | 0x60019000 (S3/C3), 0x60007000 (C6) | partial | low-speed static PWM, source clock/divider, resolution, timer counter/pause/reset, duty latch/readback and completion interrupt; GPIO matrix routing/inversion; hardware fades — |
+| ADC, SPI3, TWAI, SDMMC, USB-OTG | — | — | |
 | WiFi baseband/PHY/RF, BT | — | — | radio registers are faked, not modelled; see wifi-plan.md |
 
 CPU-side: full base ISA, FPU (single precision), MAC16, booleans, PIE (all esp-dl/esp-dsp
 ops; FFT/GPIO/s32 corners decode but are not executed).
+
+## LEDC observations in WebAssembly
+
+`esp32sim_pwm_frequency(emu, pin)` returns Hz, or 0 for an inactive/invalid output.
+`esp32sim_pwm_duty(emu, pin)` returns the physical high-time fraction scaled to
+0..65535, or `u32::MAX` for an inactive/invalid output. Multiple pins can observe
+one channel; GPIO matrix inversion affects the reported fraction. These calls
+report averaged PWM state, not timestamped waveform edges. They do not drive
+board backlights or simulate a wire connected to another input pin.
+
+Arduino `analogWrite` firmware has been run unchanged through ROM boot on S3,
+C3 and C6: commands for duty128,255,0 yielded 1000Hz and fractions approximately
+0.5,1,0 on each chip. The mid-level denominator is 256 for 8-bit LEDC; Arduino
+special-cases255 to256 for full-on output. Native tests also cover fractional
+dividers, C6's20-bit resolution, update/readback, pause/reset, clock gating,
+inversion and interrupt clearing. RC_FAST uses the emulator's nominal clock
+(17.5MHz on S3/C3,20MHz on C6), without oscillator calibration accuracy.
+
+Hardware fade/gamma sequences remain unsupported. A nonzero fade scale does
+not emit a successful PWM observation or duty-completion interrupt.

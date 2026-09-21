@@ -1,8 +1,11 @@
 //! ESP32-S3 peripherals. The IP shared with other chips lives in `esp-periph`; here are the
-//! S3-only blocks (interrupt matrix, WiFi MAC, PCNT, GP-SPI, LCD_CAM, EXTMEM, WDEV, regi2c) and
+//! S3-only blocks (interrupt matrix, WiFi MAC, PCNT, GP-SPI, LCD_CAM, EXTMEM, WDEV) and
 //! the `Peripherals` set whose one table (`ENTRIES`) drives dispatch, sources, ticks and deadlines.
+use esp_periph::{Adc, AdcLayout, I2cMst};
+pub use esp_wifi::WifiMac;
 use emu_core::{ClockDomain, ClockTree};
 use esp_periph::GpSpi;
+use esp_periph::{Ledc, LedcLayout, Mcpwm};
 use esp_periph::{device_set, mmio, Device, DeviceSet, Dispatch, Misc, WriteEffect};
 pub use esp_periph::{read_desc, reset_cause_name, Aes, DirtyMem, DmaDesc, Efuse, Gdma, GdmaInCh, GdmaOutCh, Gpio, I2s, RegRam, Rmt, RmtTxCh, Rsa, RtcCntl, Sha, SpiMem, SystemRegs, Systimer, Timer, TimerGroup, Uart, UartLayout, UsbSerialJtag,
                     APB_HZ, DMA_ADDR_BASE, GDMA_CHANNELS, GDMA_CH_STRIDE, RMT_MEM_WORDS, RST_POWERON, RST_RTCWDT_CPU, RST_RTCWDT_RTC, RST_RTCWDT_SYS, RST_SW_CPU, RST_SW_SYS, RTC_SLOW_HZ, SYSTIMER_HZ, XTAL_HZ};
@@ -16,7 +19,9 @@ pub const SRC_GPIO: usize = 16;
 pub const SRC_UART0: usize = 27;
 pub const SRC_UART1: usize = 28;
 pub const SRC_SPI2: usize = 21;
+pub const SRC_SPI3: usize = 22;
 pub const SRC_PCNT: usize = 41;
+pub const SRC_LEDC: usize = 35;
 pub const SRC_AES: usize = 77;
 pub const SRC_LCD_CAM: usize = 24;
 pub const SRC_I2S0: usize = 25;
@@ -62,95 +67,6 @@ impl IntMatrix {
 pub const SRC_RSA: usize = 76;
 // ------------------------------------------------------------------ WiFi MAC (blocks 0x33/0x34)
 pub const SRC_WIFI_MAC: usize = 0;
-/// The 802.11 MAC the closed `libpp`/`libnet80211` drive. Undocumented by Espressif; the register
-/// layout matches the classic ESP32's as reverse-engineered by esp32-open-mac (0x3ff73000 there,
-/// 0x60033000 here). Modelled from the blob's own accesses — see docs/wifi-plan.md.
-///   TX: 5 slots; slot n has TX_CONFIG at 0xd1c-8n and PLCP0 at 0xd20-8n; PLCP0 = (desc & 0xfffff) | 0x600000,
-///       bits 31:30 start the transmission. Completion: TXQ_STATE_COMPLETE (0xcc8) bit n, cleared via 0xcc4;
-///       DMA_INT_STATUS (0xc48) bit 7, cleared via 0xc4c.
-///   RX: descriptor ring base at 0x088 (dma_list_item: size:12 length:12 _:6 has_data:1 owner:1, packet, next).
-pub struct WifiMac { pub ram: RegRam, pub ram2: RegRam, pub log: bool,
-                     /// TSF: 1 MHz counter (offset applied to the CPU cycle clock), latched into WDEV 0x18/0x1c
-                     pub tsf_offset: i64, pub tsf_latched: u64, pub now_cycles: u64,
-                     /// interrupt events (0xc3c; cleared by writing 0xc40): bit 7 = TX complete, bits 14/24 = RX data (libpp wDev_ProcessFiq)
-                     pub events: u32, pub pwr_events: u32,
-                     /// per-queue completion bitmap (0xca8 bits 10:0, cleared via 0xca4)
-                     pub txq_complete: u32, pub txq_error: u32,
-                     pub tx_pending: Vec<(u8, u32)>, pub tx_frames: u64,
-                     /// RX descriptor ring: base written by the driver (0x088), the descriptor the hardware fills next, the last one filled
-                     pub rx_base: u32, pub rx_next: u32, pub rx_last: u32, pub rx_frames: u64, pub rx_dropped: u64,
-                     pub ap: Option<crate::wifi::VirtualAp>, pub eth_tx: Vec<Vec<u8>>, pub eth_rx: Vec<Vec<u8>>, pub last_rx_us: u64, pub net_polled_us: u64, pub last_rx_desc: u32, pub net: Option<crate::net::VirtualNet> }
-impl Default for WifiMac { fn default() -> Self { Self::new() } }
-
-impl WifiMac {
-    pub fn new() -> Self { WifiMac { ram: RegRam::new(), ram2: RegRam::new(), log: false, tsf_offset: 0, tsf_latched: 0, now_cycles: 0, rx_base: 0, rx_next: 0, rx_last: 0, rx_frames: 0, rx_dropped: 0, ap: None, eth_tx: Vec::new(), eth_rx: Vec::new(), last_rx_us: 0, net_polled_us: 0, last_rx_desc: 0, net: None, events: 0, pwr_events: 0, txq_complete: 0, txq_error: 0, tx_pending: Vec::new(), tx_frames: 0 } }
-    pub fn irq(&self) -> bool { self.events != 0 || self.pwr_events != 0 }
-    /// TX queue n has its PLCP0 register at 0xd08 - 8n (hal_mac_txq_enable: (0x0c0067a1 - n) << 3).
-    fn txq_of(off: u32) -> Option<u8> { if off <= 0xd08 && (0xd08 - off).is_multiple_of(8) && (0xd08 - off) / 8 < 16 { Some(((0xd08 - off) / 8) as u8) } else { None } }
-    pub fn read(&mut self, block: u32, off: u32) -> u32 {
-        let v = match (block, off) {
-            (0x33, 0xd14) => self.ram.read(off) | 1,                 // hal_init: writes bit 1, waits for bit 0
-            (0x33, 0xc3c) => self.events,
-            (0x33, 0x088) => self.rx_base & 0xf_ffff, (0x33, 0x08c) => self.rx_next & 0xf_ffff, (0x33, 0x090) => self.rx_last,
-            (0x33, 0xca8) => self.txq_error & 0x7ff,                 // txq state types 0/1 (errors/collisions)
-            (0x33, 0xcb0) => self.txq_complete & 0xf,                    // txq state type 2: completed queues
-            (0x35, 0x118) => self.pwr_events,
-            (0x35, 0x18) => self.tsf_latched as u32,
-            (0x35, 0x1c) => (self.tsf_latched >> 32) as u32,
-            (0x35, 0x128) => self.ram2.read(off),
-            (0x33, _) => self.ram.read(off),
-            (_, _) => self.ram2.read(off),
-        };
-        if self.log { eprintln!("[wifi] rd {:#x}+{:#05x} -> {:#010x}", block, off, v); }
-        v
-    }
-    pub fn write(&mut self, block: u32, off: u32, v: u32) {
-        if self.log { eprintln!("[wifi] wr {:#x}+{:#05x} <- {:#010x}", block, off, v); }
-        match (block, off) {
-            (0x33, 0xc40) => { self.events &= !v; }
-            (0x33, 0x088) => {
-                // BASE_RX_DSCR: where the hardware restarts when the ring runs dry. Software rewrites it
-                // every time it recycles descriptors, but that must NOT rewind the hardware's current
-                // pointer — doing so re-delivers into descriptors the stack has already moved past.
-                self.rx_base = DMA_ADDR_BASE | (v & 0xf_ffff);
-                if self.rx_next == 0 { self.rx_next = self.rx_base; }
-                self.ram.write(off, v);
-            }
-            (0x33, 0x084) => {
-                // DSCR_RELOAD: software has appended recycled descriptors and asks the hardware to
-                // re-read the chain.
-                // Measured against the blob: rewinding here makes every second frame land in a
-                // descriptor the stack has moved past, and it is recycled instead of indicated. The
-                // hardware keeps its own pointer; base only matters once the ring has run dry.
-                if v & 1 != 0 && self.rx_next == 0 { self.rx_next = self.rx_base; }
-                self.ram.write(off, v & !1);
-            }
-            (0x35, 0x11c) => { self.pwr_events &= !v; }
-            (0x35, 0x0c) => {
-                let now = (self.now_cycles / (CPU_HZ / 1_000_000)) as i64;
-                if v & 3 != 0 { self.tsf_latched = (now + self.tsf_offset) as u64; }                              // latch
-                if v & (1 << 4) != 0 { let set = (self.ram2.read(0x10) as u64) | ((self.ram2.read(0x14) as u64) << 32); self.tsf_offset = set as i64 - now; }   // load
-                self.ram2.write(off, v);
-            }
-            (0x33, 0xca4) => { self.txq_error &= !(v & 0x7ff); }
-            (0x33, 0xcac) => { self.txq_complete &= !(v & 0xf); }
-            (0x33, o) if Self::txq_of(o).is_some() => {                                   // MAC_TX_PLCP0[queue]
-                self.ram.write(off, v);
-                if v & (1 << 31) != 0 { let q = Self::txq_of(o).unwrap(); self.tx_pending.push((q, DMA_ADDR_BASE | (v & 0xf_ffff))); }
-            }
-            (0x33, _) => self.ram.write(off, v),
-            (_, _) => self.ram2.write(off, v),
-        }
-    }
-    /// Hardware finished sending the frame in `queue`.
-    pub fn tx_done(&mut self, queue: u8) {
-        self.txq_complete |= 1 << queue; self.events |= 1 << 7; self.tx_frames += 1;
-        let o = 0xd08 - 8 * queue as u32; let v = self.ram.read(o); self.ram.write(o, v & !(3 << 30));
-        // result word (hal_mac_get_txq_pmd): bits 15:12 = status code, 0 = success (3 would trap the blob)
-        let r = 0x320 - 76 * queue as u32; let w = self.ram2.read(r); self.ram2.write(r, w & !(0xf << 12));
-    }
-}
-
 // ------------------------------------------------------------------ PCNT (pulse counter)
 /// Four units, two channels each: a signal input counts on rising/falling edges (mode 0 ignore,
 /// 1 increment, 2 decrement) and a control input modifies that (hctrl/lctrl mode 0 keep, 1 invert,
@@ -218,13 +134,14 @@ impl Pcnt {
 /// The camera engine of LCD_CAM: once started it pulls one frame per sensor period through the GDMA
 /// channel bound to trigger 5 (CAM). Only the register semantics the DVP driver needs are modelled.
 pub struct LcdCam { pub ram: RegRam, pub cam_ctrl: u32, pub cam_ctrl1: u32, pub int_raw: u32, pub int_ena: u32, pub running: bool,
+                    pub cam_frame: Option<std::sync::Arc<Vec<u8>>>, pub cam_pos: usize, pub cam_byte_acc: u64, pub cam_blank: u64,
                     pub frame_cycles: u64, pub acc: u64, pub frames: u64, pub dropped: u64,
                     // LCD side (RGB / DPI mode): the panel is refreshed from a GDMA out-channel on trigger 5
                     pub lcd_clock: u32, pub lcd_user: u32, pub lcd_ctrl: u32, pub lcd_ctrl1: u32, pub lcd_acc: u64, pub lcd_frames: u64, pub lcd_line: Vec<u8>, pub lcd_fifo: std::collections::VecDeque<u8>, pub lcd_log: bool }
 impl Default for LcdCam { fn default() -> Self { Self::new() } }
 
 impl LcdCam {
-    pub fn new() -> Self { LcdCam { ram: RegRam::new(), cam_ctrl: 0, cam_ctrl1: 0, int_raw: 0, int_ena: 0, running: false, frame_cycles: CPU_HZ / 10, acc: 0, frames: 0, dropped: 0,
+    pub fn new() -> Self { LcdCam { ram: RegRam::new(), cam_ctrl: 0, cam_ctrl1: 0, int_raw: 0, int_ena: 0, running: false, cam_frame: None, cam_pos: 0, cam_byte_acc: 0, cam_blank: 0, frame_cycles: CPU_HZ / 10, acc: 0, frames: 0, dropped: 0,
                                     lcd_clock: 0, lcd_user: 0, lcd_ctrl: 0, lcd_ctrl1: 0, lcd_acc: 0, lcd_frames: 0, lcd_line: Vec::new(), lcd_fifo: std::collections::VecDeque::new(), lcd_log: false } }
     pub fn irq(&self) -> bool { self.int_raw & self.int_ena != 0 }
     /// LCD RGB mode running: LCD_START (USER bit 27) with LCD_RGB_MODE_EN (CTRL bit 31).
@@ -264,7 +181,7 @@ impl LcdCam {
         }
     }
     /// True when a new frame is due (advances the frame clock while streaming).
-    pub fn frame_due(&mut self, cycles: u64) -> bool { if !self.running { self.acc = 0; return false; } self.acc += cycles; if self.acc >= self.frame_cycles { self.acc -= self.frame_cycles; true } else { false } }
+    pub fn frame_due(&mut self, cycles: u64) -> bool { self.acc += cycles; if self.acc >= self.frame_cycles { self.acc -= self.frame_cycles; true } else { false } }
 }
 
 // ------------------------------------------------------------------ EXTMEM (cache controller; MMU table lives in the bus)
@@ -306,42 +223,10 @@ impl Wdev {
     pub fn write(&mut self, off: u32, v: u32) { self.ram.write(off, v); }
 }
 
-// ------------------------------------------------------------------ I2C_MST: analog "regi2c" master (PLL / SAR ADC trim registers)
-pub struct I2cMst { pub ram: RegRam, pub ana: std::collections::HashMap<u32, u8> }
-impl Default for I2cMst { fn default() -> Self { Self::new() } }
-
-impl I2cMst {
-    pub fn new() -> Self { I2cMst { ram: RegRam::new(), ana: Default::default() } }
-    pub fn read(&mut self, off: u32) -> u32 {
-        match off {
-            0x0 => {   // I2C0_CTRL: [7:0] slave, [15:8] reg, [23:16] data, [24] write, [25] busy
-                let c = self.ram.read(0);
-                if c & (1 << 24) == 0 { let key = c & 0xffff; let d = *self.ana.get(&key).unwrap_or(&0) as u32; (c & !(0xff << 16) & !(1 << 25)) | (d << 16) } else { c & !(1 << 25) }
-            }
-            // analog-block handshakes (BBPLL cal, pkdet, txdc/rxdc comparators...): the blob writes a start bit and
-            // polls a done bit in 26:24; comparator sign bits 31:30 read as 0 — enough for its search loops to run
-            0x40..=0x5c => (self.ram.read(off) & 0x3fff_ffff) | (7 << 24),
-            _ => self.ram.read(off),
-        }
-    }
-    pub fn write(&mut self, off: u32, v: u32) {
-        if off == 0 && v & (1 << 24) != 0 { self.ana.insert(v & 0xffff, (v >> 16) as u8); }
-        self.ram.write(off, v);
-    }
-}
-
-
 // ------------------------------------------------------------------ S3-only devices as `Device`
 impl Device for IntMatrix {
     fn read(&mut self, off: u32) -> u32 { IntMatrix::read(self, off) }
     fn write(&mut self, off: u32, v: u32) -> WriteEffect { IntMatrix::write(self, off, v); WriteEffect::INTMAP }
-}
-/// The MAC spans blocks 0x33..0x35; the table mounts it three times with `delta` = block index << 12.
-impl Device for WifiMac {
-    fn read(&mut self, off: u32) -> u32 { WifiMac::read(self, 0x33 + (off >> 12), off & 0xfff) }
-    fn write(&mut self, off: u32, v: u32) -> WriteEffect { WifiMac::write(self, 0x33 + (off >> 12), off & 0xfff, v); WriteEffect::NONE }
-    fn irq_sources(&self) -> u64 { self.irq() as u64 }
-    fn debug(&mut self, on: bool) { self.log = on; }
 }
 impl Device for Pcnt {
     fn read(&mut self, off: u32) -> u32 { Pcnt::read(self, off) }
@@ -362,10 +247,6 @@ impl Device for Wdev {
     fn read(&mut self, off: u32) -> u32 { Wdev::read(self, off) }
     fn write(&mut self, off: u32, v: u32) -> WriteEffect { Wdev::write(self, off, v); WriteEffect::NONE }
 }
-impl Device for I2cMst {
-    fn read(&mut self, off: u32) -> u32 { I2cMst::read(self, off) }
-    fn write(&mut self, off: u32, v: u32) -> WriteEffect { I2cMst::write(self, off, v); WriteEffect::NONE }
-}
 /// The FE (RF front end) block is otherwise unmodelled; the one bit the WiFi blob polls is the
 /// "IQ estimation done" flag at +0x174, set once a virtual AP exists (`pre_access` keeps it current).
 pub struct FeIq { word: u32, pub done: bool }
@@ -376,12 +257,15 @@ impl Device for FeIq {
 
 // ------------------------------------------------------------------ all together
 pub struct Peripherals {
+    pub adc: Adc,
     pub usb: UsbSerialJtag,
     pub uart: [Uart; 3],
     pub systimer: Systimer,
     pub timg: [TimerGroup; 2],
     pub intmatrix: IntMatrix,
     pub gpio: Gpio,
+    pub ledc: Ledc,
+    pub mcpwm: [Mcpwm;2],
     pub rtc: RtcCntl,
     pub efuse: Efuse,
     pub system: SystemRegs,
@@ -391,6 +275,7 @@ pub struct Peripherals {
     pub i2c: [crate::i2c::I2c; 2],
     pub lcd_cam: LcdCam,
     pub spi2: GpSpi,
+    pub spi3: GpSpi,
     pub pcnt: Pcnt,
     pub wifi: WifiMac,
     pub fe: FeIq,
@@ -417,6 +302,10 @@ pub struct Peripherals {
 // Every peripheral, where it sits, and its interrupt source numbers. Entries for one block are
 // tried in order: a range-limited entry goes before the full-block one behind it.
 device_set! { Peripherals; clock: (clock) CPU_HZ, [(ClockDomain::Systimer, 15), (ClockDomain::Apb, 3), (ClockDomain::RtcSlow, 1600), (ClockDomain::Cpu, 1)];
+    0x08 "SENS" (adc) delta -0x800 @ 0x800..=0xfff => [];
+    0x19 "LEDC" (ledc) => [SRC_LEDC];
+    0x1e "MCPWM0" (mcpwm[0]) => [31];
+    0x2c "MCPWM1" (mcpwm[1]) => [32];
     0x00 "UART0" (uart[0]) => [SRC_UART0];
     0x10 "UART1" (uart[1]) => [SRC_UART1];
     0x2e "UART2" (uart[2]) => [];
@@ -444,6 +333,7 @@ device_set! { Peripherals; clock: (clock) CPU_HZ, [(ClockDomain::Systimer, 15), 
     0x27 "I2C1" (i2c[1]) => [SRC_I2C1];
     0x41 "LCD_CAM" (lcd_cam) => [SRC_LCD_CAM];
     0x24 "SPI2" (spi2) => [SRC_SPI2];
+    0x25 "SPI3" (spi3) => [SRC_SPI3];
     0x17 "PCNT" (pcnt) => [SRC_PCNT];
     0x33 "WIFI_MAC" (wifi) => [SRC_WIFI_MAC];
     0x34 "WIFI_MAC" alias (wifi) delta 0x1000 => [];
@@ -465,6 +355,8 @@ impl DeviceSet for Peripherals {
     /// The three registers whose value depends on another device.
     fn pre_access(&mut self, block: u32, _off: u32, write: bool) {
         match block {
+            0x13 => self.i2c[0].route(&self.gpio, 90, 89, 63),
+            0x27 => self.i2c[1].route(&self.gpio, 92, 91, 63),
             0xc2 if !write => self.intmatrix.status = self.source_status(),   // INTERRUPT_*_STATUS reads the live sources
             0x35 => self.wifi.now_cycles = self.clock.cycles(),               // TSF timestamps
             0x06 => self.fe.done = self.wifi.ap.is_some(),                    // IQ estimation completes once there is an AP
@@ -476,10 +368,11 @@ impl DeviceSet for Peripherals {
 impl Peripherals {
     pub fn new(mac: [u8; 6]) -> Self {
         Peripherals {
+            adc: Adc::new(AdcLayout::S3),
             usb: UsbSerialJtag::new(CPU_HZ), uart: [Uart::new(UartLayout::S3), Uart::new(UartLayout::S3), Uart::new(UartLayout::S3)], systimer: Systimer::new(),
-            timg: [TimerGroup::new(), TimerGroup::new()], intmatrix: IntMatrix::new(), gpio: Gpio::new(), rtc: RtcCntl::new(),
+            timg: [TimerGroup::new(), TimerGroup::new()], intmatrix: IntMatrix::new(), gpio: Gpio::new(), mcpwm: [Mcpwm::new(160),Mcpwm::new(166)], ledc: Ledc::new(LedcLayout::S3), rtc: RtcCntl::new(),
             efuse: Efuse::new(mac), system: SystemRegs::new(0x30), extmem: Extmem::new(), spi0: SpiMem::new(false), spi1: SpiMem::new(true),
-            i2c: [crate::i2c::I2c::new(), crate::i2c::I2c::new()], lcd_cam: LcdCam::new(), spi2: GpSpi::new(), pcnt: Pcnt::new(), wifi: WifiMac::new(), fe: FeIq { word: 0, done: false },
+            i2c: [crate::i2c::I2c::new(), crate::i2c::I2c::new()], lcd_cam: LcdCam::new(), spi2: GpSpi::new(), spi3: GpSpi::new(), pcnt: Pcnt::new(), wifi: WifiMac::new(CPU_HZ, DMA_ADDR_BASE), fe: FeIq { word: 0, done: false },
             aes: Aes::new(), rsa: Rsa::new(), sha: Sha::new(), wdev: Wdev::new(), i2c_mst: I2cMst::new(), gdma: Gdma::new(), i2s0: I2s::new(CPU_HZ), i2s1: I2s::new(CPU_HZ), rmt: Rmt::new(CPU_HZ),
             io_mux: RegRam::new(), misc: Misc::new(), fake_reads: std::env::var("ESP_EMU_FAKE_READ").ok().map(|v| v.split(',').filter_map(|e| { let mut p = e.split(':'); let a = u32::from_str_radix(p.next()?.trim_start_matches("0x"), 16).ok()?; let o = u32::from_str_radix(p.next().unwrap_or("0").trim_start_matches("0x"), 16).ok()?; let m = u32::from_str_radix(p.next().unwrap_or("ffffffff").trim_start_matches("0x"), 16).ok()?; Some((a, (o, m))) }).collect()).unwrap_or_default(),
             clock: Self::new_clock(),
@@ -507,9 +400,21 @@ impl Peripherals {
     }
 
     pub fn write32(&mut self, addr: u32, v: u32) {
+        if (PERIPH_BASE + 0x9004..=PERIPH_BASE + 0x90c4).contains(&addr) && addr & 3 == 0 {
+            let pin = ((addr - PERIPH_BASE - 0x9000) / 4 - 1) as u8;
+            if !(22..=25).contains(&pin) { self.gpio.set_io_mux(pin, v); }
+        }
+        if addr == PERIPH_BASE + 0xc0020 && v & (1 << 7) != 0 { self.i2c[0].reset(); }
+        if addr == PERIPH_BASE + 0xc0020 && v & (1 << 18) != 0 { self.i2c[1].reset(); }
+        if addr == PERIPH_BASE + 0xc0000 + 0x20 && v & (1 << 11) != 0 { self.ledc = Ledc::new(LedcLayout::S3); }
+        if addr == PERIPH_BASE + 0xc0020 { for (group,bit) in [17,20].iter().enumerate() { if v & (1 << bit) != 0 { self.mcpwm[group] = Mcpwm::new(160+group as u32*6); } } }
         let fx = mmio::write32(self, addr, v);
         if fx.contains(WriteEffect::SPI_EXEC) { self.spi_exec = true; }
         if fx.contains(WriteEffect::INTMAP) { self.intmatrix_dirty = true; }
+        if addr == PERIPH_BASE + 0xc0000 + 0x18 || addr == PERIPH_BASE + 0xc0000 + 0x20 {
+            for (group,bit) in [17,20].iter().enumerate() { self.mcpwm[group].clock_enabled = self.system.read(0x18) & (1 << bit) != 0 && self.system.read(0x20) & (1 << bit) == 0; }
+            self.ledc.clock_enabled = self.system.read(0x18) & (1 << 11) != 0 && self.system.read(0x20) & (1 << 11) == 0;
+        }
     }
 
     /// Returns the number of words applied.

@@ -30,7 +30,7 @@ pub const MMU_INVALID: u32 = 1 << 14;
 pub const MMU_SPIRAM: u32 = 1 << 15;
 pub const PAGE: u32 = 0x1_0000;
 
-const SPI2_DMA_DESCRIPTOR_STEP_BUDGET: usize = 1024;
+const SPI_DMA_DESCRIPTOR_STEP_BUDGET: usize = 1024;
 /// Steps the memory-to-memory walker takes in one round at most: OUT descriptors visited plus IN
 /// descriptors closed. 4096 covers 16 MB of full 4095-byte buffers; a ring of zero-length OUT
 /// descriptors meets it instead of spinning.
@@ -57,7 +57,7 @@ pub enum DmaDescriptorFault {
     PayloadTooShort { expected: usize, actual: usize },
 }
 
-struct Spi2DmaCompletion {
+struct SpiDmaCompletion {
     channel: usize,
     final_channel: crate::periph::GdmaOutCh,
     descriptor_writebacks: Vec<(u32, u32)>,
@@ -78,6 +78,7 @@ pub struct SocBus {
     pub cycles: u64,
     pub last_fault: Option<(u32, bool)>,
     pub spi2_dma_fault: Option<DmaDescriptorFault>,
+    pub spi3_dma_fault: Option<DmaDescriptorFault>,
     /// set by any peripheral write: interrupt lines must be re-evaluated before the next instruction
     pub irq_dirty: bool,
     /// GPIO edges for observers, while one wants them: (cycle, pin, level)
@@ -116,12 +117,29 @@ use xtensa_lx7::bus::{FastMem, TlbEntry};
 fn tlb_idx(addr: u32) -> usize { xtensa_lx7::bus::tlb_index(addr) }
 
 impl SocBus {
+    pub fn sync_board_inputs(&mut self) {
+        self.board.advance_to(self.cycles);
+        let old=self.periph.gpio.input;
+        let old_status=self.periph.gpio.status;
+        for edge in self.board.take_edges() {
+            if let Some(events)=&mut self.gpio_events {events.push((edge.cycle,edge.pin,edge.level));}
+            self.periph.gpio.set_input(edge.pin,edge.level);
+        }
+        for (pin,level) in self.board.input_levels() {self.periph.gpio.set_input(pin,level);}
+        for pin in self.board.released_inputs() {
+            let before=self.periph.gpio.input;
+            self.periph.gpio.release_input(pin);
+            if before!=self.periph.gpio.input {if let Some(events)=&mut self.gpio_events {events.push((self.cycles,pin,self.periph.gpio.level(pin)));}}
+        }
+        self.irq_dirty |= old!=self.periph.gpio.input || old_status!=self.periph.gpio.status;
+    }
+
     pub fn new(flash_size: usize, psram_size: usize, mac: [u8; 6]) -> Self { Self::with_sizes(flash_size, psram_size, mac) }
     pub fn with_sizes(flash_size: usize, psram_size: usize, mac: [u8; 6]) -> Self {
         let bus_uninit = SocBus {
             sram: vec![0; SRAM_SIZE], irom: vec![0; (IROM_MASK_HIGH - IROM_MASK_LOW) as usize], drom: vec![0; (DROM_MASK_HIGH - DROM_MASK_LOW) as usize],
             rtc_fast: vec![0; 8192], rtc_slow: vec![0; 8192], flash: vec![0xff; flash_size], psram: vec![0; psram_size],
-            mmu: [MMU_INVALID; MMU_ENTRIES], periph: Peripherals::new(mac), board: Box::new(crate::board::Atech14::new()), cycles: 0, last_fault: None, spi2_dma_fault: None, irq_dirty: false, gpio_events: None, debug: Default::default(),
+            mmu: [MMU_INVALID; MMU_ENTRIES], periph: Peripherals::new(mac), board: Box::new(crate::board::Atech14::new()), cycles: 0, last_fault: None, spi2_dma_fault: None, spi3_dma_fault: None, irq_dirty: false, gpio_events: None, debug: Default::default(),
             tlb: vec![TlbEntry::EMPTY; TLB_SIZE], page_ver: Vec::new(), ver_base: [0; 7], tick_pending: 0, tick_budget: 0,
         };
         let mut b = bus_uninit;
@@ -260,10 +278,19 @@ impl SocBus {
         if a == PERIPH_BASE + 0x24_000 && v & (1 << 24) != 0 {
             self.spi2_dma_fault = None;
         }
+        if a == PERIPH_BASE + 0x25_000 && v & (1 << 24) != 0 { self.spi3_dma_fault = None; }
         let old_gpio_out = self.periph.gpio.out;
+        let old_drive=(self.periph.gpio.enable,self.periph.gpio.out);
         self.periph.write32(a, v);
-        self.complete_spi2_dma();
-        self.deliver_spi2_transfer();
+        if old_drive!=(self.periph.gpio.enable,self.periph.gpio.out) {
+            self.board.gpio_drive(self.cycles,self.periph.gpio.enable,self.periph.gpio.out);
+            self.sync_board_inputs();
+            self.refresh_tick_budget();
+        }
+        self.complete_spi_dma(2);
+        self.complete_spi_dma(3);
+        self.deliver_spi_transfer(2);
+        self.deliver_spi_transfer(3);
         // GPIO output writes usually only drive the board, but an enabled level
         // interrupt also observes output levels. Inspect only changed output pins.
         if !(0x6000_4004..=0x6000_4018).contains(&a) {
@@ -287,67 +314,57 @@ impl SocBus {
         }
     }
 
-    fn complete_spi2_dma(&mut self) {
-        if self.periph.spi2.dma_tx_pending.is_none() {
-            return;
-        }
-        let channel = self.periph.gdma.out_channel_for(0);
-        match self.spi2_dma_completion() {
-            Ok(Some(completion)) => {
+    fn spi(&self, host:u8) -> &esp_periph::GpSpi {
+        match host { 2 => &self.periph.spi2, 3 => &self.periph.spi3, _ => unreachable!() }
+    }
+    fn spi_mut(&mut self, host:u8) -> &mut esp_periph::GpSpi {
+        match host { 2 => &mut self.periph.spi2, 3 => &mut self.periph.spi3, _ => unreachable!() }
+    }
+    fn complete_spi_dma(&mut self, host:u8) {
+        let Some(bits) = self.spi(host).dma_tx_pending else { return };
+        let Some(channel) = self.periph.gdma.out_channel_for((host-2) as u32) else { return };
+        match self.spi_dma_completion(bits, channel) {
+            Ok(completion) => {
                 for (descriptor, control) in completion.descriptor_writebacks {
                     if let Err(fault) = self.write32(descriptor, control) {
-                        self.fail_spi2_dma(completion.channel, DmaDescriptorFault::Writeback { descriptor, fault });
+                        self.fail_spi_dma(host, completion.channel, DmaDescriptorFault::Writeback { descriptor, fault });
                         return;
                     }
                 }
                 self.periph.gdma.out[completion.channel] = completion.final_channel;
-                self.periph.spi2.complete_dma_tx(&completion.payload);
+                self.spi_mut(host).complete_dma_tx(&completion.payload);
                 self.irq_dirty = true;
             }
-            Ok(None) => {}
-            Err(fault) => {
-                if let Some(channel) = channel {
-                    self.fail_spi2_dma(channel, fault);
-                }
-            }
+            Err(fault) => self.fail_spi_dma(host, channel, fault),
         }
     }
-
-    fn fail_spi2_dma(&mut self, channel: usize, fault: DmaDescriptorFault) {
-        if self.periph.spi2.log { eprintln!("[spi2] DMA descriptor fault: {fault:?}"); }
-        self.spi2_dma_fault = Some(fault);
-        let gdma = &mut self.periph.gdma.out[channel];
-        gdma.running = false;
-        gdma.int_raw |= 1 << 2;                                         // OUT_DSCR_ERR
-        self.periph.spi2.fail_dma_tx();
-        self.irq_dirty = true;
+    fn fail_spi_dma(&mut self, host:u8, channel:usize, fault:DmaDescriptorFault) {
+        if self.spi(host).log { eprintln!("[spi{host}] DMA descriptor fault: {fault:?}"); }
+        if host==2 { self.spi2_dma_fault=Some(fault); } else { self.spi3_dma_fault=Some(fault); }
+        let gdma=&mut self.periph.gdma.out[channel];
+        gdma.running=false; gdma.int_raw |= 1<<2;
+        self.spi_mut(host).fail_dma_tx();
+        self.irq_dirty=true;
     }
-
-    fn deliver_spi2_transfer(&mut self) {
-        if self.periph.spi2.dma_tx_pending.is_some() {
-            return;
-        }
-        let Some(transfer) = self.periph.spi2.take_transfer() else { return };
-        // Chip select and command/data lines are GPIOs. The board must see their preceding edges
-        // before it receives the transaction.
+    fn deliver_spi_transfer(&mut self, host:u8) {
+        let Some(transfer) = self.spi_mut(host).take_transfer() else { return };
         if !self.periph.gpio.changes.is_empty() {
-            let changes = std::mem::take(&mut self.periph.gpio.changes);
-            if let Some(events) = &mut self.gpio_events {
-                for &(pin, level) in &changes {
-                    events.push((self.cycles, pin, level));
-                }
+            let changes=std::mem::take(&mut self.periph.gpio.changes);
+            if let Some(events)=&mut self.gpio_events {
+                for &(pin,level) in &changes { events.push((self.cycles,pin,level)); }
             }
             self.board.gpio_changes(&changes);
         }
-        let rx = self.board.spi_transfer(2, &transfer.tx, transfer.rx_len);
-        self.periph.spi2.finish_transfer(transfer, &rx);
+        let layout=if host==2 { esp_soc::spi::SpiLayout::S3 } else { esp_soc::spi::SpiLayout::S3Spi3 };
+        let pins=layout.pins(&self.periph.gpio,self.spi(host));
+        let rx=self.board.spi_transfer_pins(host,pins,&transfer.tx,transfer.rx_len);
+        self.spi_mut(host).finish_transfer(transfer,&rx);
+        self.irq_dirty=true;
     }
 
-    /// Collect one GP-SPI2 data phase and its GDMA completion without partially committing a
+    /// Collect one GP-SPI data phase and its GDMA completion without partially committing a
     /// malformed descriptor chain.
-    fn spi2_dma_completion(&mut self) -> Result<Option<Spi2DmaCompletion>, DmaDescriptorFault> {
-        let Some(bits) = self.periph.spi2.dma_tx_pending else { return Ok(None) };
-        let Some(channel_index) = self.periph.gdma.out_channel_for(0) else { return Ok(None) };
+    fn spi_dma_completion(&mut self, bits:u32, channel_index:usize) -> Result<SpiDmaCompletion, DmaDescriptorFault> {
         let wanted = (bits as usize).div_ceil(8);
         let mut payload = Vec::with_capacity(wanted);
         let mut visited = HashSet::new();
@@ -359,8 +376,8 @@ impl SocBus {
             if !current.running || current.desc == 0 {
                 break;
             }
-            if steps == SPI2_DMA_DESCRIPTOR_STEP_BUDGET {
-                return Err(DmaDescriptorFault::StepBudgetExceeded { budget: SPI2_DMA_DESCRIPTOR_STEP_BUDGET });
+            if steps == SPI_DMA_DESCRIPTOR_STEP_BUDGET {
+                return Err(DmaDescriptorFault::StepBudgetExceeded { budget: SPI_DMA_DESCRIPTOR_STEP_BUDGET });
             }
             steps += 1;
             if !visited.insert(current.desc) {
@@ -429,7 +446,7 @@ impl SocBus {
         if payload.len() != wanted {
             return Err(DmaDescriptorFault::PayloadTooShort { expected: wanted, actual: payload.len() });
         }
-        Ok(Some(Spi2DmaCompletion { channel: channel_index, final_channel: channel, descriptor_writebacks, payload }))
+        Ok(SpiDmaCompletion { channel: channel_index, final_channel: channel, descriptor_writebacks, payload })
     }
 
     /// Append a memory range a mapping at a time. Peripheral and unmapped addresses use the
@@ -461,9 +478,58 @@ impl SocBus {
     }
 
     /// Move I2S TX data out of DMA descriptors at the sample rate.
+    fn dma_rmt_step(&mut self) {
+        if self.periph.rmt.ch[3].conf0 & (1 << 25) == 0 { return; }
+        let Some(index) = self.periph.gdma.out_channel_for(9) else { return; };
+        let mut channel = self.periph.gdma.out[index];
+        for _ in 0..64 {
+            if !channel.running || self.periph.rmt.dma_fifo.len() >= 48 { break; }
+            let result = (|| -> Result<(), ()> {
+                if channel.desc == 0 || channel.desc & 3 != 0 { return Err(()); }
+                let (word, desc) = self.try_dma_desc(channel.desc).map_err(|_| ())?;
+                if desc.length > desc.size || desc.length & 3 != 0 || desc.buf & 3 != 0
+                    || channel.buf_pos > desc.length
+                    || (channel.conf1 & (1 << 12) != 0 && !desc.owner_dma) { return Err(()); }
+                if channel.buf_pos == desc.length {
+                    if channel.conf0 & 4 != 0 { self.write32(desc.addr, word & !(1 << 31)).map_err(|_| ())?; }
+                    channel.int_raw |= 1;
+                    if desc.eof { channel.int_raw |= 2; channel.eof_desc = desc.addr; }
+                    channel.desc = desc.next;
+                    channel.buf_pos = 0;
+                    if desc.next == 0 { channel.running = false; channel.int_raw |= 8; }
+                } else {
+                    let addr = desc.buf.checked_add(channel.buf_pos).ok_or(())?;
+                    let symbol = self.read32(addr).map_err(|_| ())?;
+                    self.periph.rmt.dma_fifo.push_back(symbol);
+                    channel.buf_pos += 4;
+                }
+                Ok(())
+            })();
+            if result.is_err() {
+                channel.running = false;
+                channel.int_raw |= 4;
+                self.periph.rmt.int_raw |= 1 << 28;
+                break;
+            }
+        }
+        self.irq_dirty |= channel.int_raw != self.periph.gdma.out[index].int_raw;
+        self.periph.gdma.out[index] = channel;
+    }
+
     fn dma_i2s_step(&mut self, cycles: u64) {
         self.dma_i2s_one(cycles, 0);
         self.dma_i2s_one(cycles, 1);
+        for which in 0..2 {
+            let i2s = if which == 0 { &mut self.periph.i2s0 } else { &mut self.periph.i2s1 };
+            let bytes = i2s.rx_data(cycles, &self.periph.gpio, if which == 0 { 25 } else { 30 }, 7, 0x3ff);
+            let eof = i2s.rx_eof_bytes();
+            if let Some(ch) = self.periph.gdma.in_channel_for(3 + which) {
+                let mut channel = self.periph.gdma.inp[ch];
+                esp_periph::i2s::receive_dma(self, &mut channel, &bytes, eof);
+                self.irq_dirty |= channel.int_raw != self.periph.gdma.inp[ch].int_raw;
+                self.periph.gdma.inp[ch] = channel;
+            }
+        }
     }
 
     /// Move I2S TX data for controller `which` (0 = I2S0 on GDMA trigger 3, 1 = I2S1 on trigger 4).
@@ -614,33 +680,45 @@ impl SocBus {
         }
     }
 
-    /// Camera engine: when a sensor frame is due, push it through the GDMA IN channel bound to CAM (trigger 5).
     fn dma_cam_step(&mut self, cycles: u64) {
-        if !self.periph.lcd_cam.frame_due(cycles) { return; }
-        let Some(ch) = self.periph.gdma.in_channel_for(5) else { self.periph.lcd_cam.dropped += 1; return };
-        let Some((_w, _h, frame)) = self.board.camera_frame() else { self.periph.lcd_cam.dropped += 1; return };
-        let mut pos = 0usize;
-        let mut desc = self.periph.gdma.inp[ch].desc;
-        let mut last = desc;
-        while desc != 0 && pos < frame.len() {
-            let dw0 = self.read32(desc).unwrap_or(0);
-            let size = (dw0 & 0xfff) as usize; let buf = self.read32(desc + 4).unwrap_or(0); let next = self.read32(desc + 8).unwrap_or(0);
-            if dw0 & (1 << 31) == 0 || size == 0 { break; }                   // descriptor not owned by DMA
-            let n = size.min(frame.len() - pos);
-            let mut i = 0;
-            while i + 4 <= n { let v = u32::from_le_bytes([frame[pos + i], frame[pos + i + 1], frame[pos + i + 2], frame[pos + i + 3]]); let _ = self.write32(buf + i as u32, v); i += 4; }
-            while i < n { let _ = self.write8(buf + i as u32, frame[pos + i]); i += 1; }
-            pos += n;
-            let eof = pos >= frame.len();
-            let ndw0 = (dw0 & !(0xfff << 12) & !(1 << 31) & !(1 << 30)) | ((n as u32) << 12) | if eof { 1 << 30 } else { 0 };   // length, owner=cpu, suc_eof
-            let _ = self.write32(desc, ndw0);
-            last = desc; desc = next;
+        if self.board.camera().is_none() && !self.periph.lcd_cam.running { return; }
+        if let Some(camera) = self.board.camera() {
+            let camera = camera.lock().unwrap();
+            let pins = camera.config.pins;
+            let gpio = &self.periph.gpio;
+            let inputs = [(pins[3],149), (pins[4],152), (pins[5],150)];
+            if camera.info(3) == 0 || inputs.iter().any(|(pin,signal)| gpio.func_in_sel[*signal] & 0xbf != (*pin as u32 | 0x80))
+                || pins[6..14].iter().enumerate().any(|(i,pin)| gpio.func_in_sel[133+i] & 0xff != (*pin as u32 | 0x80))
+                || gpio.func_out_sel[pins[2] as usize] & 0x3ff != 149 { return; }
+            self.periph.lcd_cam.frame_cycles = crate::periph::CPU_HZ / camera.config.fps as u64;
         }
-        let r = &mut self.periph.gdma.inp[ch];
-        r.eof_desc = last; r.desc = desc; r.int_raw |= (1 << 0) | (1 << 1);                    // IN_DONE | IN_SUC_EOF
-        if desc == 0 { r.running = false; }
-        self.periph.lcd_cam.int_raw |= 1 << 2;                                                  // CAM_VSYNC_INT
-        self.periph.lcd_cam.frames += 1;
+        if self.periph.lcd_cam.frame_due(cycles) {
+            self.periph.lcd_cam.int_raw |= 1 << 2;
+            self.periph.lcd_cam.cam_frame = self.board.camera_frame().map(|(_,_,frame)| frame);
+            self.periph.lcd_cam.cam_pos = 0;
+            self.periph.lcd_cam.cam_byte_acc = 0;
+            self.periph.lcd_cam.cam_blank = self.periph.lcd_cam.frame_cycles / 20;
+            self.periph.lcd_cam.frames += 1;
+            self.irq_dirty = true;
+            return;
+        }
+        if self.periph.lcd_cam.cam_blank != 0 { self.periph.lcd_cam.cam_blank = self.periph.lcd_cam.cam_blank.saturating_sub(cycles); return; }
+        if !self.periph.lcd_cam.running || self.periph.lcd_cam.cam_ctrl1 & ((1 << 24) | (1 << 28)) != 0 { return; }
+        let Some(frame) = self.periph.lcd_cam.cam_frame.clone() else { return; };
+        let Some(ch) = self.periph.gdma.in_channel_for(5) else { return; };
+        let cam = &mut self.periph.lcd_cam;
+        cam.cam_byte_acc += cycles * frame.len() as u64 * 2;
+        let n = (cam.cam_byte_acc / cam.frame_cycles) as usize;
+        cam.cam_byte_acc %= cam.frame_cycles;
+        let end = (cam.cam_pos + n).min(frame.len());
+        if end == cam.cam_pos { return; }
+        let mut bytes = frame[cam.cam_pos..end].to_vec();
+        if cam.cam_ctrl & (1 << 6) != 0 { for byte in &mut bytes { *byte = byte.reverse_bits(); } }
+        cam.cam_pos = end;
+        let eof = if cam.cam_ctrl & (1 << 8) != 0 { frame.len() as u32 } else { (cam.cam_ctrl1 & 0xffff) + 1 };
+        let mut channel = self.periph.gdma.inp[ch];
+        esp_periph::i2s::receive_dma(self, &mut channel, &bytes, eof);
+        self.periph.gdma.inp[ch] = channel;
         self.irq_dirty = true;
     }
 
@@ -825,7 +903,9 @@ impl SocBus {
             let now_us = self.cycles / (crate::periph::CPU_HZ / 1_000_000);
             if let Some(ap) = &mut self.periph.wifi.ap {
                 if let Some(data) = ap.on_station_tx(&frame, now_us) {
-                    if let Some(eth) = crate::wifi::data_to_eth(&data) { self.periph.wifi.eth_tx.push(eth); }
+                    if let Some(eth) = crate::wifi::data_to_eth(&data) {
+                        if eth.len() <= 1518 && self.periph.wifi.eth_tx.len() < 64 { self.periph.wifi.eth_tx.push(eth); }
+                    }
                 }
             }
         }
@@ -860,12 +940,12 @@ impl SocBus {
     /// Write one received frame into the next RX descriptor (rx_ctrl header + frame + FCS) and raise the RX event.
     #[allow(clippy::identity_op, reason = "rx_state zero remains visible in the packed descriptor layout")]
     fn wifi_rx_deliver(&mut self, frame: &[u8], now_us: u64) {
+        if self.periph.wifi.rx_next == 0 { self.periph.wifi.rx_dropped += 1; return; }
         let desc = self.periph.wifi.rx_next | crate::periph::DMA_ADDR_BASE;
-        if desc == 0 { self.periph.wifi.rx_dropped += 1; return; }
         let dw0 = self.read32(desc).unwrap_or(0); let buf = self.read32(desc + 4).unwrap_or(0); let next = self.read32(desc + 8).unwrap_or(0);
         let size = (dw0 & 0xfff) as usize;
         let total = 48 + frame.len() + 4;
-        if dw0 & (1 << 31) == 0 || buf == 0 || size < total { self.periph.wifi.rx_dropped += 1; return; }
+        if dw0 & (3 << 30) != 1 << 31 || buf == 0 || size < total { self.periph.wifi.rx_dropped += 1; return; }
         let (chan, log) = { let ap = self.periph.wifi.ap.as_ref().unwrap(); (ap.cfg.channel as u32, ap.log) };
         let mut b = Vec::with_capacity(total);
         // rx_ctrl word 0 (silicon: a real broadcast beacon reads 0x111b20ad — bit 28 set, signed rssi in the low
@@ -1024,17 +1104,11 @@ impl SocBus {
     fn tick_impl(&mut self, cycles: u32) -> u32 {
         // Reads may flush before the periodic backstop. Refresh for either edge
         // of a clocked source, without breaking every block that polls MMIO.
+        self.dma_rmt_step();
         self.irq_dirty |= self.periph.tick(cycles as u64);
-        self.board.advance_to(self.cycles);
-        for edge in self.board.take_edges() {
-            if let Some(events) = &mut self.gpio_events { events.push((edge.cycle, edge.pin, edge.level)); }
-            let old_input = self.periph.gpio.input;
-            self.periph.gpio.set_input(edge.pin, edge.level);
-            // set_input reports latched edges only. Level IRQs can rise or fall
-            // when the input changes, so both polarities require a refresh too.
-            self.irq_dirty |= old_input != self.periph.gpio.input;
-        }
-        self.complete_spi2_dma();
+        self.sync_board_inputs();
+        self.complete_spi_dma(2);
+        self.complete_spi_dma(3);
         self.dma_i2s_step(cycles as u64);
         self.dma_cam_step(cycles as u64);
         self.dma_lcd_step(cycles as u64);
@@ -1043,20 +1117,22 @@ impl SocBus {
         if self.periph.aes.dma_pending { self.aes_dma_step(); }
         if self.periph.sha.dma_pending { self.sha_dma_step(); }
         if self.periph.wifi.ap.is_some() { self.wifi_air_step(); }
-        if let Some(net) = &mut self.periph.wifi.net {
-            let now_us = self.cycles / (crate::periph::CPU_HZ / 1_000_000);
-            let out = std::mem::take(&mut self.periph.wifi.eth_tx);
-            // Frames from the station are handled the moment they are sent, but reading the host
-            // sockets means syscalls: doing that every scheduling round costs more than emulating
-            // the CPU. NET_POLL_US is well under any timeout the guest's TCP stack cares about.
-            const NET_POLL_US: u64 = 500;
-            let due = now_us.wrapping_sub(self.periph.wifi.net_polled_us) >= NET_POLL_US;
-            if !out.is_empty() || due {
-                if due { self.periph.wifi.net_polled_us = now_us; }
-                let mut replies = Vec::new();
-                for e in out { replies.extend(net.handle(&e, now_us)); }
-                replies.extend(net.poll(now_us));
-                self.periph.wifi.eth_rx.extend(replies);
+        if !self.periph.wifi.relay {
+            if let Some(net) = &mut self.periph.wifi.net {
+                let now_us = self.cycles / (crate::periph::CPU_HZ / 1_000_000);
+                let out = std::mem::take(&mut self.periph.wifi.eth_tx);
+                // Frames from the station are handled the moment they are sent, but reading the host
+                // sockets means syscalls: doing that every scheduling round costs more than emulating
+                // the CPU. NET_POLL_US is well under any timeout the guest's TCP stack cares about.
+                const NET_POLL_US: u64 = 500;
+                let due = now_us.wrapping_sub(self.periph.wifi.net_polled_us) >= NET_POLL_US;
+                if !out.is_empty() || due {
+                    if due { self.periph.wifi.net_polled_us = now_us; }
+                    let mut replies = Vec::new();
+                    for e in out { replies.extend(net.handle(&e, now_us)); }
+                    replies.extend(net.poll(now_us));
+                    self.periph.wifi.eth_rx.extend(replies);
+                }
             }
         }
         if !self.periph.gpio.changes.is_empty() {
@@ -1064,11 +1140,13 @@ impl SocBus {
             if let Some(ev) = &mut self.gpio_events { for &(pin, level) in &ch { ev.push((self.cycles, pin, level)); } }
             self.board.gpio_changes(&ch);
         }
-        self.deliver_spi2_transfer();
+        self.deliver_spi_transfer(2);
+        self.deliver_spi_transfer(3);
         if !self.periph.rmt.done.is_empty() {
             for (ch, bits) in std::mem::take(&mut self.periph.rmt.done) {
-                let pin = self.periph.gpio.pin_for_signal(RMT_SIG_OUT0 + ch as u32).unwrap_or(u8::MAX);
-                self.board.rmt_frame(pin, &bits);
+                for pin in self.periph.gpio.pins_for_signal(RMT_SIG_OUT0 + ch as u32) {
+                    self.board.rmt_frame(pin, &bits);
+                }
             }
             self.irq_dirty = true;
         }
@@ -1306,6 +1384,56 @@ mod gp_spi_board_tests {
         bus.periph.gdma.out[0].desc = FIRST_DESC;
         bus.periph.gdma.out[0].running = true;
         bus
+    }
+
+    #[test]
+    fn rmt_dma_fifo_consumes_timed_symbols_and_returns_descriptor() {
+        let mut bus = dma_bus();
+        let desc = FIRST_DESC;
+        let data = FIRST_DESC + 64;
+        bus.periph.gdma.out[0].peri_sel = 9;
+        bus.periph.gdma.out[0].conf0 = 4;
+        bus.periph.gdma.out[0].conf1 = 1 << 12;
+        bus.write32(desc, (1 << 31) | (1 << 30) | (12 << 12) | 12).unwrap();
+        bus.write32(desc + 4, data).unwrap();
+        bus.write32(desc + 8, 0).unwrap();
+        bus.write32(data, 0x8000 | 35 | (15 << 16)).unwrap();
+        bus.write32(data + 4, 0x8000 | 10 | (40 << 16)).unwrap();
+        bus.write32(data + 8, 0).unwrap();
+        bus.periph.rmt.write(0x2c, (1 << 25) | (2 << 8) | 1);
+        bus.dma_rmt_step();
+        assert_eq!(bus.periph.rmt.dma_fifo.len(), 3);
+        assert_eq!(bus.periph.gdma.out[0].int_raw & 15, 11);
+        assert!(!bus.periph.gdma.out[0].running);
+        assert_eq!(bus.read32(desc).unwrap() >> 31, 0);
+        bus.periph.rmt.tick(1);
+        assert!(bus.periph.rmt.done.is_empty());
+        bus.periph.rmt.tick(600);
+        assert_eq!(bus.periph.rmt.done, vec![(3,vec![true,false])]);
+        assert_eq!(bus.periph.rmt.int_raw & (1 << 3), 1 << 3);
+    }
+
+    #[test]
+    fn rmt_dma_fifo_is_bounded_and_rejects_bad_descriptors() {
+        let mut bus = dma_bus();
+        bus.periph.gdma.out[0].peri_sel = 9;
+        bus.periph.gdma.out[0].conf1 = 1 << 12;
+        bus.periph.rmt.ch[3].conf0 = 1 << 25;
+        bus.write32(FIRST_DESC, (1 << 31) | (256 << 12) | 256).unwrap();
+        bus.write32(FIRST_DESC + 4, FIRST_DESC + 64).unwrap();
+        bus.write32(FIRST_DESC + 8, 0).unwrap();
+        bus.dma_rmt_step();
+        assert_eq!(bus.periph.rmt.dma_fifo.len(), 48);
+        assert_eq!(bus.periph.gdma.out[0].buf_pos, 192);
+        bus.dma_rmt_step();
+        assert_eq!(bus.periph.rmt.dma_fifo.len(), 48);
+        bus.periph.rmt.dma_fifo.clear();
+        bus.write32(FIRST_DESC, (1 << 31) | (257 << 12) | 256).unwrap();
+        bus.dma_rmt_step();
+        assert!(!bus.periph.gdma.out[0].running);
+        assert_eq!(bus.periph.gdma.out[0].int_raw & 4, 4);
+        assert_eq!(bus.periph.rmt.int_raw & (1 << 28), 1 << 28);
+        assert!(bus.periph.rmt.dma_fifo.is_empty());
     }
 
     fn start_dma(bus: &mut SocBus, bits: u32) {
@@ -1549,7 +1677,7 @@ mod gp_spi_board_tests {
     #[test]
     fn descriptor_step_budget_is_typed() {
         let mut bus = dma_bus();
-        for step in 0..=SPI2_DMA_DESCRIPTOR_STEP_BUDGET {
+        for step in 0..=SPI_DMA_DESCRIPTOR_STEP_BUDGET {
             let descriptor = FIRST_DESC + step as u32 * 12;
             bus.write32(descriptor, 1 << 31).expect("descriptor write failed");
             bus.write32(descriptor + 4, 0).expect("descriptor buffer write failed");
@@ -1559,7 +1687,7 @@ mod gp_spi_board_tests {
         start_dma(&mut bus, 0x40000);
 
         assert_dma_fault_and_recovery(&mut bus, DmaDescriptorFault::StepBudgetExceeded {
-            budget: SPI2_DMA_DESCRIPTOR_STEP_BUDGET,
+            budget: SPI_DMA_DESCRIPTOR_STEP_BUDGET,
         });
     }
 
@@ -1735,6 +1863,24 @@ mod gp_spi_board_tests {
                 assert!(!bus.irq_dirty, "ordinary output toggles remain cheap");
             }
         }
+    }
+
+    #[test]
+    fn wifi_rx_never_overwrites_unrecycled_or_empty_ring() {
+        let mut bus = SocBus::new(1024, 1024, [0; 6]);
+        bus.periph.wifi.ap = Some(crate::wifi::VirtualAp::new(crate::wifi::ApConfig {
+            ssid: "test".into(), bssid: [2, 0, 0, 0, 0, 1], channel: 1, psk: None,
+        }, false));
+        bus.periph.wifi.rx_next = FIRST_DESC & 0xfffff;
+        bus.write32(FIRST_DESC, 512 | (3 << 30)).unwrap();
+        bus.write32(FIRST_DESC + 4, FIRST_DESC + 64).unwrap();
+        bus.write32(FIRST_DESC + 64, 0x12345678).unwrap();
+        bus.wifi_rx_deliver(&[0; 24], 100_000);
+        assert_eq!(bus.read32(FIRST_DESC + 64).unwrap(), 0x12345678);
+        assert_eq!(bus.periph.wifi.rx_frames, 0);
+        bus.periph.wifi.rx_next = 0;
+        bus.wifi_rx_deliver(&[0; 24], 200_000);
+        assert_eq!(bus.periph.wifi.rx_dropped, 2);
     }
 
     #[test]
@@ -1948,5 +2094,34 @@ mod gp_spi_board_tests {
         }
         assert!(!bus.periph.gpio.level(crate::board::PIN_AMOLED_TE));
         assert!(!bus.periph.gpio.level(crate::board::PIN_AMOLED_TOUCH_INT));
+    }
+}
+
+#[cfg(test)]
+mod camera_tests {
+    use super::*;
+    #[test]
+    fn camera_requires_physical_data_and_clock_routes() {
+        let mut bus = SocBus::new(1024,0,[0;6]);
+        let mut config = [0u8;20]; config[0]=0x26;
+        for i in 0..14 { config[3+i]=i as u8; }
+        config[17]=255;config[18]=255;config[19]=10;
+        let mut board = esp_soc::devices::CircuitBoard::new(&[],&[]).unwrap();
+        use esp_soc::BoardModel;
+        assert!(board.configure_camera(esp_soc::devices::camera::CameraConfig::parse(&config).unwrap()));
+        let camera = board.camera().unwrap();
+        { let mut camera=camera.lock().unwrap(); let mut state=camera.state.lock().unwrap();state.width=2;state.height=2;state.format=8;state.streaming=true;drop(state);assert!(camera.push(2,2,0,&[0x1f,0xf8,0,0,0,0,0,0])); }
+        bus.board=Box::new(board);
+        for (pin,signal) in [(3,149),(4,152),(5,150)] { bus.periph.gpio.func_in_sel[signal]=0x80|pin; }
+        for i in 0..8 { bus.periph.gpio.func_in_sel[133+i]=0x80|(6+i) as u32; }
+        bus.periph.gpio.func_out_sel[2]=149;
+        bus.periph.gpio.func_in_sel[133]=0x80|7;
+        bus.dma_cam_step(crate::periph::CPU_HZ/10);
+        assert_eq!(bus.periph.lcd_cam.frames,0);
+        bus.periph.gpio.func_in_sel[133]=0x80|6;
+        bus.dma_cam_step(crate::periph::CPU_HZ/10);
+        assert_eq!(bus.periph.lcd_cam.frames,1);
+        assert_ne!(bus.periph.lcd_cam.int_raw & 4,0,"VSYNC continues before receiver/DMA start");
+        assert_eq!(&bus.periph.lcd_cam.cam_frame.as_ref().unwrap()[..2],&[0xf8,0x1f]);
     }
 }

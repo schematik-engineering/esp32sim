@@ -55,7 +55,7 @@ pub struct Realtime {
     log_insns: (u64, u64),
 }
 
-struct WebState { last_push_cycles: u64, audio_sent: usize, ring_updates: u64, grid_updates: Vec<u64>, px_pending: u64, px_sent: u64, px_deferred: bool, cam_pushed: u64, cam_sent: bool }
+struct WebState { serial_pending: [Vec<u8>; 4], last_push_cycles: u64, audio_sent: usize, ring_updates: u64, grid_updates: Vec<u64>, strip_updates: Vec<u64>, display_updates: Vec<u64>, px_pending: u64, px_sent: u64, px_deferred: bool, cam_pushed: u64, cam_sent: bool }
 
 pub struct Machine<S: Soc> {
     pub mac: [u8; 6],
@@ -82,6 +82,10 @@ pub struct Machine<S: Soc> {
     pub interrupts: u64,
     pub irq_hist: Vec<[u64; 32]>,
     pub script: Script,
+    gps: [Option<crate::devices::gps::Gps>;4],
+    gps_next: u64,
+    radars: [Option<crate::devices::radar::Radar>;4],
+    pzem_meters: [Option<crate::devices::pzem::Pzem>;4],
     pub max_cycles: u64,
     pub console: Console,
     /// live web UI
@@ -172,9 +176,12 @@ impl<S: Soc> Machine<S> {
             dbg: Debug { stop_on_unimplemented: true, stop_after_exceptions: u64::MAX },
             observers: Vec::new(), probes: Wants::NONE, prev_irq: vec![0; S::CORES],
             exceptions: 0, interrupts: 0, irq_hist: vec![[0; 32]; S::CORES],
+            gps: std::array::from_fn(|_|None), gps_next:u64::MAX,
+            radars: std::array::from_fn(|_|None),
+            pzem_meters: std::array::from_fn(|_|None),
             script: Script { events: Vec::new(), pos: 0, log: true, knob_next: 0 }, max_cycles: u64::MAX,
             console: Console { all: Vec::new(), usb: Vec::new(), uart0: Vec::new(), mask: 3, prefix: false, capture: false },
-            web: None, ws: WebState { last_push_cycles: 0, audio_sent: 0, ring_updates: 0, grid_updates: Vec::new(), px_pending: 0, px_sent: 0, px_deferred: false, cam_pushed: u64::MAX, cam_sent: false },
+            web: None, ws: WebState { serial_pending: Default::default(), last_push_cycles: 0, audio_sent: 0, ring_updates: 0, grid_updates: Vec::new(), strip_updates: Vec::new(), display_updates: Vec::new(), px_pending: 0, px_sent: 0, px_deferred: false, cam_pushed: u64::MAX, cam_sent: false },
             rt: Realtime { enabled: false, wall_start: None, last_check: 0, behind: 0.0, resyncs: 0, speed: None, speed_mark: None, log: false, log_last: None, log_insns: (0, 0) },
             debug_rom: false, cost: None, model_ready_at: vec![0; S::CORES], model_stop: None, model_attach_error: None,
         }
@@ -315,6 +322,21 @@ impl<S: Soc> Machine<S> {
     pub fn drain_console(&mut self) {
         use std::io::Write;
         let streams = self.bus.console_take();
+        for (port, bytes) in streams.iter().enumerate().skip(1) {
+            for meter in self.pzem_meters.iter_mut().flatten() {
+                if self.bus.uart_tx_route(port - 1, meter.rx_pin, crate::devices::pzem::BAUD) {
+                    for &byte in bytes {meter.receive(byte,self.bus.cycles(),S::CPU_HZ);}
+                }
+            }
+            for radar in self.radars.iter_mut().flatten() {
+                if self.bus.uart_tx_route(port - 1, radar.rx_pin, radar.baud) {
+                    for &byte in bytes {
+                        radar.receive(byte, self.bus.cycles(), S::CPU_HZ);
+                    }
+                }
+            }
+        }
+
         let mut o = std::io::stdout();
         let (mask, prefix, capture) = (self.console.mask, self.console.prefix, self.console.capture);
         let mut emit = |bit: u32, tag: &str, d: Vec<u8>, all: &mut Vec<u8>| {
@@ -331,7 +353,10 @@ impl<S: Soc> Machine<S> {
                 backlog.extend_from_slice(&d);
                 if backlog.len() > 65536 { let cut = backlog.len() - 49152; backlog.drain(..cut); }
             }
-            if let Some(w) = &self.web { if !d.is_empty() { w.send_text(&format!("{{\"t\":\"serial\",\"src\":\"{}\",\"data\":\"{}\"}}", src, crate::web::json_escape(&String::from_utf8_lossy(&d)))); } }
+            if let Some(w) = &self.web {
+                let text = stream_utf8(&mut self.ws.serial_pending[i], &d);
+                if !text.is_empty() { w.send_text(&format!("{{\"t\":\"serial\",\"src\":\"{}\",\"data\":\"{}\"}}", src, crate::web::json_escape(&text))); }
+            }
             let (bit, tag) = [(1, "[usb]  "), (2, "[uart0] "), (4, "[uart1] "), (4, "[uart2] ")][i];
             emit(bit, tag, d, &mut self.console.all);
         }
@@ -467,6 +492,7 @@ impl<S: Soc> Machine<S> {
             || !self.stubs.is_empty()
             || !self.fn_probes.is_empty()
             || self.script.pos < self.script.events.len()
+            || self.next_uart_deadline().is_some_and(|at|at <= self.bus.cycles()+QUANTUM)
             || self.bus.sw_reset()
             || self.bus.block_break()
             || self.cores[0].waiting()
@@ -559,10 +585,101 @@ impl<S: Soc> Machine<S> {
         }
     }
 
+    pub fn configure_gps(&mut self, id: usize, pin: u8, baud: u32) -> bool {
+        if self.pzem_meters.iter().flatten().any(|m|m.tx_pin==pin||m.rx_pin==pin) || id >= self.gps.len()
+            || pin >= 49
+            || !(1200..=115200).contains(&baud)
+            || self
+                .radars
+                .iter()
+                .flatten()
+                .any(|r| r.tx_pin == pin || r.rx_pin == pin)
+        {
+            return false;
+        }
+        self.gps[id] = Some(crate::devices::gps::Gps::new(pin, baud, self.bus.cycles()));
+        self.gps_next = self.bus.cycles();
+        true
+    }
+    pub fn set_gps_fix(&mut self,id:usize,fix:Option<crate::devices::gps::Fix>,unix_ms:f64)->bool {
+        let Some(gps)=self.gps.get_mut(id).and_then(Option::as_mut) else{return false;};
+        if !gps.set_fix(fix,unix_ms,self.bus.cycles()){return false;}
+        self.gps_next=self.bus.cycles();true
+    }
+    pub fn configure_radar(&mut self, id: usize, tx: u8, rx: u8) -> bool {
+        if self.pzem_meters.iter().flatten().any(|m|[m.tx_pin,m.rx_pin].iter().any(|p|*p==tx||*p==rx)) || id >= 4
+            || tx >= 49
+            || rx >= 49
+            || tx == rx
+            || self.radars.iter().enumerate().any(|(i, r)| {
+                i != id
+                    && r.as_ref().is_some_and(|r| {
+                        [r.tx_pin, r.rx_pin]
+                            .iter()
+                            .any(|pin| *pin == tx || *pin == rx)
+                    })
+            })
+            || self
+                .gps
+                .iter()
+                .flatten()
+                .any(|g| g.pin == tx || g.pin == rx)
+        {
+            return false;
+        }
+        self.radars[id] = Some(crate::devices::radar::Radar::new(tx, rx, self.bus.cycles()));
+        true
+    }
+    pub fn set_radar(&mut self, id: usize, field: u32, value: f64) -> bool {
+        self.radars
+            .get_mut(id)
+            .and_then(Option::as_mut)
+            .is_some_and(|r| r.set(field, value))
+    }
+    pub fn radar_generation(&self,id:usize)->u32 {self.radars.get(id).and_then(Option::as_ref).map_or(u32::MAX,|r|r.generation)}
+    pub fn radar_value(&self,id:usize,field:u32)->f64 {self.radars.get(id).and_then(Option::as_ref).and_then(|r|r.readings.get(field as usize)).copied().unwrap_or(f64::NAN)}
+    pub fn configure_pzem(&mut self,id:usize,tx:u8,rx:u8,current_range:u8,address:u8)->bool {
+        if id>=4 || tx>=49 || rx>=49 || tx==rx || ![10,100].contains(&current_range) || !(1..=247).contains(&address)
+            || self.pzem_meters.iter().enumerate().any(|(i,m)|i!=id && m.as_ref().is_some_and(|m|[m.tx_pin,m.rx_pin].iter().any(|p|*p==tx||*p==rx)))
+            || self.radars.iter().flatten().any(|m|[m.tx_pin,m.rx_pin].iter().any(|p|*p==tx||*p==rx))
+            || self.gps.iter().flatten().any(|g|g.pin==tx||g.pin==rx) {return false;}
+        self.pzem_meters[id]=Some(crate::devices::pzem::Pzem::new(tx,rx,current_range,address,self.bus.cycles()));true
+    }
+    pub fn set_pzem(&mut self,id:usize,field:u32,value:f64)->bool {
+        self.pzem_meters.get_mut(id).and_then(Option::as_mut).is_some_and(|m|m.set(field,value,self.bus.cycles(),S::CPU_HZ))
+    }
+    pub fn pzem_generation(&self,id:usize)->u32 {self.pzem_meters.get(id).and_then(Option::as_ref).map_or(u32::MAX,|m|m.generation)}
+    pub fn pzem_value(&self,id:usize,field:u32)->f64 {self.pzem_meters.get(id).and_then(Option::as_ref).and_then(|m|m.readings.get(field as usize)).copied().unwrap_or(f64::NAN)}
+    fn next_uart_deadline(&self) -> Option<u64> {
+        let next = self
+            .radars
+            .iter()
+            .flatten()
+            .map(|r| r.deadline())
+            .chain(self.pzem_meters.iter().flatten().map(|m|m.deadline()))
+            .min()
+            .unwrap_or(u64::MAX)
+            .min(self.gps_next);
+        if next == u64::MAX {
+            None
+        } else {
+            Some(next)
+        }
+    }
+    fn apply_gps(&mut self) {
+        let now=self.bus.cycles();
+        if now<self.gps_next{return;}
+        for gps in self.gps.iter_mut().flatten() {
+            if let Some(byte)=gps.take_byte(now,S::CPU_HZ) {self.bus.uart_pin_input(gps.pin,gps.baud,byte);}
+        }
+        self.gps_next=self.gps.iter().flatten().map(|gps|gps.deadline()).min().unwrap_or(u64::MAX);
+    }
+
     /// Positive idle advance bounded by device work, enabled cores' wakeups and host actions.
     /// Callers settle actions already due and check their own stop bound before using this.
     fn idle_budget(&self, limit: u64, on: &[bool]) -> u64 {
         let mut budget = limit.min(u32::MAX as u64 >> 1);
+        if let Some(at)=self.next_uart_deadline(){budget=budget.min(at.saturating_sub(self.bus.cycles()).max(1));}
         if let Some(delta) = self.bus.next_deadline() { budget = budget.min(delta.max(1)); }
         for (core, &enabled) in self.cores.iter().zip(on) {
             if enabled { if let Some(delta) = core.cycles_until_wake() { budget = budget.min(delta.max(1)); } }
@@ -668,6 +785,7 @@ impl<S: Soc> Machine<S> {
             if next_core == Some(now) { return Ok(()); }
 
             let mut target = next_core;
+            if let Some(at)=self.next_uart_deadline(){let at=at.max(now+1);target=Some(target.map_or(at,|t|t.min(at)));}
             if let Some(delta) = self.bus.next_deadline() {
                 let deadline = now.saturating_add(delta.max(1));
                 target = Some(target.map_or(deadline, |current| current.min(deadline)));
@@ -814,6 +932,7 @@ impl<S: Soc> Machine<S> {
                 if self.bus.take_host_event() { return RunUntil::Yield; }
             } else {
                 let mut deadline = self.bus.next_deadline().unwrap_or(u64::MAX).max(1);
+                if let Some(at)=self.next_uart_deadline(){deadline=deadline.min(at.saturating_sub(now).max(1));}
                 if let Some((at, _)) = self.script.events.get(self.script.pos) {
                     deadline = deadline.min(at.saturating_sub(now).max(1));
                 }
@@ -863,6 +982,15 @@ impl<S: Soc> Machine<S> {
     /// host edits between runs and events inserted by web input are observed immediately.
     #[inline]
     fn apply_script_events(&mut self) -> bool {
+        self.apply_gps();
+        for meter in self.pzem_meters.iter_mut().flatten() {
+            if let Some(byte)=meter.take_byte(self.bus.cycles(),S::CPU_HZ) {self.bus.uart_pin_input(meter.tx_pin,crate::devices::pzem::BAUD,byte);}
+        }
+        for radar in self.radars.iter_mut().flatten() {
+            if let Some(byte) = radar.take_byte(self.bus.cycles(), S::CPU_HZ) {
+                self.bus.uart_pin_input(radar.tx_pin, radar.baud, byte);
+            }
+        }
         if !self.script.events.get(self.script.pos).is_some_and(|(at, _)| *at <= self.bus.cycles()) {
             return false;
         }
@@ -968,6 +1096,25 @@ impl<S: Soc> Machine<S> {
             self.ws.audio_sent = pcm.len();
         }
         let board = self.bus.board_ref();
+        let backlights = board.display_backlight_pins();
+        for pin in backlights { if let Some((_,duty))=self.bus.pwm_output(pin as u32) { self.bus.board().display_backlight_duty(pin,duty); } }
+        let board = self.bus.board_ref();
+        let displays = board.project_displays();
+        self.ws.display_updates.resize(displays.len(), u64::MAX);
+        for (index, (id, width, height, bits, version, color)) in displays.into_iter().enumerate() {
+            if self.ws.display_updates[index] == version { continue; }
+            self.ws.display_updates[index] = version;
+            let mut frame = if color { vec![6, id, width as u8, (width >> 8) as u8, height as u8, (height >> 8) as u8] } else { vec![5, id, width as u8, height as u8] };
+            frame.extend_from_slice(&bits);
+            w.send_binary(&frame);
+        }
+        let strips = board.strip_frames();
+        self.ws.strip_updates.resize(strips.len(), u64::MAX);
+        for (i, (pin, leds, updates)) in strips.into_iter().enumerate() {
+            if self.ws.strip_updates[i] == updates { continue; }
+            self.ws.strip_updates[i] = updates;
+            w.send_text(&format!("{{\"t\":\"strip\",\"pin\":{},\"leds\":[{}]}}", pin, leds_json(leds)));
+        }
         let grids: Vec<(&'static str, Vec<[u8; 3]>, u64)> =
             board.led_grids().into_iter().map(|(id, leds, updates)| (id, leds.to_vec(), updates)).collect();
         self.ws.grid_updates.resize(grids.len(), u64::MAX);
@@ -1040,6 +1187,7 @@ impl<S: Soc> Machine<S> {
                     match json_str(&m, "src").as_deref() {
                         Some("uart0") => self.bus.uart_input(0, data.as_bytes()),
                         Some("uart1") => self.bus.uart_input(1, data.as_bytes()),
+                        Some("uart2") => self.bus.uart_input(2, data.as_bytes()),
                         _ => self.bus.serial_input(data.as_bytes()),
                     }
                 }
@@ -1162,5 +1310,45 @@ impl<S: Soc> Machine<S> {
         let mut out = String::new();
         for (i, c) in self.cores.iter().enumerate() { if i == 0 || !self.core_held[i] { out += &c.dump(i, &sym); } }
         out
+    }
+}
+
+fn stream_utf8(pending: &mut Vec<u8>, data: &[u8]) -> String {
+    pending.extend_from_slice(data);
+    let mut text = String::new();
+    let mut consumed = 0;
+    while consumed < pending.len() {
+        match std::str::from_utf8(&pending[consumed..]) {
+            Ok(valid) => { text.push_str(valid); consumed = pending.len(); }
+            Err(error) => {
+                let end = consumed + error.valid_up_to();
+                text.push_str(std::str::from_utf8(&pending[consumed..end]).unwrap());
+                consumed = end;
+                match error.error_len() {
+                    Some(length) => { text.push('\u{fffd}'); consumed += length; }
+                    None => break,
+                }
+            }
+        }
+    }
+    pending.drain(..consumed);
+    text
+}
+
+#[cfg(test)]
+mod serial_tests {
+    use super::stream_utf8;
+    #[test]
+    fn utf8_preserves_split_codepoints_and_replaces_invalid_bytes() {
+        let mut pending = Vec::new();
+        let mut output = String::new();
+        for byte in "é🌍\n".as_bytes() {
+            output += &stream_utf8(&mut pending, &[*byte]);
+            assert!(pending.len() <= 3);
+        }
+        assert_eq!(output, "é🌍\n");
+        assert_eq!(stream_utf8(&mut pending, &[0xff, 0xe2]), "\u{fffd}");
+        assert_eq!(stream_utf8(&mut pending, b"A"), "\u{fffd}A");
+        assert!(pending.is_empty());
     }
 }

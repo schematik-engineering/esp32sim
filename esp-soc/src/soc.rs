@@ -91,20 +91,39 @@ pub trait SocBus: Bus {
     fn last_fault(&self) -> Option<(u32, bool)>;
     /// Console bytes since the last call: USB-Serial/JTAG, UART0, UART1, UART2.
     fn console_take(&mut self) -> [Vec<u8>; 4];
+    /// Set a raw 12-bit sample at an ADC-capable GPIO; false rejects invalid pins or values.
+    fn adc_set_input(&mut self, _pin: u32, _value: u32) -> bool { false }
+    fn adc_observation(&self, _pin:u32) -> Option<esp_periph::adc::AdcSample> { None }
+    fn audio_adc(&mut self, _pin: u32) -> Option<&mut Option<esp_periph::pcm::PcmInput>> { None }
+    fn audio_i2s(&mut self, _port: u32) -> Option<&mut esp_periph::I2s> { None }
     /// Bytes from the host into the USB-Serial/JTAG console.
     fn serial_input(&mut self, data: &[u8]);
     /// Bytes from the host into UART `n`'s receive FIFO (a terminal on the chip's UART0 pins).
     fn uart_input(&mut self, n: usize, data: &[u8]);
+    fn uart_pin_input(&mut self, _pin: u8, _baud: u32, _byte: u8) {}
+    fn uart_tx_route(&self,_port:usize,_pin:u8,_baud:u32)->bool {false}
     fn gpio_set_input(&mut self, pin: u8, level: bool);
     /// Deliver host touch at the bus's current time horizon.
     fn touch_input(&mut self, x: u16, y: u16, down: bool) { self.board().touch(x, y, down); }
     fn gpio_input(&self) -> u64;
+    /// IO_MUX pull-up and pull-down bits, for external pin observers.
+    fn gpio_pulls(&self) -> (u64, u64) { (0, 0) }
+    /// GPIO output latch and output-enable bits, for external pin observers.
+    fn gpio_output(&self) -> (u64, u64);
+    fn pwm_output(&self, pin: u32) -> Option<(f64, u32)>;
+    /// Ethernet relay transport. Unsupported radios reject enabling the transport.
+    fn network_enable(&mut self, _enabled: bool) -> bool { false }
+    fn network_receive(&mut self, _frame: &[u8]) -> bool { false }
+    fn take_network_frames(&mut self) -> Vec<Vec<u8>> { Vec::new() }
     /// Start/stop recording GPIO edges (outputs as they reach the board, inputs as they are set).
     fn observe_gpio(&mut self, on: bool);
     /// (cycle, pin, level) edges recorded since the last call.
     fn take_gpio_events(&mut self) -> Vec<(u64, u8, bool)>;
     fn board(&mut self) -> &mut dyn BoardModel;
     fn board_ref(&self) -> &dyn BoardModel;
+    fn refresh_board_devices(&mut self);
+    fn refresh_board_inputs(&mut self) {}
+    fn set_board(&mut self, board: crate::Board);
     /// Captured audio so far (left channel) and its sample rate.
     fn audio(&self) -> (&[i16], u32);
     fn camera_frames(&self) -> u64 { 0 }

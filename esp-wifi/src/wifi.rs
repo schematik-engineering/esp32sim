@@ -74,7 +74,9 @@ impl VirtualAp {
     pub fn new(cfg: ApConfig, log: bool) -> Self {
         let mut wpa = Wpa::default();
         if let Some(psk) = &cfg.psk {
-            wpa.pmk.copy_from_slice(&crate::crypto::pbkdf2_sha1(psk.as_bytes(), cfg.ssid.as_bytes(), 4096, 32));
+            if psk.len() == 64 && psk.bytes().all(|b| b.is_ascii_hexdigit()) {
+                for (index, byte) in wpa.pmk.iter_mut().enumerate() { *byte = u8::from_str_radix(&psk[index*2..index*2+2],16).unwrap(); }
+            } else { wpa.pmk.copy_from_slice(&crate::crypto::pbkdf2_sha1(psk.as_bytes(), cfg.ssid.as_bytes(), 4096, 32)); }
             // deterministic nonces/GTK: the emulator must replay identically run to run
             let seed = crate::crypto::sha1(&[&wpa.pmk[..], &cfg.bssid[..]].concat());
             for i in 0..32 { wpa.anonce[i] = seed[i % 20] ^ (i as u8); }

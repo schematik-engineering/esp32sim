@@ -25,7 +25,7 @@ impl GpSpi {
     pub fn read(&self, off: u32) -> u32 {
         match off {
             0x00 => self.regs.read(0) & !((1 << 23) | (1 << 24)),      // CMD: UPDATE and USR self-clear
-            0x34 => self.int_ena, 0x3c => self.int_raw, 0x40 => self.int_raw & self.int_ena,
+            0x34 => self.int_ena, 0x3c => self.int_raw, 0x40 => self.int_raw & self.int_ena, 0x44 => 0,
             0x98..=0xd4 => self.w[((off - 0x98) / 4) as usize],
             0xf0 => 0x2101_0100,
             _ => self.regs.read(off),
@@ -34,7 +34,7 @@ impl GpSpi {
     pub fn write(&mut self, off: u32, v: u32) {
         match off {
             0x00 => { self.regs.write(0, v & !((1 << 23) | (1 << 24))); if v & (1 << 24) != 0 { self.transfer(); } }
-            0x34 => self.int_ena = v, 0x38 => self.int_raw &= !v,
+            0x34 => self.int_ena = v, 0x38 => self.int_raw &= !v, 0x44 => self.int_raw |= v,
             0x98..=0xd4 => self.w[((off - 0x98) / 4) as usize] = v,
             _ => self.regs.write(off, v),
         }
@@ -185,4 +185,17 @@ mod tests {
         let transfer = spi.take_transfer().expect("CPU transaction must replace a stale DMA wait");
         assert_eq!(transfer.tx, [0x5a]);
     }
+    #[test]
+    fn idf_can_prime_idle_transaction_interrupt_after_bus_reinitialization() {
+        let mut spi=GpSpi::new();
+        spi.write(0x34,1<<12);
+        assert!(!spi.irq());
+        for _ in 0..2 {
+            spi.write(0x44,1<<12);
+            assert!(spi.irq()); assert_eq!(spi.read(0x44),0);
+            spi.write(0x38,1<<12);
+            assert!(!spi.irq());
+        }
+    }
+
 }
