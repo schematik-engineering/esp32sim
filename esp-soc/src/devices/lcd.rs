@@ -289,6 +289,85 @@ impl Lcd {
         frame
     }
 }
+#[derive(Clone, Copy)]
+pub struct ParallelLcdConfig {
+    pub id: u8,
+    pub rs: u8,
+    pub enable: u8,
+    pub rw: u8,
+    pub data: [u8; 4],
+    pub columns: u8,
+    pub rows: u8,
+}
+impl ParallelLcdConfig {
+    pub fn pins(&self) -> [u8; 7] {
+        [
+            self.rs,
+            self.enable,
+            self.data[0],
+            self.data[1],
+            self.data[2],
+            self.data[3],
+            self.rw,
+        ]
+    }
+    fn geometry(&self) -> LcdConfig {
+        LcdConfig {
+            id: self.id,
+            sda: 0,
+            scl: 1,
+            address: 0x27,
+            columns: self.columns,
+            rows: self.rows,
+        }
+    }
+    pub fn valid(&self) -> bool {
+        let pins = self.pins();
+        self.geometry().valid()
+            && pins
+                .iter()
+                .enumerate()
+                .all(|(i, p)| (*p < 49 || (i == 6 && *p == 255)) && !pins[..i].contains(p))
+    }
+    pub fn conflicts(&self, other: &Self) -> bool {
+        self.id == other.id
+            || self.enable == other.enable
+            || self.pins().iter().enumerate().any(|(i, p)| {
+                other
+                    .pins()
+                    .iter()
+                    .enumerate()
+                    .any(|(j, q)| *p != 255 && p == q && i != j)
+            })
+    }
+}
+pub struct ParallelLcd {
+    pub config: ParallelLcdConfig,
+    pub lcd: Lcd,
+}
+impl ParallelLcd {
+    pub fn new(config: ParallelLcdConfig, clock: Arc<AtomicU64>, hz: u64) -> Result<Self, String> {
+        if !config.valid() {
+            return Err("invalid parallel LCD geometry or wiring".into());
+        }
+        let mut lcd = Lcd::new(config.geometry(), clock, hz)?;
+        lcd.port = 8;
+        Ok(Self { config, lcd })
+    }
+    pub fn drive(&mut self, cycle: u64, enabled: u64, output: u64) {
+        self.lcd.clock.store(cycle, Ordering::Relaxed);
+        let high = enabled & output;
+        let mut port = 8
+            | u8::from(high & (1 << self.config.rs) != 0)
+            | (u8::from(self.config.rw != 255 && high & (1 << self.config.rw) != 0) << 1)
+            | (u8::from(high & (1 << self.config.enable) != 0) << 2);
+        for (i, pin) in self.config.data.iter().enumerate() {
+            port |= u8::from(high & (1 << pin) != 0) << (4 + i);
+        }
+        self.lcd.write_port(port);
+    }
+}
+
 pub struct LcdI2c(pub Arc<Mutex<Lcd>>);
 impl I2cDevice for LcdI2c {
     fn pins(&self) -> Option<(u8, u8)> {
@@ -412,5 +491,92 @@ mod tests {
         assert_eq!(d.read_port() & 0x80, 0);
         d.write_port(0x7e);
         assert_eq!(d.read_port() & 0x80, 0);
+    }
+}
+
+#[cfg(test)]
+mod parallel_tests {
+    use super::*;
+    fn pulse(d: &mut ParallelLcd, time: &mut u64, n: u8, rs: bool) {
+        let out = u64::from(rs) | ((n as u64) << 2);
+        d.drive(*time, 0xff, out);
+        d.drive(*time + 1, 0xff, out | 2);
+        assert_eq!(d.lcd.port & 4, 4);
+        d.drive(*time + 2, 0xff, out);
+        *time += 200;
+    }
+    fn byte(d: &mut ParallelLcd, time: &mut u64, b: u8, rs: bool) {
+        pulse(d, time, b >> 4, rs);
+        pulse(d, time, b & 15, rs);
+    }
+    #[test]
+    fn parallel_lcd_gpio_edges_cgram_cursor_and_wrong_enable() {
+        let config = ParallelLcdConfig {
+            id: 0,
+            rs: 0,
+            enable: 1,
+            data: [2, 3, 4, 5],
+            rw: 6,
+            columns: 16,
+            rows: 2,
+        };
+        let mut d = ParallelLcd::new(config, Arc::new(AtomicU64::new(0)), 1_000_000).unwrap();
+        let mut time = 50_000;
+        for n in [3, 3, 3, 2] {
+            pulse(&mut d, &mut time, n, false);
+            time += 5000;
+        }
+        for b in [0x28, 0x0c, 0x06, 0x80] {
+            byte(&mut d, &mut time, b, false);
+        }
+        byte(&mut d, &mut time, b'A', true);
+        assert_eq!(d.lcd.ddram[0], b'A');
+        assert_eq!(d.lcd.address, 1);
+        let baseline = d.lcd.frame();
+        for output in [0xff, 0xfd, 0xff, 0xfd] {
+            d.drive(time, 0xfd, output);
+            time += 200;
+        }
+        assert_eq!(
+            d.lcd.frame(),
+            baseline,
+            "undriven enable never latches data"
+        );
+        for output in [0x40, 0x42, 0x40, 0x42, 0x40] {
+            d.drive(time, 0xff, output);
+            time += 200;
+        }
+        assert_eq!(d.lcd.frame(), baseline, "RW HIGH never writes");
+        byte(&mut d, &mut time, 0x40, false);
+        for b in [1, 2, 4, 8, 16, 31, 0, 0] {
+            byte(&mut d, &mut time, b, true);
+        }
+        byte(&mut d, &mut time, 0xc0, false);
+        byte(&mut d, &mut time, 0, true);
+        assert_eq!(
+            d.lcd.cgram,
+            [1, 2, 4, 8, 16, 31, 0, 0]
+                .into_iter()
+                .chain([0; 56])
+                .collect::<Vec<_>>()
+                .as_slice()
+        );
+        byte(&mut d, &mut time, 0x0e, false);
+        assert!(d.lcd.cursor);
+        assert_eq!(d.lcd.address, 0x41);
+        assert_ne!(d.lcd.frame(), baseline);
+        let other = ParallelLcdConfig {
+            id: 1,
+            enable: 7,
+            ..config
+        };
+        assert!(!config.conflicts(&other));
+        assert!(config.conflicts(&ParallelLcdConfig { id: 1, ..config }));
+        assert!(config.conflicts(&ParallelLcdConfig {
+            id: 1,
+            enable: 7,
+            data: [3, 2, 4, 5],
+            ..config
+        }));
     }
 }

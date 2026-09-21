@@ -35,6 +35,7 @@ pub trait BoardModel {
     fn gesture(&mut self,_id:u8,_direction:u8)->bool{false}
     fn proximity(&mut self,_id:u8,_value:f64)->bool{false}
     fn proximity_reading(&self,_id:u8)->u32{u32::MAX}
+    fn configure_parallel_lcds(&mut self,_configs:&[crate::devices::lcd::ParallelLcdConfig],_hz:u64)->Result<(),String>{Err("board cannot attach parallel LCDs".into())}
     fn configure_lcds(&mut self,_configs:&[crate::devices::lcd::LcdConfig],_hz:u64)->Result<(),String>{Err("board cannot attach character LCDs".into())}
     fn configure_led_displays(&mut self,_configs:&[crate::devices::led_display::LedDisplayConfig],_hz:u64)->Result<(),String>{Err("board cannot attach LED displays".into())}
 

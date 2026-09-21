@@ -22,6 +22,7 @@ pub struct CircuitBoard {
     led_displays: Vec<Arc<Mutex<super::led_display::LedDisplay>>>,
     spi_displays: Vec<super::spi_display::SpiDisplay>,
     oleds: Vec<Arc<Mutex<Ssd1306>>>,
+    parallel_lcds: Vec<super::lcd::ParallelLcd>,
     lcds: Vec<Arc<Mutex<super::lcd::Lcd>>>,
 }
 impl CircuitBoard {
@@ -57,7 +58,7 @@ impl CircuitBoard {
             }
             displays.push(Arc::new(Mutex::new(Ssd1306::new(*config)?)));
         }
-        Ok(Self { pwm_expanders:Vec::new(), camera: None, sensor_clock: Arc::new(std::sync::atomic::AtomicU64::new(0)), sensors: Vec::new(), inputs: None, steppers: Vec::new(), pin_sensors: None, rfid: Vec::new(), gestures: Vec::new(), load_cells: Vec::new(), touches: Vec::new(), resistive_touches: Vec::new(), spi_displays: Vec::new(), led_displays: Vec::new(), max_displays: Vec::new(), strips: devices, gpio_hz: 0, oleds: displays, lcds: Vec::new() })
+        Ok(Self { pwm_expanders:Vec::new(), camera: None, sensor_clock: Arc::new(std::sync::atomic::AtomicU64::new(0)), sensors: Vec::new(), inputs: None, steppers: Vec::new(), pin_sensors: None, rfid: Vec::new(), gestures: Vec::new(), load_cells: Vec::new(), touches: Vec::new(), resistive_touches: Vec::new(), spi_displays: Vec::new(), led_displays: Vec::new(), max_displays: Vec::new(), strips: devices, gpio_hz: 0, oleds: displays, parallel_lcds: Vec::new(), lcds: Vec::new() })
     }
     pub fn configure_gpio_clock(&mut self, hz: u32) { self.gpio_hz = hz; }
     pub fn configure_sensors(&mut self, configs:&[super::SensorConfig], hz:u32)->Result<(),String> {
@@ -65,7 +66,7 @@ impl CircuitBoard {
         for (i,c) in configs.iter().enumerate() {
             let route=(c.sda,c.scl,c.address);
             if self.led_route(route) || self.lcd_route(route) || self.pwm_route(route) {return Err("I2C address overlaps an LED display".into());}
-            if !c.valid() || configs[..i].iter().any(|p|p.id==c.id || (p.sda,p.scl,p.address)==route)
+            if !c.valid() || self.parallel_lcds.iter().any(|p|p.config.id==c.id) || configs[..i].iter().any(|p|p.id==c.id || (p.sda,p.scl,p.address)==route)
                 || self.oleds.iter().any(|p|{let p=p.lock().unwrap().config;(p.sda,p.scl,p.address)==route}) {
                 return Err("invalid sensor model, identity or bus address".into());
             }
@@ -83,12 +84,20 @@ impl BoardModel for CircuitBoard {
     fn stepper_position(&self,id:u8)->f64 {self.steppers.iter().find(|d|d.config.id==id).map_or(f64::NAN,|d|d.position())}
 
 
+    fn configure_parallel_lcds(&mut self,configs:&[super::lcd::ParallelLcdConfig],hz:u64)->Result<(),String>{
+        if configs.len()+self.lcds.len()>16 || configs.iter().enumerate().any(|(i,c)|
+            !c.valid() || self.lcds.iter().any(|p|p.lock().unwrap().config.id==c.id) || configs[..i].iter().any(|p|c.conflicts(p))) {
+            return Err("invalid or overlapping parallel LCD identity or wiring".into());
+        }
+        self.parallel_lcds=configs.iter().map(|c|super::lcd::ParallelLcd::new(*c,self.sensor_clock.clone(),hz)).collect::<Result<_,_>>()?;
+        Ok(())
+    }
     fn configure_lcds(&mut self,configs:&[super::lcd::LcdConfig],hz:u64)->Result<(),String>{
-        if configs.len()>16 {return Err("at most16 character LCDs are supported".into());}
+        if configs.len()+self.parallel_lcds.len()>16 {return Err("at most16 character LCDs are supported".into());}
         let mut devices=Vec::new();
         for (i,c) in configs.iter().enumerate(){
             let route=(c.sda,c.scl,c.address);
-            if !c.valid() || configs[..i].iter().any(|p|p.id==c.id || (p.sda,p.scl,p.address)==route)
+            if !c.valid() || self.parallel_lcds.iter().any(|p|p.config.id==c.id) || configs[..i].iter().any(|p|p.id==c.id || (p.sda,p.scl,p.address)==route)
                 || self.led_route(route) || self.pwm_route(route)
                 || self.sensors.iter().any(|p|{let p=p.lock().unwrap().config;(p.sda,p.scl,p.address)==route})
                 || self.oleds.iter().any(|p|{let p=p.lock().unwrap().config;(p.sda,p.scl,p.address)==route})
@@ -140,7 +149,7 @@ impl BoardModel for CircuitBoard {
     fn pin_sensor_generation(&self,id:u8)->u32{self.pin_sensors.as_ref().map_or(u32::MAX,|s|s.generation(id))}
     fn pin_sensor_value(&self,id:u8,field:u32)->f64{self.pin_sensors.as_ref().map_or(f64::NAN,|s|s.value(id,field))}
 
-    fn advance_to(&mut self, cycle:u64) {for (_,strip) in &mut self.strips {strip.advance_gpio(cycle,self.gpio_hz);}for p in &self.pwm_expanders {p.lock().unwrap().advance(cycle);}for display in &self.led_displays {display.lock().unwrap().advance(cycle);}for cell in &mut self.load_cells {cell.advance(cycle);}for sensor in &self.gestures {sensor.lock().unwrap().advance(cycle);}for reader in &mut self.rfid {reader.advance_to(cycle);} if let Some(s)=&mut self.pin_sensors{s.advance(cycle);} if let Some(inputs)=&mut self.inputs {inputs.advance_to(cycle);} self.sensor_clock.store(cycle,std::sync::atomic::Ordering::Relaxed); for lcd in &self.lcds {lcd.lock().unwrap().advance();} for t in &self.touches {t.lock().unwrap().advance(cycle);} for t in &self.resistive_touches {t.lock().unwrap().advance(cycle);} }
+    fn advance_to(&mut self, cycle:u64) {for (_,strip) in &mut self.strips {strip.advance_gpio(cycle,self.gpio_hz);}for p in &self.pwm_expanders {p.lock().unwrap().advance(cycle);}for display in &self.led_displays {display.lock().unwrap().advance(cycle);}for cell in &mut self.load_cells {cell.advance(cycle);}for sensor in &self.gestures {sensor.lock().unwrap().advance(cycle);}for reader in &mut self.rfid {reader.advance_to(cycle);} if let Some(s)=&mut self.pin_sensors{s.advance(cycle);} if let Some(inputs)=&mut self.inputs {inputs.advance_to(cycle);} self.sensor_clock.store(cycle,std::sync::atomic::Ordering::Relaxed); for lcd in &self.lcds {lcd.lock().unwrap().advance();} for lcd in &mut self.parallel_lcds {lcd.lcd.advance();} for t in &self.touches {t.lock().unwrap().advance(cycle);} for t in &self.resistive_touches {t.lock().unwrap().advance(cycle);} }
     fn configure_load_cells(&mut self,configs:&[super::hx711::LoadCellConfig],hz:u64)->Result<(),String>{
         if configs.len()>16||hz==0{return Err("invalid load cell count or clock".into());}
         for (i,c) in configs.iter().enumerate(){
@@ -197,7 +206,7 @@ impl BoardModel for CircuitBoard {
             strip.gpio_drive(cycle,self.gpio_hz,enabled,high);
         }
     }
-    fn gpio_drive(&mut self,cycle:u64,enabled:u64,output:u64) {for stepper in &mut self.steppers {stepper.drive(enabled,output);}for p in &self.pwm_expanders {p.lock().unwrap().drive(enabled,output);}for cell in &mut self.load_cells {cell.gpio_drive(cycle,enabled,output);}for display in &self.led_displays {display.lock().unwrap().drive(enabled,output);}if let Some(s)=&mut self.pin_sensors{s.gpio_drive(cycle,enabled,output);}if let Some(inputs)=&mut self.inputs {inputs.gpio_drive(cycle,enabled,output);}}
+    fn gpio_drive(&mut self,cycle:u64,enabled:u64,output:u64) {for lcd in &mut self.parallel_lcds {lcd.drive(cycle,enabled,output);}for stepper in &mut self.steppers {stepper.drive(enabled,output);}for p in &self.pwm_expanders {p.lock().unwrap().drive(enabled,output);}for cell in &mut self.load_cells {cell.gpio_drive(cycle,enabled,output);}for display in &self.led_displays {display.lock().unwrap().drive(enabled,output);}if let Some(s)=&mut self.pin_sensors{s.gpio_drive(cycle,enabled,output);}if let Some(inputs)=&mut self.inputs {inputs.gpio_drive(cycle,enabled,output);}}
     fn released_inputs(&self)->Vec<u8> {
         let driven=self.input_levels();
         self.inputs.as_ref().map_or_else(Vec::new,|i|i.released_inputs()).into_iter()
@@ -342,7 +351,7 @@ impl BoardModel for CircuitBoard {
         self.oleds.iter().map(|state| {
             let state = state.lock().unwrap();
             (state.config.id, state.config.width as u16, state.config.height as u16, state.frame(), state.version, false)
-        }).chain(self.lcds.iter().map(|d|{let d=d.lock().unwrap();let(w,h)=d.config.dimensions();(64+d.config.id,w,h,d.frame(),d.generation,false)})).chain(self.spi_displays.iter().map(|display| (display.config.id, display.config.width, display.config.height, display.frame(), display.generation, true))).chain(self.led_displays.iter().map(|d|{let d=d.lock().unwrap();let(w,h)=d.config.dimensions();(128+d.config.id,w,h,d.frame(),d.generation,true)})).chain(self.max_displays.iter().map(|d|{let(w,h)=d.config.dimensions();(128+d.config.id,w,h,d.frame(),d.generation,true)})).collect()
+        }).chain(self.parallel_lcds.iter().map(|d|{let(w,h)=d.lcd.config.dimensions();(64+d.config.id,w,h,d.lcd.frame(),d.lcd.generation,false)})).chain(self.lcds.iter().map(|d|{let d=d.lock().unwrap();let(w,h)=d.config.dimensions();(64+d.config.id,w,h,d.frame(),d.generation,false)})).chain(self.spi_displays.iter().map(|display| (display.config.id, display.config.width, display.config.height, display.frame(), display.generation, true))).chain(self.led_displays.iter().map(|d|{let d=d.lock().unwrap();let(w,h)=d.config.dimensions();(128+d.config.id,w,h,d.frame(),d.generation,true)})).chain(self.max_displays.iter().map(|d|{let(w,h)=d.config.dimensions();(128+d.config.id,w,h,d.frame(),d.generation,true)})).collect()
     }
     fn strip_frames(&self) -> Vec<(u8, &[[u8; 3]], u64)> {
         self.strips.iter().map(|(pin, strip)| (*pin, strip.leds.as_slice(), strip.updates)).collect()

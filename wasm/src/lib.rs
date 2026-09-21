@@ -44,6 +44,7 @@ trait MachineApi {
     fn touch_calibrate(&mut self,id:u32,field:u32,value:u32)->u32;
     fn touch_input(&mut self,id:u32,point:Option<(u16,u16,bool)>)->u32;
     fn configure_circuit(&mut self, strips: &[(u8, usize)], oleds: &[esp_soc::devices::OledConfig], sensors: &[esp_soc::devices::SensorConfig]) -> Result<(), String>;
+    fn configure_parallel_lcds(&mut self,configs:&[esp_soc::devices::lcd::ParallelLcdConfig])->Result<(),String>;
     fn configure_lcds(&mut self,configs:&[esp_soc::devices::lcd::LcdConfig])->Result<(),String>;
     fn configure_steppers(&mut self,configs:&[esp_soc::devices::stepper::StepperConfig])->Result<(),String>;
     fn stepper_position(&self,id:u32)->f64;
@@ -241,6 +242,11 @@ impl<S: Soc> MachineApi for Machine<S> {
         board.camera=self.bus.board_ref().camera();
         self.bus.set_board(Box::new(board));
         Ok(())
+    }
+    fn configure_parallel_lcds(&mut self,configs:&[esp_soc::devices::lcd::ParallelLcdConfig])->Result<(),String> {
+        if configs.iter().flat_map(|c|c.pins()).filter(|pin|*pin!=255).any(|pin|self.gpio_state(pin as u32)==u32::MAX || (S::NAME=="esp32s3"&&(22..=25).contains(&pin))) {return Err("parallel LCD GPIO outside chip range".into());}
+        if self.bus.board_ref().name()=="none" {self.bus.set_board(Box::new(esp_soc::devices::CircuitBoard::new(&[],&[])?));}
+        self.bus.board().configure_parallel_lcds(configs,S::CPU_HZ)
     }
     fn configure_lcds(&mut self,configs:&[esp_soc::devices::lcd::LcdConfig])->Result<(),String> {
         if configs.iter().flat_map(|c|[c.sda,c.scl]).any(|pin|self.gpio_state(pin as u32)==u32::MAX || (S::NAME=="esp32s3"&&(22..=25).contains(&pin))) {return Err("LCD GPIO outside chip range".into());}
@@ -2791,5 +2797,45 @@ mod gpio_strip_timing_tests {
         }};}
         check!(esp32c3::machine([0;6],4<<20),0x40380000);
         check!(esp32c6::machine([0;6],4<<20),0x40800000);
+    }
+}
+
+/// Parallel LCD records: id, RS, enable, D4, D5, D6, D7, columns, rows, RW (255 = grounded), two reserved zeros.
+/// Data/RS lines may be shared with distinct enable pins. GPIO busy reads are unsupported.
+/// # Safety
+/// Pointers must cover an exclusively borrowed emulator and `len` readable bytes.
+#[no_mangle]
+pub unsafe extern "C" fn esp32sim_parallel_lcds(e:*mut Emu,ptr:*const u8,len:usize)->u32 {
+    if e.is_null() || (ptr.is_null()&&len!=0) || len>16*12 || len%12!=0{return 1;}
+    let e=unsafe{&mut *e};if e.booted{return 1;}
+    let bytes=if len==0{&[]}else{unsafe{std::slice::from_raw_parts(ptr,len)}};
+    let mut configs=Vec::new();
+    for r in bytes.chunks_exact(12){if r[10..].iter().any(|b|*b!=0){return 1;}configs.push(esp_soc::devices::lcd::ParallelLcdConfig{id:r[0],rs:r[1],enable:r[2],data:[r[3],r[4],r[5],r[6]],columns:r[7],rows:r[8],rw:r[9]});}
+    match e.m.configure_parallel_lcds(&configs){Ok(())=>0,Err(message)=>{log(&message);1}}
+}
+
+#[cfg(test)]
+mod parallel_lcd_tests {
+    use super::*;
+    #[test]
+    fn parallel_lcd_abi_rejects_bad_geometry_wiring_and_booted_mutation() {
+        unsafe { for chip in [b"none" as &[u8],b"esp32c3",b"esp32c6"] {
+            let e=esp32sim_new(chip.as_ptr(),chip.len(),4,0);assert!(!e.is_null());
+            let record=[0,0,1,3,4,5,6,16,2,255,0,0];
+            assert_eq!(esp32sim_parallel_lcds(e,record.as_ptr(),11),1);
+            assert_eq!(esp32sim_parallel_lcds(e,record.as_ptr(),12),0);
+            for (index,value) in [(1,60),(7,40),(9,60),(10,1),(2,0)] {
+                let mut bad=record;bad[index]=value;if index==7 {bad[8]=4;}
+                assert_eq!(esp32sim_parallel_lcds(e,bad.as_ptr(),12),1);
+            }
+            let mut pair=record.to_vec();let mut other=record;other[0]=1;other[2]=7;pair.extend_from_slice(&other);
+            assert_eq!(esp32sim_parallel_lcds(e,pair.as_ptr(),24),0);
+            pair[14]=1;assert_eq!(esp32sim_parallel_lcds(e,pair.as_ptr(),24),1);
+            let i2c=[0,7,8,0x27,16,2,0,0];assert_eq!(esp32sim_lcds(e,i2c.as_ptr(),8),1);
+            let i2c=[2,7,8,0x27,16,2,0,0];assert_eq!(esp32sim_lcds(e,i2c.as_ptr(),8),0);
+            let mut collision=record;collision[0]=2;assert_eq!(esp32sim_parallel_lcds(e,collision.as_ptr(),12),1);
+            let mut rw=record;rw[9]=9;assert_eq!(esp32sim_parallel_lcds(e,rw.as_ptr(),12),0);
+            (*e).booted=true;assert_eq!(esp32sim_parallel_lcds(e,record.as_ptr(),12),1);esp32sim_delete(e);
+        }}
     }
 }
