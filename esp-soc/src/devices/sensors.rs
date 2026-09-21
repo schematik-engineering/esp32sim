@@ -66,6 +66,7 @@ impl SensorConfig {
                 48 => self.address == 0x6b,
                 49 => self.address == 0x57,
                 54 => self.address == 0x12,
+                55 => (1..=3).contains(&self.address),
                 _ => false,
             }
     }
@@ -450,7 +451,8 @@ mod vl53l1x;
 mod vl53l0x;
 mod ezo_ph;
 mod max30105;
-const FIELD_COUNT: usize = 92;
+mod as3935;
+const FIELD_COUNT: usize = 96;
 #[derive(Clone, Copy, PartialEq)]
 enum WireFormat {
     Bytes,
@@ -542,6 +544,7 @@ impl Sensor {
         let device: Box<dyn RegisterSensor> = match config.model {
             49 => Box::new(max30105::Max30105::new(clock, hz)),
             54 => Box::new(particulate::Pmsa003i::new(clock, hz)),
+            55 => Box::new(as3935::As3935::new(clock, hz)),
             26 | 27 => Box::new(humidity_light::Humidity::new(clock, hz, config.model)),
             28 => Box::new(humidity_light::Veml7700::new(clock, hz)),
             30 => Box::new(aht_mcp::Aht20::new(clock, hz)),

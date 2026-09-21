@@ -2971,3 +2971,34 @@ mod particulate_tests {
         check!(esp32c6::machine([0;6],4<<20),31);
     }
 }
+
+#[cfg(test)]
+mod as3935_tests {
+    use super::*;
+    use xtensa_lx7::Bus;
+    #[test]
+    fn as3935_all_three_chip_abi_fields_wiring_and_reboot() {
+        macro_rules! check {($machine:expr,$invalid:expr)=>{{
+            let mut m=$machine;
+            let a=esp_soc::devices::SensorConfig{id:0,sda:4,scl:5,address:3,model:55,shunt_milliohms:0};
+            let b=esp_soc::devices::SensorConfig{id:1,sda:6,scl:7,..a};
+            MachineApi::configure_circuit(&mut m,&[],&[],&[a,b]).unwrap();
+            assert_eq!(MachineApi::sensor_set(&mut m,0,92,20.),0);assert_eq!(MachineApi::sensor_set(&mut m,1,92,37.),0);
+            assert_eq!(MachineApi::sensor_set(&mut m,0,94,2.),1);assert_eq!(MachineApi::sensor_set(&mut m,0,93,2097152.),1);
+            assert!(MachineApi::sensor_value(&mut m,0,92).is_nan());
+            m.bus.tick(MachineApi::cpu_hz(&m) as u32/100);
+            assert_eq!(MachineApi::sensor_value(&mut m,0,92),20.);assert_eq!(MachineApi::sensor_value(&mut m,1,92),37.);
+            assert_eq!(MachineApi::sensor_set(&mut m,0,93,12345.),0);assert_eq!(MachineApi::sensor_set(&mut m,0,94,8.),0);
+            m.bus.tick(MachineApi::cpu_hz(&m) as u32/100);
+            assert_eq!(MachineApi::sensor_value(&mut m,0,93),12345.);assert_eq!(MachineApi::sensor_value(&mut m,0,94),8.);
+            assert_eq!(MachineApi::sensor_set(&mut m,0,92,80.),0);m.bus.tick(MachineApi::cpu_hz(&m) as u32/100);
+            assert!(MachineApi::sensor_value(&mut m,0,92).is_nan());assert_eq!(MachineApi::sensor_value(&mut m,0,95),3.);
+            m.bus.reboot([0;6]);assert_eq!(MachineApi::sensor_set(&mut m,1,92,31.),0);
+            assert!(MachineApi::configure_circuit(&mut m,&[],&[],&[a,esp_soc::devices::SensorConfig{id:1,..a}]).is_err());
+            assert!(MachineApi::configure_circuit(&mut m,&[],&[],&[esp_soc::devices::SensorConfig{sda:$invalid,..a}]).is_err());
+        }};}
+        check!(esp32s3::machine([0;6]),49);
+        check!(esp32c3::machine([0;6],4<<20),22);
+        check!(esp32c6::machine([0;6],4<<20),31);
+    }
+}
