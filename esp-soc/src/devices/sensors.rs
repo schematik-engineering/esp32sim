@@ -47,6 +47,8 @@ impl SensorConfig {
                 31 => (0x18..=0x1f).contains(&self.address),
                 32 => self.address == 0x58,
                 33 => self.address == 0x59,
+                34 => self.address == 0x1e,
+                35 => matches!(self.address, 0x1c | 0x1e),
                 _ => false,
             }
     }
@@ -403,6 +405,7 @@ mod gas;
 mod humidity_light;
 mod analog;
 mod aht_mcp;
+mod magnetometers;
 mod environment_extra;
 mod bme680;
 mod bno055;
@@ -506,6 +509,8 @@ impl Sensor {
             30 => Box::new(aht_mcp::Aht20::new(clock, hz)),
             31 => Box::new(aht_mcp::Mcp9808::new(clock, hz)),
             32 | 33 => Box::new(gas::Gas::new(clock, hz, config.model, config.id)),
+            34 => Box::new(magnetometers::Hmc5883l::new(clock, hz)),
+            35 => Box::new(magnetometers::Lis3mdl::new(clock, hz)),
             22 => Box::new(vl53l1x::Vl53l1x::new(clock, hz)),
             21 => Box::new(nau7802::Nau7802::new(clock, hz)),
             20 | 23..=25 => Box::new(fuel::Max1704x::new(clock, hz, config.model)),
