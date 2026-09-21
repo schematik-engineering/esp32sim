@@ -53,6 +53,9 @@ impl SensorConfig {
                 37 => matches!(self.address, 0x5c | 0x5d),
                 39 => matches!(self.address, 0x53 | 0x1d),
                 40 => self.address == 0x39,
+                42 => (0x49..=0x4c).contains(&self.address),
+                43 => (0x36..=0x3d).contains(&self.address),
+                44 => (0x36..=0x39).contains(&self.address),
                 _ => false,
             }
     }
@@ -420,12 +423,13 @@ mod motion;
 mod power;
 mod ina228;
 mod as7341;
+mod seesaw;
 mod rtc;
 mod temperature;
 mod fuel;
 mod nau7802;
 mod vl53l1x;
-const FIELD_COUNT: usize = 74;
+const FIELD_COUNT: usize = 76;
 #[derive(Clone, Copy, PartialEq)]
 enum WireFormat {
     Bytes,
@@ -447,6 +451,7 @@ trait RegisterSensor {
     fn address(&self, configured: u8) -> u8 {
         configured
     }
+    fn select_extended(&mut self, _reg: u16) {}
     fn read_extended(&self, _reg: u16) -> u8 {
         0
     }
@@ -525,6 +530,7 @@ impl Sensor {
             38 => Box::new(ina228::Ina228::new(clock, hz, config.shunt_milliohms)),
             39 => Box::new(adxl375::Adxl375::new(clock, hz)),
             40 => Box::new(as7341::As7341::new(clock, hz)),
+            42..=44 => Box::new(seesaw::Seesaw::new(clock, hz, config.model)),
             22 => Box::new(vl53l1x::Vl53l1x::new(clock, hz)),
             21 => Box::new(nau7802::Nau7802::new(clock, hz)),
             20 | 23..=25 => Box::new(fuel::Max1704x::new(clock, hz, config.model)),
@@ -641,6 +647,7 @@ impl I2cDevice for SensorI2c {
             if self.first {
                 if let Some(hi) = self.high.take() {
                     self.wide_ptr = u16::from_be_bytes([hi, b]);
+                    s.device.select_extended(self.wide_ptr);
                     self.first = false;
                 } else {
                     self.high = Some(b);
