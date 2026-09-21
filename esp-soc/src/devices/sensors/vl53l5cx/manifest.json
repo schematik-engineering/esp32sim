@@ -1,0 +1,26 @@
+[
+  {
+    "name": "VL53L5CX_FIRMWARE",
+    "file": "vl53l5cx_firmware.bin",
+    "bytes": 86016,
+    "sha256": "c60c61742a138934462e0c55187f085535e35e34804fb8b8e711ef7a9d1b5758"
+  },
+  {
+    "name": "VL53L5CX_DEFAULT_CONFIGURATION",
+    "file": "vl53l5cx_default_configuration.bin",
+    "bytes": 972,
+    "sha256": "0298e05621665f3b352e56062b61c74b2ff9b8420093b1d903626b68166b3fc7"
+  },
+  {
+    "name": "VL53L5CX_DEFAULT_XTALK",
+    "file": "vl53l5cx_default_xtalk.bin",
+    "bytes": 776,
+    "sha256": "5278d26d8a6591b78abbc6f67cd07a8014d2379d93fb19eb4c49837768ac3d1a"
+  },
+  {
+    "name": "VL53L5CX_GET_NVM_CMD",
+    "file": "vl53l5cx_get_nvm_cmd.bin",
+    "bytes": 40,
+    "sha256": "dc5b7eb04c3938e5e718b8c8ce7cbac0e12b532d342891d1e9595fbeab302577"
+  }
+]

@@ -3002,3 +3002,29 @@ mod as3935_tests {
         check!(esp32c6::machine([0;6],4<<20),31);
     }
 }
+
+#[cfg(test)]
+mod vl53l5cx_tests {
+    use super::*;
+    use xtensa_lx7::Bus;
+    #[test]
+    fn vl53l5cx_all_three_chip_abi_fields_wiring_and_reboot() {
+        macro_rules! check {($machine:expr,$invalid:expr)=>{{
+            let mut m=$machine;
+            let a=esp_soc::devices::SensorConfig{id:0,sda:4,scl:5,address:0x29,model:58,shunt_milliohms:0};
+            let b=esp_soc::devices::SensorConfig{id:1,sda:6,scl:7,..a};
+            MachineApi::configure_circuit(&mut m,&[],&[],&[a,b]).unwrap();
+            assert_eq!(MachineApi::sensor_set(&mut m,0,58,500.),0);assert_eq!(MachineApi::sensor_set(&mut m,1,58,1500.),0);
+            assert_eq!(MachineApi::sensor_set(&mut m,0,58,19.),1);assert_eq!(MachineApi::sensor_set(&mut m,0,58,4001.),1);
+            assert!(MachineApi::sensor_value(&mut m,0,58).is_nan());
+            m.bus.tick(MachineApi::cpu_hz(&m) as u32);
+            assert!(MachineApi::sensor_value(&mut m,0,58).is_nan());
+            m.bus.reboot([0;6]);assert_eq!(MachineApi::sensor_set(&mut m,1,58,750.),0);
+            assert!(MachineApi::configure_circuit(&mut m,&[],&[],&[a,esp_soc::devices::SensorConfig{id:1,..a}]).is_err());
+            assert!(MachineApi::configure_circuit(&mut m,&[],&[],&[esp_soc::devices::SensorConfig{sda:$invalid,..a}]).is_err());
+        }};}
+        check!(esp32s3::machine([0;6]),49);
+        check!(esp32c3::machine([0;6],4<<20),22);
+        check!(esp32c6::machine([0;6],4<<20),31);
+    }
+}
