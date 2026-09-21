@@ -58,6 +58,7 @@ impl SensorConfig {
                 46 => matches!(self.address, 0x6a | 0x6b),
                 44 => (0x36..=0x39).contains(&self.address),
                 45 => (1..=127).contains(&self.address),
+                47 => (0x0c..=0x0f).contains(&self.address),
                 _ => false,
             }
     }
@@ -415,6 +416,7 @@ mod humidity_light;
 mod analog;
 mod aht_mcp;
 mod magnetometers;
+mod mlx90393;
 mod adxl375;
 mod qmi8658;
 mod pressure;
@@ -530,6 +532,7 @@ impl Sensor {
             32 | 33 => Box::new(gas::Gas::new(clock, hz, config.model, config.id)),
             34 => Box::new(magnetometers::Hmc5883l::new(clock, hz)),
             35 => Box::new(magnetometers::Lis3mdl::new(clock, hz)),
+            47 => Box::new(mlx90393::Mlx90393::new(clock, hz)),
             36 => Box::new(pressure::Dps310::new(clock, hz)),
             37 => Box::new(pressure::Lps22df::new(clock, hz)),
             38 => Box::new(ina228::Ina228::new(clock, hz, config.shunt_milliohms)),
