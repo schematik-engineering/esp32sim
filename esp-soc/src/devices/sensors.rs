@@ -59,6 +59,7 @@ impl SensorConfig {
                 44 => (0x36..=0x39).contains(&self.address),
                 45 => (1..=127).contains(&self.address),
                 47 => (0x0c..=0x0f).contains(&self.address),
+                48 => self.address == 0x6b,
                 _ => false,
             }
     }
@@ -419,6 +420,7 @@ mod magnetometers;
 mod mlx90393;
 mod adxl375;
 mod qmi8658;
+mod sen66;
 mod pressure;
 mod environment_extra;
 mod bme680;
@@ -436,7 +438,7 @@ mod nau7802;
 mod vl53l1x;
 mod vl53l0x;
 mod ezo_ph;
-const FIELD_COUNT: usize = 77;
+const FIELD_COUNT: usize = 83;
 #[derive(Clone, Copy, PartialEq)]
 enum WireFormat {
     Bytes,
@@ -536,6 +538,7 @@ impl Sensor {
             36 => Box::new(pressure::Dps310::new(clock, hz)),
             37 => Box::new(pressure::Lps22df::new(clock, hz)),
             38 => Box::new(ina228::Ina228::new(clock, hz, config.shunt_milliohms)),
+            48 => Box::new(sen66::Sen66::new(clock, hz)),
             46 => Box::new(qmi8658::Qmi8658::new(clock, hz)),
             39 => Box::new(adxl375::Adxl375::new(clock, hz)),
             40 => Box::new(as7341::As7341::new(clock, hz)),
