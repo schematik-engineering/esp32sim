@@ -50,6 +50,10 @@ trait MachineApi {
     fn stepper_position(&self,id:u32)->f64;
     fn configure_led_displays(&mut self,configs:&[esp_soc::devices::led_display::LedDisplayConfig])->Result<(),String>;
     fn configure_spi_displays(&mut self, configs: &[esp_soc::devices::spi_display::SpiDisplayConfig]) -> Result<(), String>;
+    fn configure_thermocouples(&mut self,configs:&[esp_soc::devices::thermocouple::Config])->Result<(),String>;
+    fn thermocouple_set(&mut self,id:u32,field:u32,value:f64)->u32;
+    fn thermocouple_generation(&self,id:u32)->u32;
+    fn thermocouple_value(&self,id:u32,field:u32)->f64;
     fn configure_pin_sensors(&mut self,configs:&[esp_soc::devices::pin_sensor::Config])->Result<(),String>;
     fn pin_sensor_set(&mut self,id:u32,field:u32,value:f64)->u32;
     fn pin_sensor_generation(&self,id:u32)->u32;
@@ -101,6 +105,21 @@ impl<S: Soc> MachineApi for Machine<S> {
     }
     fn write_flash(&mut self, off: usize, d: &[u8]) -> Result<(), String> { Machine::write_flash(self, off, d) }
     fn boot(&mut self, app_direct: bool) -> Result<(), String> { if app_direct { self.boot_app(0x10000).map(|_| ()) } else { self.boot_rom(); Ok(()) } }
+    fn configure_thermocouples(&mut self,configs:&[esp_soc::devices::thermocouple::Config])->Result<(),String>{
+        if configs.iter().any(|c|[c.sclk,c.mosi,c.miso,c.cs].iter().any(|&p|p!=255 && (self.gpio_state(p as u32)==u32::MAX || (S::NAME=="esp32s3" && (22..=25).contains(&p))))) {return Err("thermocouple GPIO outside chip range".into());}
+        if self.bus.board_ref().name()=="none" {self.bus.set_board(Box::new(esp_soc::devices::CircuitBoard::new(&[],&[])?));}
+        let old=self.bus.board_ref().input_levels();
+        self.bus.board().configure_thermocouples(configs,S::CPU_HZ)?;
+        let levels=self.bus.board_ref().input_levels();
+        for (pin,_) in old {if !levels.iter().any(|(p,_)|*p==pin){self.bus.gpio_set_input(pin,true);}}
+        self.bus.refresh_board_inputs();Ok(())
+    }
+    fn thermocouple_set(&mut self,id:u32,field:u32,value:f64)->u32{
+        if id>=16{return 1;}let now=self.bus.cycles();self.bus.board().advance_to(now);
+        u32::from(!self.bus.board().thermocouple_set(id as u8,field,value))
+    }
+    fn thermocouple_generation(&self,id:u32)->u32{if id>=16{u32::MAX}else{self.bus.board_ref().thermocouple_generation(id as u8)}}
+    fn thermocouple_value(&self,id:u32,field:u32)->f64{if id>=16{f64::NAN}else{self.bus.board_ref().thermocouple_value(id as u8,field)}}
     fn configure_pin_sensors(&mut self,configs:&[esp_soc::devices::pin_sensor::Config])->Result<(),String> {
         if configs.iter().any(|c|self.gpio_state(c.pin as u32)==u32::MAX){return Err("pin sensor GPIO outside chip range".into());}
         if self.bus.board_ref().name()=="none" {self.bus.set_board(Box::new(esp_soc::devices::CircuitBoard::new(&[],&[])?));}
@@ -2837,5 +2856,90 @@ mod parallel_lcd_tests {
             let mut rw=record;rw[9]=9;assert_eq!(esp32sim_parallel_lcds(e,rw.as_ptr(),12),0);
             (*e).booted=true;assert_eq!(esp32sim_parallel_lcds(e,record.as_ptr(),12),1);esp32sim_delete(e);
         }}
+    }
+}
+
+/// Configure records [model,id,sclk,mosi,miso,cs,0,0] before boot.
+/// # Safety
+/// Live exclusively borrowed `e`; `data` readable for `len` bytes.
+#[no_mangle]
+pub unsafe extern "C" fn esp32sim_configure_thermocouples(e:*mut Emu,data:*const u8,len:usize)->u32{
+    if e.is_null()||len>128||len%8!=0||(len>0&&data.is_null()){return 1;}
+    let e=unsafe{&mut *e};if e.booted{return 1;}
+    let bytes=if len==0{&[]}else{unsafe{std::slice::from_raw_parts(data,len)}};
+    let mut configs=Vec::new();
+    for r in bytes.chunks_exact(8){if r[6]!=0||r[7]!=0{return 1;}configs.push(esp_soc::devices::thermocouple::Config{model:r[0],id:r[1],sclk:r[2],mosi:r[3],miso:r[4],cs:r[5]});}
+    u32::from(e.m.configure_thermocouples(&configs).is_err())
+}
+/// Set physical temperature, calibration or chip-specific fault bits.
+/// # Safety
+/// Non-null `e` must be live and exclusively borrowed.
+#[no_mangle]
+pub unsafe extern "C" fn esp32sim_thermocouple_set(e:*mut Emu,id:u32,field:u32,value:f64)->u32{
+    if e.is_null(){return 1;}unsafe{&mut *e}.m.thermocouple_set(id,field,value)
+}
+/// Output generation, MAX for invalid identity.
+/// # Safety
+/// Non-null `e` must be live and exclusively borrowed.
+#[no_mangle]
+pub unsafe extern "C" fn esp32sim_thermocouple_generation(e:*mut Emu,id:u32)->u32{
+    if e.is_null(){return u32::MAX;}unsafe{&mut *e}.m.thermocouple_generation(id)
+}
+/// Sample field; NaN for unavailable, invalid or faulted temperatures.
+/// # Safety
+/// Non-null `e` must be live and exclusively borrowed.
+#[no_mangle]
+pub unsafe extern "C" fn esp32sim_thermocouple_value(e:*mut Emu,id:u32,field:u32)->f64{
+    if e.is_null(){return f64::NAN;}unsafe{&mut *e}.m.thermocouple_value(id,field)
+}
+
+#[cfg(test)]
+mod thermocouple_tests {
+    use super::*;
+    use xtensa_lx7::Bus;
+    #[test]
+    fn thermocouple_abi_validates_records_ranges_chip_pins_and_finite_inputs() {
+        unsafe {for chip in ["none","esp32c3","esp32c6"] {
+            let e=esp32sim_new(chip.as_ptr(),chip.len(),4,0);assert!(!e.is_null());
+            let mut record=[1,0,1,255,3,4,0,0];
+            assert_eq!(esp32sim_configure_thermocouples(e,record.as_ptr(),7),1);
+            assert_eq!(esp32sim_configure_thermocouples(e,record.as_ptr(),8),0);
+            assert!(esp32sim_thermocouple_value(e,0,0).is_nan());
+            for value in [f64::NAN,f64::INFINITY,2000.] {assert_eq!(esp32sim_thermocouple_set(e,0,0,value),1);}
+            assert_eq!(esp32sim_thermocouple_set(e,0,0,-100.),0);
+            record[6]=1;assert_eq!(esp32sim_configure_thermocouples(e,record.as_ptr(),8),1);record[6]=0;
+            record[2]=if chip=="none"{22}else{40};assert_eq!(esp32sim_configure_thermocouples(e,record.as_ptr(),8),1);record[2]=1;
+            record[0]=2;record[3]=2;assert_eq!(esp32sim_configure_thermocouples(e,record.as_ptr(),8),0);
+            assert_eq!(esp32sim_thermocouple_set(e,0,4,3.),1);
+            assert_eq!(esp32sim_thermocouple_set(e,0,2,43.),0);
+            assert_eq!(esp32sim_thermocouple_set(e,16,0,20.),1);
+            (*e).booted=true;assert_eq!(esp32sim_configure_thermocouples(e,record.as_ptr(),8),1);
+            esp32sim_delete(e);
+        }}
+    }
+    #[test]
+    fn thermocouple_all_three_chip_gpio_buses_read_signed_wire_value() {
+        macro_rules! check {($machine:expr,$gpio:expr)=>{{
+            let mut m=$machine;
+            MachineApi::configure_circuit(&mut m,&[],&[],&[]).unwrap();
+            MachineApi::configure_thermocouples(&mut m,&[esp_soc::devices::thermocouple::Config{model:1,id:0,sclk:1,mosi:255,miso:3,cs:4}]).unwrap();
+            assert_eq!(MachineApi::thermocouple_set(&mut m,0,0,-123.25),0);
+            m.bus.write32($gpio+0x08,16).unwrap();
+            m.bus.write32($gpio+0x24,18).unwrap();
+            m.bus.tick((MachineApi::cpu_hz(&m)/5.) as u32);
+            m.bus.write32($gpio+0x0c,16).unwrap();m.bus.tick(1);
+            let mut word=0u32;
+            for _ in 0..32 {
+                m.bus.write32($gpio+0x08,2).unwrap();m.bus.tick(1);
+                word=(word<<1)|u32::from(m.bus.read32($gpio+0x3c).unwrap()&8!=0);
+                m.bus.write32($gpio+0x0c,2).unwrap();m.bus.tick(1);
+            }
+            m.bus.write32($gpio+0x08,16).unwrap();
+            assert_eq!((word as i32)>>18,-493);
+            assert_eq!(MachineApi::thermocouple_value(&m,0,0),-123.25);
+        }};}
+        check!(esp32s3::machine([0;6]),0x60004000);
+        check!(esp32c3::machine([0;6],4<<20),0x60004000);
+        check!(esp32c6::machine([0;6],4<<20),0x60091000);
     }
 }

@@ -47,3 +47,5 @@ pub mod lcd;
 pub mod pca9685;
 
 pub mod stepper;
+
+pub mod thermocouple;
