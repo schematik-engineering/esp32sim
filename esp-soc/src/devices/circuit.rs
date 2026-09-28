@@ -240,6 +240,9 @@ impl BoardModel for CircuitBoard {
             .chain(self.thermocouples.iter().filter(|d|d.level().is_none()).map(|d|d.config.miso))
             .filter(|pin|!driven.iter().any(|(p,_)|p==pin)).collect()
     }
+    fn max_cpu_quantum(&self) -> u32 {
+        if self.inputs.as_ref().is_some_and(|inputs| inputs.needs_precise_timing()) { 1 } else { u32::MAX }
+    }
     fn next_deadline(&self)->Option<u64> {self.inputs.as_ref().and_then(|i|i.next_deadline()).into_iter().chain(self.pin_sensors.as_ref().and_then(|s|s.next_deadline())).chain(self.rfid.iter().filter_map(|r|r.next_deadline())).chain(self.thermocouples.iter().filter_map(|d|d.next_deadline())).chain(self.load_cells.iter().filter_map(|c|c.next_deadline())).min()}
     fn take_edges(&mut self)->Vec<crate::board::BoardEdge> {self.inputs.as_mut().map_or_else(Vec::new,|inputs|inputs.take_edges())}
     fn sensor_generation(&mut self,id:u8)->u32 {

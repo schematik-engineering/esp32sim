@@ -231,6 +231,9 @@ impl InputDevices {
         }
         false
     }
+    pub fn needs_precise_timing(&self) -> bool {
+        self.devices.iter().any(|device| matches!(device, Input::Ultrasonic(_)))
+    }
     pub fn next_deadline(&self) -> Option<u64> {
         self.devices.iter().filter_map(Input::next).min()
     }
@@ -407,6 +410,22 @@ mod tests {
         inputs.gpio_drive(6000, 1 << 4, 1 << 4);
         inputs.gpio_drive(6010, 1 << 4, 0);
         assert_eq!(inputs.next_deadline(), None);
+    }
+    #[test]
+    fn short_trigger_remains_invalid_at_esp32_clock_rates() {
+        for hz in [160_000_000,240_000_000] {
+            let mut inputs=InputDevices::new(&[sonar()],hz).unwrap();
+            assert!(inputs.needs_precise_timing());
+            let minimum=hz/100_000;
+            inputs.gpio_drive(0,1<<4,1<<4);
+            inputs.gpio_drive(minimum-1,1<<4,0);
+            assert_eq!(inputs.next_deadline(),None);
+            inputs.gpio_drive(minimum,1<<4,1<<4);
+            inputs.gpio_drive(minimum*2,1<<4,0);
+            assert!(inputs.next_deadline().is_some());
+        }
+        let inputs=InputDevices::new(&[InputConfig::Encoder{id:1,a:4,b:5}],240_000_000).unwrap();
+        assert!(!inputs.needs_precise_timing());
     }
     #[test]
     fn keypad_follows_column_scanning_and_releases_floating_rows() {

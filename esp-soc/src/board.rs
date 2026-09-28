@@ -131,6 +131,9 @@ pub trait BoardModel {
     fn input_levels(&self) -> Vec<(u8, bool)> { Vec::new() }
     /// Earliest autonomous transition strictly after the board's current cycle.
     fn next_deadline(&self) -> Option<VirtualCycle> { None }
+    /// Bound active CPU rounds when a device measures software-generated short pulses.
+    /// Idle skipping still follows actual device deadlines.
+    fn max_cpu_quantum(&self) -> u32 { u32::MAX }
     /// Advance monotonically through every board transition due by `cycle`.
     fn advance_to(&mut self, _cycle: VirtualCycle) {}
     /// Timestamped GPIO input edges emitted by the last advance.

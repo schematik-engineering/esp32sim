@@ -528,3 +528,41 @@ fn light_grid_reports_the_glass_not_the_chain() {
         assert_eq!(g11.leds[cell11.0 * 3 + cell11.1], [51, 0, 0], "chain {} on port 11", chain_i);
     }
 }
+
+#[test]
+fn pulse_timing_precision_bounds_active_rounds_without_disabling_idle_skip() {
+    use esp_soc::board::BoardModel;
+    use esp_soc::devices::{CircuitBoard, inputs::InputConfig};
+    use esp_soc::observe::{Ctx, Observer, Wants};
+    use std::sync::{Arc, Mutex};
+    struct Rounds(Arc<Mutex<Vec<u64>>>);
+    impl Observer<esp32s3::S3> for Rounds {
+        fn name(&self) -> &'static str { "pulse-rounds" }
+        fn wants(&self) -> Wants { Wants::ROUND }
+        fn on_round(&mut self, cx: &Ctx) { self.0.lock().unwrap().push(cx.cycles); }
+    }
+    for precise in [false,true] {
+        for until in [false,true] {
+            let mut m=machine();
+            let mut board=CircuitBoard::new(&[], &[]).unwrap();
+            if precise { board.configure_inputs(&[InputConfig::Ultrasonic{id:0,trigger:1,echo:2}],240_000_000).unwrap(); }
+            m.bus.board=Box::new(board);
+            park(&mut m,0,IRAM,&SPIN);
+            if precise { assert_eq!(m.browser_external_block_budget(64),None); }
+            let rounds=Arc::new(Mutex::new(Vec::new()));
+            m.add_observer(Box::new(Rounds(rounds.clone())));
+            m.max_cycles=128;
+            if until { m.run_until_cycle(128); } else { m.run(u64::MAX); }
+            let expected=if precise {(1..=128).collect::<Vec<_>>()}else if until {vec![1,65,128]}else{vec![64,128]};
+            assert_eq!(*rounds.lock().unwrap(),expected,"precise={precise}, until={until}");
+        }
+    }
+    let mut m=machine();
+    let mut board=CircuitBoard::new(&[], &[]).unwrap();
+    board.configure_inputs(&[InputConfig::Ultrasonic{id:0,trigger:1,echo:2}],240_000_000).unwrap();
+    m.bus.board=Box::new(board);
+    park(&mut m,0,IRAM,&WAITI_LOOP);
+    m.max_cycles=240_000;
+    assert!(matches!(m.run(u64::MAX),Stop::Halted));
+    assert!(m.insns()<1000,"idle skipping must remain active");
+}

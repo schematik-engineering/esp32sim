@@ -494,6 +494,7 @@ impl<S: Soc> Machine<S> {
     /// to instructions. The caller still has to enforce architectural boundaries such as
     /// CCOMPARE and register-window overflow for the block it proposes.
     pub fn browser_external_block_budget(&self, requested: u32) -> Option<u32> {
+        if self.cpu_quantum() < QUANTUM { return None; }
         if requested == 0
             || self.cost.is_some()
             || self.probes.0 != 0
@@ -521,6 +522,10 @@ impl<S: Soc> Machine<S> {
         if self.bus.cycles() >= self.max_cycles { self.drain_console(); return Some(Stop::Halted); }
         self.drain_console();
         None
+    }
+
+    fn cpu_quantum(&self) -> u64 {
+        QUANTUM.min(u64::from(self.bus.board_ref().max_cpu_quantum().max(1)))
     }
 
     fn run_unmodeled(&mut self, max_insns: u64) -> Stop {
@@ -566,10 +571,11 @@ impl<S: Soc> Machine<S> {
                 if n & 0xffff < chunk { self.drain_console(); }
                 continue;
             }
+            let quantum = self.cpu_quantum();
             for i in 0..S::CORES {
                 if !on[i] { continue; }
-                if idle[i] && !slow_path { self.cores[i].idle_advance(QUANTUM as u32); } else if blocks {
-                    let mut left = QUANTUM as u32;
+                if idle[i] && !slow_path { self.cores[i].idle_advance(quantum as u32); } else if blocks {
+                    let mut left = quantum as u32;
                     while left > 0 {
                         let (used, stop) = self.step_blocks(i, left);
                         if let Some(stop) = stop { self.drain_console(); return stop; }
@@ -579,17 +585,17 @@ impl<S: Soc> Machine<S> {
                         if self.bus.sw_reset() { break; }
                     }
                 } else {
-                    for _ in 0..QUANTUM {
+                    for _ in 0..quantum {
                         if let Some(stop) = self.step_core(i) { self.drain_console(); return stop; }
                         if self.bus.sw_reset() { break; }
                     }
                 }
-                if i == 0 { n += QUANTUM; }
+                if i == 0 { n += quantum; }
             }
-            self.after_round(QUANTUM);
+            self.after_round(quantum);
             if self.bus.sw_reset() { self.drain_console(); return Stop::SwReset; }
             if self.bus.cycles() >= self.max_cycles { self.drain_console(); return Stop::Halted; }
-            if n & 0xffff < QUANTUM { self.drain_console(); }
+            if n & 0xffff < quantum { self.drain_console(); }
         }
     }
 
@@ -956,7 +962,7 @@ impl<S: Soc> Machine<S> {
                 if let Some((at, _)) = self.script.events.get(self.script.pos) {
                     deadline = deadline.min(at.saturating_sub(now).max(1));
                 }
-                let mut budget = left.min(QUANTUM).min(deadline) as u32;
+                let mut budget = left.min(self.cpu_quantum()).min(deadline) as u32;
                 let (mut used_total, mut yielded, mut stop) = (0u64, false, None);
                 while budget > 0 {
                     let (used, s) = if blocks { self.step_blocks(0, budget) } else { (1, self.step_core(0)) };
