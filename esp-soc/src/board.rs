@@ -45,6 +45,10 @@ pub trait BoardModel {
     fn thermocouple_set(&mut self,_id:u8,_field:u32,_value:f64)->bool{false}
     fn thermocouple_generation(&self,_id:u8)->u32{u32::MAX}
     fn thermocouple_value(&self,_id:u8,_field:u32)->f64{f64::NAN}
+    fn configure_ads1292r(&mut self,_configs:&[crate::devices::ads1292r::Config],_hz:u64)->Result<(),String>{Err("board cannot attach ads1292r".into())}
+    fn ads1292r_set(&mut self,_id:u8,_field:u32,_value:f64)->bool{false}
+    fn ads1292r_generation(&self,_id:u8)->u32{u32::MAX}
+    fn ads1292r_value(&self,_id:u8,_field:u32)->f64{f64::NAN}
     fn configure_max30003(&mut self,_configs:&[crate::devices::max30003::Config],_hz:u64)->Result<(),String>{Err("board cannot attach max30003".into())}
     fn max30003_set(&mut self,_id:u8,_field:u32,_value:f64)->bool{false}
     fn max30003_generation(&self,_id:u8)->u32{u32::MAX}

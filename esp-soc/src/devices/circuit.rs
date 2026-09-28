@@ -15,6 +15,7 @@ pub struct CircuitBoard {
     rfid: Vec<super::rfid::Rfid>,
     thermocouples: Vec<super::thermocouple::Thermocouple>,
     max30003: Vec<super::max30003::Max30003>,
+    ads1292r: Vec<super::ads1292r::Ads1292r>,
     load_cells: Vec<super::hx711::LoadCell>,
     gestures: Vec<Arc<Mutex<super::gesture::GestureSensor>>>,
     touches: Vec<Arc<Mutex<super::touch::TouchController>>>,
@@ -61,7 +62,7 @@ impl CircuitBoard {
             }
             displays.push(Arc::new(Mutex::new(Ssd1306::new(*config)?)));
         }
-        Ok(Self { pwm_expanders:Vec::new(), camera: None, sensor_clock: Arc::new(std::sync::atomic::AtomicU64::new(0)), sensors: Vec::new(), inputs: None, steppers: Vec::new(), four_wire_steppers: Vec::new(), pin_sensors: None, rfid: Vec::new(), thermocouples: Vec::new(), max30003: Vec::new(), gestures: Vec::new(), load_cells: Vec::new(), touches: Vec::new(), resistive_touches: Vec::new(), spi_displays: Vec::new(), led_displays: Vec::new(), max_displays: Vec::new(), strips: devices, gpio_hz: 0, oleds: displays, parallel_lcds: Vec::new(), lcds: Vec::new() })
+        Ok(Self { pwm_expanders:Vec::new(), camera: None, sensor_clock: Arc::new(std::sync::atomic::AtomicU64::new(0)), sensors: Vec::new(), inputs: None, steppers: Vec::new(), four_wire_steppers: Vec::new(), pin_sensors: None, rfid: Vec::new(), thermocouples: Vec::new(), max30003: Vec::new(), ads1292r: Vec::new(), gestures: Vec::new(), load_cells: Vec::new(), touches: Vec::new(), resistive_touches: Vec::new(), spi_displays: Vec::new(), led_displays: Vec::new(), max_displays: Vec::new(), strips: devices, gpio_hz: 0, oleds: displays, parallel_lcds: Vec::new(), lcds: Vec::new() })
     }
     pub fn configure_gpio_clock(&mut self, hz: u32) { self.gpio_hz = hz; }
     pub fn configure_sensors(&mut self, configs:&[super::SensorConfig], hz:u32)->Result<(),String> {
@@ -142,7 +143,7 @@ impl BoardModel for CircuitBoard {
                 || self.resistive_touches.iter().any(|p|{let p=p.lock().unwrap().config;p.model==2 && (p.pins[0],p.pins[1],p.pins[2])==route})) {return Err("LED display I2C address collision".into());}
             if c.controller==2 && [c.a,c.b].iter().any(|pin|self.pin_sensor_uses(*pin)||self.inputs.as_ref().is_some_and(|inputs|inputs.owns_input(*pin))) {return Err("TM1637 GPIO overlaps an input".into());}
             if c.controller==3 {
-                if self.thermocouples.iter().any(|d|d.config.cs==c.address) || self.max30003.iter().any(|d|d.config.cs==c.address) || self.spi_displays.iter().any(|p|p.config.cs==Some(c.address)) || self.rfid.iter().any(|p|p.config.cs==c.address) || self.resistive_touches.iter().any(|p|{let p=p.lock().unwrap().config;p.model==1 && p.pins[3]==c.address}) {return Err("MAX7219 chip select overlaps another SPI device".into());}
+                if self.thermocouples.iter().any(|d|d.config.cs==c.address) || self.max30003.iter().any(|d|d.config.cs==c.address) || self.ads1292r.iter().any(|d|d.config.cs==c.address) || self.spi_displays.iter().any(|p|p.config.cs==Some(c.address)) || self.rfid.iter().any(|p|p.config.cs==c.address) || self.resistive_touches.iter().any(|p|{let p=p.lock().unwrap().config;p.model==1 && p.pins[3]==c.address}) {return Err("MAX7219 chip select overlaps another SPI device".into());}
                 max_displays.push(super::max7219::Max7219::new(*c)?);
             } else {displays.push(Arc::new(Mutex::new(super::led_display::LedDisplay::new(*c,hz)?)));}
         }
@@ -150,14 +151,14 @@ impl BoardModel for CircuitBoard {
     }
 
     fn configure_pin_sensors(&mut self,configs:&[super::pin_sensor::Config],hz:u64)->Result<(),String>{
-        if configs.iter().any(|c|self.thermocouples.iter().any(|d|d.config.miso==c.pin)||self.max30003.iter().any(|d|d.config.miso==c.pin)||self.load_cells.iter().any(|l|[l.config.dout,l.config.sck].contains(&c.pin))||self.gestures.iter().any(|g|{let g=g.lock().unwrap().config;[g.sda,g.scl,g.irq].contains(&c.pin)})||self.resistive_touches.iter().any(|t|t.lock().unwrap().config.gpio_pins().contains(&c.pin))||self.inputs.as_ref().is_some_and(|i|i.owns_input(c.pin))||self.touches.iter().any(|t|{let c2=t.lock().unwrap().config;[c2.sda,c2.scl,c2.irq,c2.reset].contains(&c.pin)})) {return Err("GPIO sensor pin overlaps another input protocol".into());}
+        if configs.iter().any(|c|self.thermocouples.iter().any(|d|d.config.miso==c.pin)||self.max30003.iter().any(|d|d.config.miso==c.pin)||self.ads1292r.iter().any(|d|[d.config.miso,d.config.drdy].contains(&c.pin))||self.load_cells.iter().any(|l|[l.config.dout,l.config.sck].contains(&c.pin))||self.gestures.iter().any(|g|{let g=g.lock().unwrap().config;[g.sda,g.scl,g.irq].contains(&c.pin)})||self.resistive_touches.iter().any(|t|t.lock().unwrap().config.gpio_pins().contains(&c.pin))||self.inputs.as_ref().is_some_and(|i|i.owns_input(c.pin))||self.touches.iter().any(|t|{let c2=t.lock().unwrap().config;[c2.sda,c2.scl,c2.irq,c2.reset].contains(&c.pin)})) {return Err("GPIO sensor pin overlaps another input protocol".into());}
         self.pin_sensors=Some(super::pin_sensor::PinSensors::new(configs,hz)?);Ok(())
     }
     fn pin_sensor_set(&mut self,id:u8,field:u32,value:f64)->bool{self.pin_sensors.as_mut().is_some_and(|s|s.set(id,field,value))}
     fn pin_sensor_generation(&self,id:u8)->u32{self.pin_sensors.as_ref().map_or(u32::MAX,|s|s.generation(id))}
     fn pin_sensor_value(&self,id:u8,field:u32)->f64{self.pin_sensors.as_ref().map_or(f64::NAN,|s|s.value(id,field))}
 
-    fn advance_to(&mut self, cycle:u64) {for device in &mut self.max30003 {device.advance(cycle);}for device in &mut self.thermocouples {device.advance(cycle);}for (_,strip) in &mut self.strips {strip.advance_gpio(cycle,self.gpio_hz);}for p in &self.pwm_expanders {p.lock().unwrap().advance(cycle);}for display in &self.led_displays {display.lock().unwrap().advance(cycle);}for cell in &mut self.load_cells {cell.advance(cycle);}for sensor in &self.gestures {sensor.lock().unwrap().advance(cycle);}for reader in &mut self.rfid {reader.advance_to(cycle);} if let Some(s)=&mut self.pin_sensors{s.advance(cycle);} if let Some(inputs)=&mut self.inputs {inputs.advance_to(cycle);} self.sensor_clock.store(cycle,std::sync::atomic::Ordering::Relaxed); for lcd in &self.lcds {lcd.lock().unwrap().advance();} for lcd in &mut self.parallel_lcds {lcd.lcd.advance();} for t in &self.touches {t.lock().unwrap().advance(cycle);} for t in &self.resistive_touches {t.lock().unwrap().advance(cycle);} }
+    fn advance_to(&mut self, cycle:u64) {for device in &mut self.ads1292r {device.advance(cycle);}for device in &mut self.max30003 {device.advance(cycle);}for device in &mut self.thermocouples {device.advance(cycle);}for (_,strip) in &mut self.strips {strip.advance_gpio(cycle,self.gpio_hz);}for p in &self.pwm_expanders {p.lock().unwrap().advance(cycle);}for display in &self.led_displays {display.lock().unwrap().advance(cycle);}for cell in &mut self.load_cells {cell.advance(cycle);}for sensor in &self.gestures {sensor.lock().unwrap().advance(cycle);}for reader in &mut self.rfid {reader.advance_to(cycle);} if let Some(s)=&mut self.pin_sensors{s.advance(cycle);} if let Some(inputs)=&mut self.inputs {inputs.advance_to(cycle);} self.sensor_clock.store(cycle,std::sync::atomic::Ordering::Relaxed); for lcd in &self.lcds {lcd.lock().unwrap().advance();} for lcd in &mut self.parallel_lcds {lcd.lcd.advance();} for t in &self.touches {t.lock().unwrap().advance(cycle);} for t in &self.resistive_touches {t.lock().unwrap().advance(cycle);} }
     fn configure_load_cells(&mut self,configs:&[super::hx711::LoadCellConfig],hz:u64)->Result<(),String>{
         if configs.len()>16||hz==0{return Err("invalid load cell count or clock".into());}
         for (i,c) in configs.iter().enumerate(){
@@ -190,10 +191,31 @@ impl BoardModel for CircuitBoard {
     fn proximity(&mut self,id:u8,value:f64)->bool{
         self.gestures.iter().find(|s|s.lock().unwrap().config.id==id).is_some_and(|s|s.lock().unwrap().proximity(value))
     }
+    fn configure_ads1292r(&mut self,configs:&[super::ads1292r::Config],hz:u64)->Result<(),String>{
+        if configs.len()>16 || hz==0 {return Err("invalid ads1292r count or clock".into());}
+        for (i,c) in configs.iter().enumerate(){
+            if !c.valid() || configs[..i].iter().any(|p|c.conflicts(p))
+                || self.max30003.iter().any(|d|d.config.cs==c.cs)
+                || self.thermocouples.iter().any(|d|d.config.cs==c.cs)
+                || self.rfid.iter().any(|d|d.config.cs==c.cs)
+                || self.max_displays.iter().any(|d|d.config.address==c.cs)
+                || self.spi_displays.iter().any(|d|d.config.cs==Some(c.cs))
+                || self.resistive_touches.iter().any(|d|{let c2=d.lock().unwrap().config;c2.model==1 && c2.pins[3]==c.cs})
+                || [c.miso,c.drdy].iter().any(|&p|self.pin_sensor_uses(p) || self.inputs.as_ref().is_some_and(|d|d.owns_input(p))) {
+                return Err("invalid ads1292r identity or conflicting SPI wiring".into());
+            }
+        }
+        let now=self.sensor_clock.load(std::sync::atomic::Ordering::Relaxed);
+        self.ads1292r=configs.iter().map(|c|super::ads1292r::Ads1292r::new(*c,hz,now)).collect();Ok(())
+    }
+    fn ads1292r_set(&mut self,id:u8,field:u32,value:f64)->bool{self.ads1292r.iter_mut().find(|d|d.config.id==id).is_some_and(|d|d.set(field,value))}
+    fn ads1292r_generation(&self,id:u8)->u32{self.ads1292r.iter().find(|d|d.config.id==id).map_or(u32::MAX,|d|d.generation())}
+    fn ads1292r_value(&self,id:u8,field:u32)->f64{self.ads1292r.iter().find(|d|d.config.id==id).map_or(f64::NAN,|d|d.value(field))}
     fn configure_max30003(&mut self,configs:&[super::max30003::Config],hz:u64)->Result<(),String>{
         if configs.len()>16 || hz==0 {return Err("invalid max30003 count or clock".into());}
         for (i,c) in configs.iter().enumerate(){
             if !c.valid() || configs[..i].iter().any(|p|p.id==c.id || p.cs==c.cs)
+                || self.ads1292r.iter().any(|d|d.config.cs==c.cs || d.config.drdy==c.miso)
                 || self.thermocouples.iter().any(|d|d.config.cs==c.cs)
                 || self.rfid.iter().any(|d|d.config.cs==c.cs)
                 || self.max_displays.iter().any(|d|d.config.address==c.cs)
@@ -213,7 +235,7 @@ impl BoardModel for CircuitBoard {
         if configs.len()>16 || hz==0 {return Err("invalid thermocouple count or clock".into());}
         for (i,c) in configs.iter().enumerate(){
             if !c.valid() || configs[..i].iter().any(|p|p.id==c.id || p.cs==c.cs)
-                || self.max30003.iter().any(|d|d.config.cs==c.cs)
+                || self.max30003.iter().any(|d|d.config.cs==c.cs) || self.ads1292r.iter().any(|d|d.config.cs==c.cs)
                 || self.rfid.iter().any(|d|d.config.cs==c.cs)
                 || self.max_displays.iter().any(|d|d.config.address==c.cs)
                 || self.spi_displays.iter().any(|d|d.config.cs==Some(c.cs))
@@ -231,13 +253,13 @@ impl BoardModel for CircuitBoard {
     fn configure_rfid(&mut self,configs:&[super::rfid::RfidConfig],hz:u64)->Result<(),String>{
         if configs.len()>16||hz==0{return Err("invalid RFID count or clock".into());}
         for (i,c) in configs.iter().enumerate(){
-            if !c.valid()||self.thermocouples.iter().any(|d|d.config.cs==c.cs) || self.max30003.iter().any(|d|d.config.cs==c.cs)||self.max_displays.iter().any(|p|p.config.address==c.cs)||configs[..i].iter().any(|p|p.id==c.id||p.cs==c.cs)||self.spi_displays.iter().any(|p|p.config.cs==Some(c.cs))||self.resistive_touches.iter().any(|t|{let t=t.lock().unwrap();t.config.model==1&&t.config.pins[3]==c.cs}){return Err("invalid RFID wiring or duplicate chip select".into());}
+            if !c.valid()||self.thermocouples.iter().any(|d|d.config.cs==c.cs) || self.max30003.iter().any(|d|d.config.cs==c.cs) || self.ads1292r.iter().any(|d|d.config.cs==c.cs)||self.max_displays.iter().any(|p|p.config.address==c.cs)||configs[..i].iter().any(|p|p.id==c.id||p.cs==c.cs)||self.spi_displays.iter().any(|p|p.config.cs==Some(c.cs))||self.resistive_touches.iter().any(|t|{let t=t.lock().unwrap();t.config.model==1&&t.config.pins[3]==c.cs}){return Err("invalid RFID wiring or duplicate chip select".into());}
         }
         self.rfid=configs.iter().map(|c|super::rfid::Rfid::new(*c,hz)).collect();Ok(())
     }
     fn rfid_card(&mut self,id:u8,uid:&[u8])->bool{self.rfid.iter_mut().find(|r|r.config.id==id).is_some_and(|r|r.card(uid))}
     fn configure_inputs(&mut self, configs:&[super::inputs::InputConfig], hz:u64)->Result<(),String> {
-        if configs.iter().flat_map(|c|c.pins()).any(|pin|self.pin_sensor_uses(pin)||self.thermocouples.iter().any(|d|d.config.miso==pin)||self.max30003.iter().any(|d|d.config.miso==pin)||self.load_cells.iter().any(|l|[l.config.dout,l.config.sck].contains(&pin))){return Err("input pin overlaps a GPIO sensor".into());}
+        if configs.iter().flat_map(|c|c.pins()).any(|pin|self.pin_sensor_uses(pin)||self.thermocouples.iter().any(|d|d.config.miso==pin)||self.max30003.iter().any(|d|d.config.miso==pin)||self.ads1292r.iter().any(|d|[d.config.miso,d.config.drdy].contains(&pin))||self.load_cells.iter().any(|l|[l.config.dout,l.config.sck].contains(&pin))){return Err("input pin overlaps a GPIO sensor".into());}
         self.inputs=Some(super::inputs::InputDevices::new(configs,hz)?); Ok(())
     }
     fn distance_mm(&mut self,id:u8,value:u32)->bool {self.inputs.as_mut().is_some_and(|inputs|inputs.distance_mm(id,value))}
@@ -252,7 +274,7 @@ impl BoardModel for CircuitBoard {
             strip.gpio_drive(cycle,self.gpio_hz,enabled,high);
         }
     }
-    fn gpio_drive(&mut self,cycle:u64,enabled:u64,output:u64) {for d in &mut self.max30003 {d.advance(cycle);d.drive(enabled,output);}for d in &mut self.thermocouples {d.advance(cycle);d.drive(enabled,output);}for lcd in &mut self.parallel_lcds {lcd.drive(cycle,enabled,output);}for stepper in &mut self.steppers {stepper.drive(enabled,output);}for stepper in &mut self.four_wire_steppers {stepper.drive(enabled,output);}for p in &self.pwm_expanders {p.lock().unwrap().drive(enabled,output);}for cell in &mut self.load_cells {cell.gpio_drive(cycle,enabled,output);}for display in &self.led_displays {display.lock().unwrap().drive(enabled,output);}if let Some(s)=&mut self.pin_sensors{s.gpio_drive(cycle,enabled,output);}if let Some(inputs)=&mut self.inputs {inputs.gpio_drive(cycle,enabled,output);}}
+    fn gpio_drive(&mut self,cycle:u64,enabled:u64,output:u64) {for d in &mut self.ads1292r {d.advance(cycle);d.drive(enabled,output);}for d in &mut self.max30003 {d.advance(cycle);d.drive(enabled,output);}for d in &mut self.thermocouples {d.advance(cycle);d.drive(enabled,output);}for lcd in &mut self.parallel_lcds {lcd.drive(cycle,enabled,output);}for stepper in &mut self.steppers {stepper.drive(enabled,output);}for stepper in &mut self.four_wire_steppers {stepper.drive(enabled,output);}for p in &self.pwm_expanders {p.lock().unwrap().drive(enabled,output);}for cell in &mut self.load_cells {cell.gpio_drive(cycle,enabled,output);}for display in &self.led_displays {display.lock().unwrap().drive(enabled,output);}if let Some(s)=&mut self.pin_sensors{s.gpio_drive(cycle,enabled,output);}if let Some(inputs)=&mut self.inputs {inputs.gpio_drive(cycle,enabled,output);}}
     fn released_inputs(&self)->Vec<u8> {
         let driven=self.input_levels();
         self.inputs.as_ref().map_or_else(Vec::new,|i|i.released_inputs()).into_iter()
@@ -260,12 +282,13 @@ impl BoardModel for CircuitBoard {
             .chain(self.led_displays.iter().filter_map(|d|{let d=d.lock().unwrap();(d.config.controller==2 && d.ack_pin().is_none()).then_some(d.config.b)}))
             .chain(self.thermocouples.iter().filter(|d|d.level().is_none()).map(|d|d.config.miso))
             .chain(self.max30003.iter().filter(|d|d.level().is_none()).map(|d|d.config.miso))
+            .chain(self.ads1292r.iter().filter(|d|d.level().is_none()).map(|d|d.config.miso))
             .filter(|pin|!driven.iter().any(|(p,_)|p==pin)).collect()
     }
     fn max_cpu_quantum(&self) -> u32 {
         if self.inputs.as_ref().is_some_and(|inputs| inputs.needs_precise_timing()) { 1 } else { u32::MAX }
     }
-    fn next_deadline(&self)->Option<u64> {self.inputs.as_ref().and_then(|i|i.next_deadline()).into_iter().chain(self.pin_sensors.as_ref().and_then(|s|s.next_deadline())).chain(self.rfid.iter().filter_map(|r|r.next_deadline())).chain(self.thermocouples.iter().filter_map(|d|d.next_deadline())).chain(self.max30003.iter().filter_map(|d|d.next_deadline())).chain(self.load_cells.iter().filter_map(|c|c.next_deadline())).min()}
+    fn next_deadline(&self)->Option<u64> {self.inputs.as_ref().and_then(|i|i.next_deadline()).into_iter().chain(self.pin_sensors.as_ref().and_then(|s|s.next_deadline())).chain(self.rfid.iter().filter_map(|r|r.next_deadline())).chain(self.thermocouples.iter().filter_map(|d|d.next_deadline())).chain(self.max30003.iter().filter_map(|d|d.next_deadline())).chain(self.ads1292r.iter().filter_map(|d|d.next_deadline())).chain(self.load_cells.iter().filter_map(|c|c.next_deadline())).min()}
     fn take_edges(&mut self)->Vec<crate::board::BoardEdge> {self.inputs.as_mut().map_or_else(Vec::new,|inputs|inputs.take_edges())}
     fn sensor_generation(&mut self,id:u8)->u32 {
         self.sensors.iter().find_map(|s|{let mut s=s.lock().unwrap();(s.config.id==id).then(||s.generation())}).unwrap_or(u32::MAX)
@@ -318,7 +341,7 @@ impl BoardModel for CircuitBoard {
                 || self.oleds.iter().any(|p|{let p=p.lock().unwrap().config;(p.sda,p.scl,p.address)==route})
                 || self.touches.iter().any(|p|{let p=p.lock().unwrap().config;(p.sda,p.scl,p.address)==route})
                 || self.camera.as_ref().is_some_and(|p|{let p=p.lock().unwrap().config;(p.pins[0],p.pins[1],if p.sensor==0x26 {0x30}else{0x3c})==route})) {return Err("conflicting I2C touch route".into());}
-            if c.model==1 && (self.thermocouples.iter().any(|d|d.config.cs==c.pins[3]) || self.max30003.iter().any(|d|d.config.cs==c.pins[3]) || self.max_displays.iter().any(|d|d.config.address==c.pins[3]) || self.rfid.iter().any(|r|r.config.cs==c.pins[3])) {return Err("conflicting SPI RFID/touch chip select".into());}
+            if c.model==1 && (self.thermocouples.iter().any(|d|d.config.cs==c.pins[3]) || self.max30003.iter().any(|d|d.config.cs==c.pins[3]) || self.ads1292r.iter().any(|d|d.config.cs==c.pins[3]) || self.max_displays.iter().any(|d|d.config.address==c.pins[3]) || self.rfid.iter().any(|r|r.config.cs==c.pins[3])) {return Err("conflicting SPI RFID/touch chip select".into());}
             if c.model==1 && self.spi_displays.iter().any(|p|p.config.sclk==c.pins[0] && p.config.mosi==c.pins[1] && (p.config.cs.is_none() || p.config.cs==Some(c.pins[3]))) {return Err("conflicting SPI display/touch chip select".into());}
         }
         self.resistive_touches=configs.iter().map(|c|Arc::new(Mutex::new(super::resistive_touch::ResistiveTouch::new(*c,hz)))).collect();Ok(())
@@ -329,6 +352,7 @@ impl BoardModel for CircuitBoard {
     fn input_levels(&self)->Vec<(u8,bool)> {
         let mut levels=std::collections::BTreeMap::new();
         for d in &self.thermocouples {if let Some((pin,high))=d.level(){*levels.entry(pin).or_insert(true)&=high;}}
+        for d in &self.ads1292r {let (pin,high)=d.drdy();*levels.entry(pin).or_insert(true)&=high;if let Some((pin,high))=d.level(){*levels.entry(pin).or_insert(true)&=high;}}
         for d in &self.max30003 {if let Some((pin,high))=d.level(){*levels.entry(pin).or_insert(true)&=high;}}
         for cell in &self.load_cells {let(pin,high)=cell.level();*levels.entry(pin).or_insert(true)&=high;}
         for g in &self.gestures {let g=g.lock().unwrap();if g.config.irq!=255 {*levels.entry(g.config.irq).or_insert(true) &= g.irq_high();}}
@@ -386,7 +410,7 @@ impl BoardModel for CircuitBoard {
             if config.id>=128 || configs[..i].iter().any(|other| other.id == config.id || (other.sclk,other.mosi,other.cs) == (config.sclk,config.mosi,config.cs)) {
                 return Err("duplicate SPI display identity or chip select".into());
             }
-            if config.cs.is_some_and(|cs|self.thermocouples.iter().any(|d|d.config.cs==cs) || self.max30003.iter().any(|d|d.config.cs==cs) || self.max_displays.iter().any(|d|d.config.address==cs) || self.rfid.iter().any(|r|r.config.cs==cs)) {return Err("conflicting SPI RFID/display chip select".into());}
+            if config.cs.is_some_and(|cs|self.thermocouples.iter().any(|d|d.config.cs==cs) || self.max30003.iter().any(|d|d.config.cs==cs) || self.ads1292r.iter().any(|d|d.config.cs==cs) || self.max_displays.iter().any(|d|d.config.address==cs) || self.rfid.iter().any(|r|r.config.cs==cs)) {return Err("conflicting SPI RFID/display chip select".into());}
             displays.push(super::spi_display::SpiDisplay::new(*config)?);
         }
         self.spi_displays = displays;
@@ -397,6 +421,7 @@ impl BoardModel for CircuitBoard {
         for display in &mut self.max_displays {display.transfer(pins,tx);}
         let mut rx=vec![0xff;rx_len];
         for d in &mut self.thermocouples {if let Some(data)=d.spi(pins,tx,rx_len){for(out,byte)in rx.iter_mut().zip(data){*out &= byte;}}}
+        for d in &mut self.ads1292r {if let Some(data)=d.spi(pins,tx,rx_len){for(out,byte)in rx.iter_mut().zip(data){*out &= byte;}}}
         for d in &mut self.max30003 {if let Some(data)=d.spi(pins,tx,rx_len){for(out,byte)in rx.iter_mut().zip(data){*out &= byte;}}}
         for t in &self.resistive_touches {if let Some(data)=t.lock().unwrap().spi(pins,tx,rx_len) {for (out,byte) in rx.iter_mut().zip(data) {*out &= byte;}}}
         for reader in &mut self.rfid {if let Some(bytes)=reader.spi(pins,tx,rx_len){for (out,byte) in rx.iter_mut().zip(bytes){*out &= byte;}}}
@@ -600,4 +625,17 @@ mod max30003_wiring_tests {
         board.configure_max30003(&[config(0,4)],1_000_000).unwrap();assert!(board.configure_pin_sensors(&[sensor],1_000_000).is_err());
         board.configure_max30003(&[],1_000_000).unwrap();board.configure_pin_sensors(&[sensor],1_000_000).unwrap();assert!(board.configure_max30003(&[config(0,4)],1_000_000).is_err());
     }
+}
+
+#[cfg(test)]
+mod ads1292r_wiring_tests {
+ use super::*;
+ fn config()->super::super::ads1292r::Config{super::super::ads1292r::Config{model:1,id:0,sclk:1,mosi:2,miso:3,cs:4,drdy:5,start:6,reset:7}}
+ #[test] fn ads1292r_shared_bus_and_control_pins_but_no_crossed_signal_roles(){
+  let mut board=CircuitBoard::new(&[],&[]).unwrap();let a=config();let mut b=super::super::ads1292r::Config{id:1,cs:8,drdy:9,..a};board.configure_ads1292r(&[a,b],512000).unwrap();
+  for (drdy,cs,start) in [(5,8,6),(3,8,6),(9,6,10),(9,8,1)]{b.drdy=drdy;b.cs=cs;b.start=start;assert!(board.configure_ads1292r(&[a,b],512000).is_err());}
+ }
+ #[test] fn ads1292r_other_spi_chip_select_conflicts_both_orders(){
+  let mut board=CircuitBoard::new(&[],&[]).unwrap();let a=config();let other=super::super::max30003::Config{model:1,id:0,sclk:1,mosi:2,miso:3,cs:4};board.configure_ads1292r(&[a],512000).unwrap();assert!(board.configure_max30003(&[other],512000).is_err());board.configure_ads1292r(&[],512000).unwrap();board.configure_max30003(&[other],512000).unwrap();assert!(board.configure_ads1292r(&[a],512000).is_err());
+ }
 }

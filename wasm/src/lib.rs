@@ -52,6 +52,10 @@ trait MachineApi {
     fn stepper_position(&self,id:u32)->f64;
     fn configure_led_displays(&mut self,configs:&[esp_soc::devices::led_display::LedDisplayConfig])->Result<(),String>;
     fn configure_spi_displays(&mut self, configs: &[esp_soc::devices::spi_display::SpiDisplayConfig]) -> Result<(), String>;
+    fn configure_ads1292r(&mut self,configs:&[esp_soc::devices::ads1292r::Config])->Result<(),String>;
+    fn ads1292r_set(&mut self,id:u32,field:u32,value:f64)->u32;
+    fn ads1292r_generation(&self,id:u32)->u32;
+    fn ads1292r_value(&self,id:u32,field:u32)->f64;
     fn configure_max30003(&mut self,configs:&[esp_soc::devices::max30003::Config])->Result<(),String>;
     fn max30003_set(&mut self,id:u32,field:u32,value:f64)->u32;
     fn max30003_generation(&self,id:u32)->u32;
@@ -115,6 +119,21 @@ impl<S: Soc> MachineApi for Machine<S> {
     }
     fn write_flash(&mut self, off: usize, d: &[u8]) -> Result<(), String> { Machine::write_flash(self, off, d) }
     fn boot(&mut self, app_direct: bool) -> Result<(), String> { if app_direct { self.boot_app(0x10000).map(|_| ()) } else { self.boot_rom(); Ok(()) } }
+    fn configure_ads1292r(&mut self,configs:&[esp_soc::devices::ads1292r::Config])->Result<(),String>{
+        if configs.iter().any(|c|c.pins().iter().any(|&p|p!=255 && (self.gpio_state(p as u32)==u32::MAX || (S::NAME=="esp32s3" && (22..=25).contains(&p))))) {return Err("ads1292r GPIO outside chip range".into());}
+        if self.bus.board_ref().name()=="none" {self.bus.set_board(Box::new(esp_soc::devices::CircuitBoard::new(&[],&[])?));}
+        let old=self.bus.board_ref().input_levels();
+        self.bus.board().configure_ads1292r(configs,S::CPU_HZ)?;
+        let levels=self.bus.board_ref().input_levels();
+        for (pin,_) in old {if !levels.iter().any(|(p,_)|*p==pin){self.bus.gpio_set_input(pin,true);}}
+        self.bus.refresh_board_inputs();Ok(())
+    }
+    fn ads1292r_set(&mut self,id:u32,field:u32,value:f64)->u32{
+        if id>=16{return 1;}let now=self.bus.cycles();self.bus.board().advance_to(now);
+        u32::from(!self.bus.board().ads1292r_set(id as u8,field,value))
+    }
+    fn ads1292r_generation(&self,id:u32)->u32{if id>=16{u32::MAX}else{self.bus.board_ref().ads1292r_generation(id as u8)}}
+    fn ads1292r_value(&self,id:u32,field:u32)->f64{if id>=16{f64::NAN}else{self.bus.board_ref().ads1292r_value(id as u8,field)}}
     fn configure_max30003(&mut self,configs:&[esp_soc::devices::max30003::Config])->Result<(),String>{
         if configs.iter().any(|c|[c.sclk,c.mosi,c.miso,c.cs].iter().any(|&p|p!=255 && (self.gpio_state(p as u32)==u32::MAX || (S::NAME=="esp32s3" && (22..=25).contains(&p))))) {return Err("max30003 GPIO outside chip range".into());}
         if self.bus.board_ref().name()=="none" {self.bus.set_board(Box::new(esp_soc::devices::CircuitBoard::new(&[],&[])?));}
@@ -2897,6 +2916,40 @@ mod parallel_lcd_tests {
     }
 }
 
+/// Configure records [model,id,sclk,mosi,miso,cs,drdy,start,reset,0,0,0] before boot.
+/// # Safety
+/// Live exclusively borrowed `e`; `data` readable for `len` bytes.
+#[no_mangle]
+pub unsafe extern "C" fn esp32sim_configure_ads1292r(e:*mut Emu,data:*const u8,len:usize)->u32{
+    if e.is_null()||len>192||len%12!=0||(len>0&&data.is_null()){return 1;}
+    let e=unsafe{&mut *e};if e.booted{return 1;}
+    let bytes=if len==0{&[]}else{unsafe{std::slice::from_raw_parts(data,len)}};
+    let mut configs=Vec::new();
+    for r in bytes.chunks_exact(12){if r[9]!=0||r[10]!=0||r[11]!=0{return 1;}configs.push(esp_soc::devices::ads1292r::Config{model:r[0],id:r[1],sclk:r[2],mosi:r[3],miso:r[4],cs:r[5],drdy:r[6],start:r[7],reset:r[8]});}
+    u32::from(e.m.configure_ads1292r(&configs).is_err())
+}
+/// Set signed 24-bit CH1 (0), CH2 (1), or lead-off comparator bits (2).
+/// # Safety
+/// Non-null `e` must be live and exclusively borrowed.
+#[no_mangle]
+pub unsafe extern "C" fn esp32sim_ads1292r_set(e:*mut Emu,id:u32,field:u32,value:f64)->u32{
+    if e.is_null(){return 1;}unsafe{&mut *e}.m.ads1292r_set(id,field,value)
+}
+/// Output generation, MAX for invalid identity.
+/// # Safety
+/// Non-null `e` must be live and exclusively borrowed.
+#[no_mangle]
+pub unsafe extern "C" fn esp32sim_ads1292r_generation(e:*mut Emu,id:u32)->u32{
+    if e.is_null(){return u32::MAX;}unsafe{&mut *e}.m.ads1292r_generation(id)
+}
+/// Sample CH1 counts (0), CH2 counts (1), enabled lead-off bits (2); NaN until available.
+/// # Safety
+/// Non-null `e` must be live and exclusively borrowed.
+#[no_mangle]
+pub unsafe extern "C" fn esp32sim_ads1292r_value(e:*mut Emu,id:u32,field:u32)->f64{
+    if e.is_null(){return f64::NAN;}unsafe{&mut *e}.m.ads1292r_value(id,field)
+}
+
 /// Configure records [model,id,sclk,mosi,miso,cs,0,0] before boot.
 /// # Safety
 /// Live exclusively borrowed `e`; `data` readable for `len` bytes.
@@ -3211,5 +3264,40 @@ mod max30003_tests {
         check!(esp32s3::machine([0;6]),0x60004000);
         check!(esp32c3::machine([0;6],4<<20),0x60004000);
         check!(esp32c6::machine([0;6],4<<20),0x60091000);
+    }
+}
+
+#[cfg(test)]
+mod ads1292r_tests {
+    use super::*;
+    use xtensa_lx7::Bus;
+    #[test]
+    fn ads1292r_all_three_abi_records_ranges_reset_outputs_and_boot_guard(){
+        unsafe {for chip in ["none","esp32c3","esp32c6"] {
+            let e=esp32sim_new(chip.as_ptr(),chip.len(),4,0);assert!(!e.is_null());let record=[1,0,1,2,3,4,5,6,7,0,0,0];
+            assert_eq!(esp32sim_configure_ads1292r(e,record.as_ptr(),11),1);assert_eq!(esp32sim_configure_ads1292r(e,std::ptr::null(),12),1);
+            assert_eq!(esp32sim_configure_ads1292r(e,record.as_ptr(),12),0);assert_eq!(esp32sim_ads1292r_generation(e,0),0);assert!(esp32sim_ads1292r_value(e,0,0).is_nan());
+            for i in [0,1]{for v in [f64::NAN,f64::INFINITY,-8388609.,8388608.,0.5]{assert_eq!(esp32sim_ads1292r_set(e,0,i,v),1);}for v in [-8388608.,8388607.]{assert_eq!(esp32sim_ads1292r_set(e,0,i,v),0);}}
+            for v in [-1.,32.,0.5,f64::NAN]{assert_eq!(esp32sim_ads1292r_set(e,0,2,v),1);}assert_eq!(esp32sim_ads1292r_set(e,0,2,31.),0);assert_eq!(esp32sim_ads1292r_set(e,0,3,0.),1);
+            for (index,value) in [(0,2),(1,16),(2,if chip=="none"{22}else{40}),(6,3),(9,1),(10,1),(11,1)]{let mut bad=record;bad[index]=value;assert_eq!(esp32sim_configure_ads1292r(e,bad.as_ptr(),12),1);}
+            let duplicate=[record,record].concat();assert_eq!(esp32sim_configure_ads1292r(e,duplicate.as_ptr(),24),1);
+            assert_eq!(esp32sim_ads1292r_set(e,16,0,0.),1);assert_eq!(esp32sim_ads1292r_generation(e,16),u32::MAX);
+            (*e).booted=true;assert_eq!(esp32sim_configure_ads1292r(e,record.as_ptr(),12),1);esp32sim_delete(e);
+        }}
+    }
+    #[test]
+    fn ads1292r_all_three_actual_gpio_mode_one_two_devices_and_drdy(){
+        macro_rules! check {($machine:expr,$gpio:expr)=>{{
+            let mut m=$machine;MachineApi::configure_circuit(&mut m,&[],&[],&[]).unwrap();
+            let a=esp_soc::devices::ads1292r::Config{model:1,id:0,sclk:1,mosi:2,miso:3,cs:4,drdy:5,start:6,reset:7};let b=esp_soc::devices::ads1292r::Config{id:1,cs:8,drdy:9,reset:10,..a};
+            MachineApi::configure_ads1292r(&mut m,&[a,b]).unwrap();MachineApi::ads1292r_set(&mut m,0,0,-1234567.);MachineApi::ads1292r_set(&mut m,0,1,7654321.);MachineApi::ads1292r_set(&mut m,1,0,2345678.);MachineApi::ads1292r_set(&mut m,1,1,-3456789.);
+            m.bus.write32($gpio+0x08,(1<<4)|(1<<7)|(1<<8)|(1<<10)).unwrap();m.bus.write32($gpio+0x24,(1<<1)|(1<<2)|(1<<4)|(1<<6)|(1<<7)|(1<<8)|(1<<10)).unwrap();m.bus.tick(10_000_000);
+            m.bus.write32($gpio+0x08,1<<6).unwrap();m.bus.tick(10_000_000);assert_eq!(m.bus.read32($gpio+0x3c).unwrap()&((1<<5)|(1<<9)),0);
+            let mut transfer=|cs:u8,bytes:&[u8]|{m.bus.write32($gpio+0x0c,1<<cs).unwrap();let mut out=Vec::new();for input in bytes{let mut byte=0u8;for bit in (0..8).rev(){m.bus.write32($gpio+if input&(1<<bit)!=0{0x08}else{0x0c},4).unwrap();m.bus.write32($gpio+0x08,2).unwrap();m.bus.tick(1);byte=(byte<<1)|u8::from(m.bus.read32($gpio+0x3c).unwrap()&8!=0);m.bus.write32($gpio+0x0c,2).unwrap();m.bus.tick(1);}out.push(byte);}m.bus.write32($gpio+0x08,1<<cs).unwrap();out};
+            let first=transfer(4,&[0xff;9]);let second=transfer(8,&[0xff;9]);
+            assert_eq!(&first[3..6],&(-1234567i32).to_be_bytes()[1..]);assert_eq!(&first[6..],&(7654321i32).to_be_bytes()[1..]);assert_eq!(&second[3..6],&(2345678i32).to_be_bytes()[1..]);assert_eq!(&second[6..],&(-3456789i32).to_be_bytes()[1..]);
+            assert_eq!(m.bus.read32($gpio+0x3c).unwrap()&((1<<5)|(1<<9)),(1<<5)|(1<<9));
+        }};}
+        check!(esp32s3::machine([0;6]),0x60004000);check!(esp32c3::machine([0;6],4<<20),0x60004000);check!(esp32c6::machine([0;6],4<<20),0x60091000);
     }
 }

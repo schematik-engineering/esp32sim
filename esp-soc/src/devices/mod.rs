@@ -53,3 +53,5 @@ pub mod max30003;
 
 pub mod elm327;
 pub mod four_wire_stepper;
+
+pub mod ads1292r;
