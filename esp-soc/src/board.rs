@@ -45,6 +45,10 @@ pub trait BoardModel {
     fn thermocouple_set(&mut self,_id:u8,_field:u32,_value:f64)->bool{false}
     fn thermocouple_generation(&self,_id:u8)->u32{u32::MAX}
     fn thermocouple_value(&self,_id:u8,_field:u32)->f64{f64::NAN}
+    fn configure_max30003(&mut self,_configs:&[crate::devices::max30003::Config],_hz:u64)->Result<(),String>{Err("board cannot attach max30003".into())}
+    fn max30003_set(&mut self,_id:u8,_field:u32,_value:f64)->bool{false}
+    fn max30003_generation(&self,_id:u8)->u32{u32::MAX}
+    fn max30003_value(&self,_id:u8,_field:u32)->f64{f64::NAN}
     fn configure_rfid(&mut self,_configs:&[crate::devices::rfid::RfidConfig],_hz:u64)->Result<(),String>{Err("board does not support RFID readers".into())}
     fn rfid_card(&mut self,_id:u8,_uid:&[u8])->bool{false}
     fn configure_inputs(&mut self, _configs:&[crate::devices::inputs::InputConfig], _hz:u64)->Result<(),String> {Err("board does not support project inputs".into())}

@@ -52,6 +52,10 @@ trait MachineApi {
     fn stepper_position(&self,id:u32)->f64;
     fn configure_led_displays(&mut self,configs:&[esp_soc::devices::led_display::LedDisplayConfig])->Result<(),String>;
     fn configure_spi_displays(&mut self, configs: &[esp_soc::devices::spi_display::SpiDisplayConfig]) -> Result<(), String>;
+    fn configure_max30003(&mut self,configs:&[esp_soc::devices::max30003::Config])->Result<(),String>;
+    fn max30003_set(&mut self,id:u32,field:u32,value:f64)->u32;
+    fn max30003_generation(&self,id:u32)->u32;
+    fn max30003_value(&self,id:u32,field:u32)->f64;
     fn configure_thermocouples(&mut self,configs:&[esp_soc::devices::thermocouple::Config])->Result<(),String>;
     fn thermocouple_set(&mut self,id:u32,field:u32,value:f64)->u32;
     fn thermocouple_generation(&self,id:u32)->u32;
@@ -111,6 +115,21 @@ impl<S: Soc> MachineApi for Machine<S> {
     }
     fn write_flash(&mut self, off: usize, d: &[u8]) -> Result<(), String> { Machine::write_flash(self, off, d) }
     fn boot(&mut self, app_direct: bool) -> Result<(), String> { if app_direct { self.boot_app(0x10000).map(|_| ()) } else { self.boot_rom(); Ok(()) } }
+    fn configure_max30003(&mut self,configs:&[esp_soc::devices::max30003::Config])->Result<(),String>{
+        if configs.iter().any(|c|[c.sclk,c.mosi,c.miso,c.cs].iter().any(|&p|p!=255 && (self.gpio_state(p as u32)==u32::MAX || (S::NAME=="esp32s3" && (22..=25).contains(&p))))) {return Err("max30003 GPIO outside chip range".into());}
+        if self.bus.board_ref().name()=="none" {self.bus.set_board(Box::new(esp_soc::devices::CircuitBoard::new(&[],&[])?));}
+        let old=self.bus.board_ref().input_levels();
+        self.bus.board().configure_max30003(configs,S::CPU_HZ)?;
+        let levels=self.bus.board_ref().input_levels();
+        for (pin,_) in old {if !levels.iter().any(|(p,_)|*p==pin){self.bus.gpio_set_input(pin,true);}}
+        self.bus.refresh_board_inputs();Ok(())
+    }
+    fn max30003_set(&mut self,id:u32,field:u32,value:f64)->u32{
+        if id>=16{return 1;}let now=self.bus.cycles();self.bus.board().advance_to(now);
+        u32::from(!self.bus.board().max30003_set(id as u8,field,value))
+    }
+    fn max30003_generation(&self,id:u32)->u32{if id>=16{u32::MAX}else{self.bus.board_ref().max30003_generation(id as u8)}}
+    fn max30003_value(&self,id:u32,field:u32)->f64{if id>=16{f64::NAN}else{self.bus.board_ref().max30003_value(id as u8,field)}}
     fn configure_thermocouples(&mut self,configs:&[esp_soc::devices::thermocouple::Config])->Result<(),String>{
         if configs.iter().any(|c|[c.sclk,c.mosi,c.miso,c.cs].iter().any(|&p|p!=255 && (self.gpio_state(p as u32)==u32::MAX || (S::NAME=="esp32s3" && (22..=25).contains(&p))))) {return Err("thermocouple GPIO outside chip range".into());}
         if self.bus.board_ref().name()=="none" {self.bus.set_board(Box::new(esp_soc::devices::CircuitBoard::new(&[],&[])?));}
@@ -2882,6 +2901,40 @@ mod parallel_lcd_tests {
 /// # Safety
 /// Live exclusively borrowed `e`; `data` readable for `len` bytes.
 #[no_mangle]
+pub unsafe extern "C" fn esp32sim_configure_max30003(e:*mut Emu,data:*const u8,len:usize)->u32{
+    if e.is_null()||len>128||len%8!=0||(len>0&&data.is_null()){return 1;}
+    let e=unsafe{&mut *e};if e.booted{return 1;}
+    let bytes=if len==0{&[]}else{unsafe{std::slice::from_raw_parts(data,len)}};
+    let mut configs=Vec::new();
+    for r in bytes.chunks_exact(8){if r[6]!=0||r[7]!=0{return 1;}configs.push(esp_soc::devices::max30003::Config{model:r[0],id:r[1],sclk:r[2],mosi:r[3],miso:r[4],cs:r[5]});}
+    u32::from(e.m.configure_max30003(&configs).is_err())
+}
+/// Set post-filter signed ADC counts (0) or detected R-event rate in bpm (1).
+/// # Safety
+/// Non-null `e` must be live and exclusively borrowed.
+#[no_mangle]
+pub unsafe extern "C" fn esp32sim_max30003_set(e:*mut Emu,id:u32,field:u32,value:f64)->u32{
+    if e.is_null(){return 1;}unsafe{&mut *e}.m.max30003_set(id,field,value)
+}
+/// Output generation, MAX for invalid identity.
+/// # Safety
+/// Non-null `e` must be live and exclusively borrowed.
+#[no_mangle]
+pub unsafe extern "C" fn esp32sim_max30003_generation(e:*mut Emu,id:u32)->u32{
+    if e.is_null(){return u32::MAX;}unsafe{&mut *e}.m.max30003_generation(id)
+}
+/// Sample counts (0), RTOR-derived bpm (1), RR milliseconds (2); NaN until available.
+/// # Safety
+/// Non-null `e` must be live and exclusively borrowed.
+#[no_mangle]
+pub unsafe extern "C" fn esp32sim_max30003_value(e:*mut Emu,id:u32,field:u32)->f64{
+    if e.is_null(){return f64::NAN;}unsafe{&mut *e}.m.max30003_value(id,field)
+}
+
+/// Configure records [model,id,sclk,mosi,miso,cs,0,0] before boot.
+/// # Safety
+/// Live exclusively borrowed `e`; `data` readable for `len` bytes.
+#[no_mangle]
 pub unsafe extern "C" fn esp32sim_configure_thermocouples(e:*mut Emu,data:*const u8,len:usize)->u32{
     if e.is_null()||len>128||len%8!=0||(len>0&&data.is_null()){return 1;}
     let e=unsafe{&mut *e};if e.booted{return 1;}
@@ -3108,5 +3161,55 @@ mod four_wire_stepper_tests {
             assert_eq!(esp32sim_four_wire_steppers(e,std::ptr::null(),0),0);
             (*e).booted=true;assert_eq!(esp32sim_four_wire_steppers(e,record.as_ptr(),8),1);esp32sim_delete(e);
         }}
+    }
+}
+
+#[cfg(test)]
+mod max30003_tests {
+    use super::*;
+    use xtensa_lx7::Bus;
+    #[test]
+    fn max30003_all_three_abi_rejects_invalid_records_and_inputs() {
+        unsafe {for chip in ["none","esp32c3","esp32c6"] {
+            let e=esp32sim_new(chip.as_ptr(),chip.len(),4,0);assert!(!e.is_null());
+            let mut record=[1,0,1,2,3,4,0,0];
+            assert_eq!(esp32sim_configure_max30003(e,record.as_ptr(),7),1);
+            assert_eq!(esp32sim_configure_max30003(e,record.as_ptr(),8),0);
+            assert!(esp32sim_max30003_value(e,0,0).is_nan());assert_eq!(esp32sim_max30003_generation(e,0),0);
+            for value in [f64::NAN,f64::INFINITY,131072.,-131073.,0.5] {assert_eq!(esp32sim_max30003_set(e,0,0,value),1);}
+            assert_eq!(esp32sim_max30003_set(e,0,0,-131072.),0);
+            assert_eq!(esp32sim_max30003_set(e,0,1,0.),0);assert_eq!(esp32sim_max30003_set(e,0,1,7680.),0);
+            record[6]=1;assert_eq!(esp32sim_configure_max30003(e,record.as_ptr(),8),1);record[6]=0;
+            record[2]=if chip=="none"{22}else{40};assert_eq!(esp32sim_configure_max30003(e,record.as_ptr(),8),1);record[2]=1;
+            record[0]=2;assert_eq!(esp32sim_configure_max30003(e,record.as_ptr(),8),1);record[0]=1;
+            assert_eq!(esp32sim_max30003_set(e,16,0,20.),1);assert_eq!(esp32sim_max30003_generation(e,16),u32::MAX);
+            assert_eq!(esp32sim_max30003_set(e,0,2,43.),1);
+            (*e).booted=true;assert_eq!(esp32sim_configure_max30003(e,record.as_ptr(),8),1);
+            esp32sim_delete(e);
+        }}
+    }
+    #[test]
+    fn max30003_all_three_actual_gpio_mode_zero_transactions() {
+        macro_rules! check {($machine:expr,$gpio:expr)=>{{
+            let mut m=$machine;
+            MachineApi::configure_circuit(&mut m,&[],&[],&[]).unwrap();
+            MachineApi::configure_max30003(&mut m,&[esp_soc::devices::max30003::Config{model:1,id:0,sclk:1,mosi:2,miso:3,cs:4}]).unwrap();
+            m.bus.write32($gpio+0x08,16).unwrap();m.bus.write32($gpio+0x24,22).unwrap();
+            let mut transfer=|input:u32|{
+                m.bus.write32($gpio+0x0c,16).unwrap();m.bus.tick(1);let mut output=0u32;
+                for bit in (0..32).rev(){
+                    m.bus.write32($gpio+if input&(1<<bit)!=0{0x08}else{0x0c},4).unwrap();
+                    m.bus.write32($gpio+0x08,2).unwrap();m.bus.tick(1);
+                    output=(output<<1)|u32::from(m.bus.read32($gpio+0x3c).unwrap()&8!=0);
+                    m.bus.write32($gpio+0x0c,2).unwrap();m.bus.tick(1);
+                }
+                m.bus.write32($gpio+0x08,16).unwrap();m.bus.tick(1);output&0xffffff
+            };
+            assert_eq!(transfer(0x1f000000),0);assert_eq!(transfer(0x1f000000),0x503000);
+            transfer(0x20881007);assert_eq!(transfer(0x21000000),0x881007);
+        }};}
+        check!(esp32s3::machine([0;6]),0x60004000);
+        check!(esp32c3::machine([0;6],4<<20),0x60004000);
+        check!(esp32c6::machine([0;6],4<<20),0x60091000);
     }
 }

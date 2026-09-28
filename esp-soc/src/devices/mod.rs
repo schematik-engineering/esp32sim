@@ -49,6 +49,7 @@ pub mod pca9685;
 pub mod stepper;
 
 pub mod thermocouple;
+pub mod max30003;
 
 pub mod elm327;
 pub mod four_wire_stepper;
