@@ -77,9 +77,11 @@ impl DcsPanel {
         // MX / MY mirror
         let (mut col, mut row) = (self.xc as usize, self.yc as usize);
         if self.madctl & 0x20 != 0 { std::mem::swap(&mut col, &mut row); }
-        if self.madctl & 0x40 != 0 { col = self.cols - 1 - col.min(self.cols - 1); }
-        if self.madctl & 0x80 != 0 { row = self.rows - 1 - row.min(self.rows - 1); }
-        if col < self.cols && row < self.rows { self.gram[row * self.cols + col] = px; self.pixels_written += 1; }
+        if col < self.cols && row < self.rows {
+            if self.madctl & 0x40 != 0 { col = self.cols - 1 - col; }
+            if self.madctl & 0x80 != 0 { row = self.rows - 1 - row; }
+            self.gram[row * self.cols + col] = px; self.pixels_written += 1;
+        }
         // advance within the window, x fastest, wrapping to the window's origin
         if self.xc >= self.x1 { self.xc = self.x0; if self.yc >= self.y1 { self.yc = self.y0; } else { self.yc += 1; } } else { self.xc += 1; }
     }
@@ -133,4 +135,11 @@ mod tests {
         assert!(p.sleeping && p.madctl == 0 && p.colmod == 0x66 && p.dc && p.resets == 1);
         assert_eq!((p.gram[0], p.cols, p.rows), (0xabcd, 132, 162));
     }
+    #[test]
+    fn off_address_mirrored_writes_do_not_fold_onto_visible_edge() {
+        let mut p=DcsPanel::new(128,160);
+        cmd(&mut p,0x36,&[0xc0]);cmd(&mut p,0x2a,&[0,128,0,128]);cmd(&mut p,0x2b,&[0,0,0,0]);cmd(&mut p,0x2c,&[0xff,0xff]);
+        assert_eq!(p.pixels_written,0);assert!(p.gram.iter().all(|p|*p==0));
+    }
+
 }

@@ -7,9 +7,11 @@
 //! RTC timer, store registers, watchdog), PCR, PMU and the RNG.
 
 use crate::radio::Ieee802154;
+use esp_periph::{Adc, AdcLayout, I2s};
 use emu_core::{ClockDomain, ClockTree};
+use esp_periph::{Ledc, LedcLayout};
 use esp_periph::{device_set, mmio, Device, DeviceSet, Dispatch, Misc, RegRam, WriteEffect, NO_SOURCE};
-use esp_periph::{Aes, Efuse, Gdma, Gpio, GpSpi, Rmt, Rsa, Sha, SpiMem, Systimer, TimerGroup, Uart, UartLayout, UsbSerialJtag};
+use esp_periph::{Aes, Efuse, Gdma, Gpio, GpSpi, RmtCompact, Rsa, Sha, SpiMem, Systimer, TimerGroup, Uart, UartLayout, UsbSerialJtag};
 use esp_periph::{RST_POWERON, RST_SW_CPU, RST_SW_SYS};
 
 pub const CPU_HZ: u64 = 160_000_000;
@@ -32,6 +34,7 @@ pub mod src {
     pub const TG0_T0: usize = 51; pub const TG0_T1: usize = 52; pub const TG0_WDT: usize = 53;
     pub const TG1_T0: usize = 54; pub const TG1_T1: usize = 55; pub const TG1_WDT: usize = 56;
     pub const SYSTIMER_T0: usize = 57; pub const SYSTIMER_T1: usize = 58; pub const SYSTIMER_T2: usize = 59;
+    pub const PARLIO: usize = 63;
     pub const DMA_IN_CH0: usize = 66; pub const DMA_OUT_CH0: usize = 69; pub const GPSPI2: usize = 72;
     pub const AES: usize = 73; pub const SHA: usize = 74; pub const RSA: usize = 75; pub const ECC: usize = 76;
     pub const COUNT: usize = 77;
@@ -277,40 +280,6 @@ impl Device for AssistDebug {
     fn write(&mut self, off: u32, v: u32) -> WriteEffect { self.ram.write(off, v); WriteEffect::NONE }
 }
 
-/// The C6's RMT: the S3's transmitter IP with two TX and two RX channels on a compacted register
-/// map. The TX channels' CONF0 bits and the interrupt bits the model raises (TX_END n, TX_THR
-/// 8+n) are the same, so this only maps offsets onto the shared model; the RX channels read back
-/// what was written.
-pub struct RmtC6 { pub rmt: Rmt, ram: RegRam }
-impl RmtC6 {
-    pub fn new(cpu_hz: u64) -> Self { RmtC6 { rmt: Rmt::new(cpu_hz), ram: RegRam::new() } }
-    fn map(off: u32) -> Option<u32> {
-        Some(match off {
-            0x00..=0x0c => off,                                   // CHnDATA
-            0x10 | 0x14 => 0x20 + (off - 0x10),                   // CH0/1 CONF0 (TX)
-            0x28 | 0x2c => 0x50 + (off - 0x28),                   // CH0/1 STATUS
-            0x38 => 0x70, 0x3c => 0x74, 0x40 => 0x78, 0x44 => 0x7c,   // INT_RAW / ST / ENA / CLR
-            0x48 | 0x4c => 0x80 + (off - 0x48),                   // CH0/1 CARRIER_DUTY
-            0x58 | 0x5c => 0xa0 + (off - 0x58),                   // CH0/1 TX_LIM
-            0x68 => 0xc0, 0x6c => 0xc4, 0x70 => 0xc8,             // SYS_CONF, TX_SIM, REF_CNT_RST
-            0x400..=0x6fc => 0x800 + (off - 0x400),               // symbol memory, 48 words per channel
-            _ => return None,
-        })
-    }
-}
-impl Device for RmtC6 {
-    fn read(&mut self, off: u32) -> u32 { match Self::map(off) { Some(o) => self.rmt.read(o), None => self.ram.read(off) } }
-    fn write(&mut self, off: u32, v: u32) -> WriteEffect { match Self::map(off) { Some(o) => self.rmt.write(o, v), None => self.ram.write(off, v) } WriteEffect::NONE }
-    fn irq_sources(&self) -> u64 { self.rmt.irq() as u64 }
-    fn clock(&self) -> Option<ClockDomain> { Some(ClockDomain::Cpu) }
-    fn tick(&mut self, cycles: u64) { self.rmt.tick(cycles) }
-    /// A channel mid-transmission raises TX_END/TX_THR from its own symbol clock: while one
-    /// runs, time may only be skipped one symbol at a time (the shortest WS2812 symbol is
-    /// 0.4 µs; 32 cycles is under that at any RMT divider the led_strip driver uses).
-    fn has_deadline(&self) -> bool { true }
-    fn next_deadline(&self) -> Option<u64> { Some(if self.rmt.ch.iter().any(|c| c.running) { 32 } else { u64::MAX }) }
-}
-
 /// The C6's GDMA: three channels with the S3's per-channel registers but the interrupt registers
 /// gathered at the front of the block (IN at 0x00 + 0x10n, OUT at 0x30 + 0x10n) and the channel
 /// blocks starting at 0x70. Mapped onto the shared model; descriptors live in SRAM.
@@ -389,19 +358,62 @@ pub fn efuse_c6(mac: [u8; 6], rev_major: u32, rev_minor: u32, pkg: u32, blk_majo
     e
 }
 
+/// Ideal-radio TX DC calibration, decoded from libphy txdc_cal_new.
+/// START is bit0, DONE bit22; zero comparator outputs represent no DC imbalance.
+/// The one-microsecond conversion is deterministic, not physical analog timing.
+#[derive(Default)]
+pub struct RfCal { ram: RegRam, remaining: [u64; 4], done: [bool; 4] }
+impl Device for RfCal {
+    fn read(&mut self, off: u32) -> u32 {
+        match off {
+            0x4a0 => u32::from(self.done[3]) << 16,
+            0xcc => self.ram.read(off) | (u32::from(self.done[2]) << 8),
+            0x418 => self.ram.read(off) | (u32::from(self.done[0]) << 22),
+            0x814 => u32::from(self.done[1]) * (7 << 14),
+            _ => self.ram.read(off),
+        }
+    }
+    fn write(&mut self, off: u32, value: u32) -> WriteEffect {
+        if off == 0x474 && value & 3 == 3 && self.ram.read(off) & 3 != 3 { self.done[3] = false; self.remaining[3] = 80; }
+        if off == 0xc0 && value & (1 << 14) != 0 && self.ram.read(off) & (1 << 14) == 0 { self.done[2] = false; self.remaining[2] = 80; }
+        if off == 0x418 || off == 0x810 {
+            let unit = usize::from(off == 0x810);
+            if value & 1 != 0 && self.ram.read(off) & 1 == 0 { self.done[unit] = false; self.remaining[unit] = 80; }
+        }
+        if off != 0x814 && off != 0x4a0 { self.ram.write(off, if off == 0x418 { value & 0x003f_ffff } else if off == 0xcc { value & !(1 << 8) } else { value }); }
+        WriteEffect::NONE
+    }
+    fn clock(&self) -> Option<ClockDomain> { Some(ClockDomain::Apb) }
+    fn tick(&mut self, ticks: u64) {
+        for unit in 0..4 {
+            if self.remaining[unit] > 0 { self.remaining[unit] = self.remaining[unit].saturating_sub(ticks); if self.remaining[unit] == 0 { self.done[unit] = true; } }
+        }
+    }
+    fn has_deadline(&self) -> bool { true }
+    fn next_deadline(&self) -> Option<u64> { self.remaining.iter().copied().filter(|ticks| *ticks > 0).min() }
+}
+
 pub struct Peripherals {
+    pub i2c: esp_periph::i2c::I2c,
+    pub wifi: crate::wifi::WifiMacC6,
+    pub rf_cal: RfCal,
+    pub adc: Adc,
+    pub i2s: I2s,
     pub uart: [Uart; 2],
     pub usb: UsbSerialJtag,
     pub systimer: Systimer,
     pub timg: [TimerGroup; 2],
     pub gpio: Gpio,
+    pub ledc: Ledc,
     pub efuse: Efuse,
     pub spi0: SpiMemC6,
     pub spi1: SpiMemC6,
     pub sha: Sha,
     pub aes: Aes,
     pub rsa: Rsa,
-    pub rmt: RmtC6,
+    pub ecc: esp_periph::ecc::Ecc,
+    pub rmt: RmtCompact,
+    pub parlio: crate::parlio::Parlio,
     pub gdma: GdmaC6,
     pub spi2: GpSpi,
     pub radio: Ieee802154,
@@ -424,11 +436,16 @@ pub struct Peripherals {
 
 // Every peripheral, where it sits (4 KB block number from 0x60000000), and its interrupt sources.
 device_set! { Peripherals; clock: (clock) CPU_HZ, [(ClockDomain::Systimer, 10), (ClockDomain::Apb, 2), (ClockDomain::RtcSlow, 1067), (ClockDomain::Cpu, 1)];
+    0x0c "I2S" (i2s) => [];
+    0x0e "APB_SARADC" (adc) => [];
+    0x07 "LEDC" (ledc) => [src::LEDC];
+    0x04 "I2C0" (i2c) => [src::I2C_EXT0];
     0x00 "UART0" (uart[0]) => [src::UART0];
     0x01 "UART1" (uart[1]) => [src::UART1];
     0x02 "SPI0" (spi0) => [];
     0x03 "SPI1" (spi1) => [];
     0x06 "RMT" (rmt) => [src::RMT];
+    0x15 "PARL_IO" (parlio) => [src::PARLIO];
     0x08 "TIMG0" (timg[0]) => [src::TG0_T0];
     0x09 "TIMG1" (timg[1]) => [src::TG1_T0];
     0x0a "SYSTIMER" (systimer) => [src::SYSTIMER_T0, src::SYSTIMER_T1, src::SYSTIMER_T2];
@@ -440,9 +457,14 @@ device_set! { Peripherals; clock: (clock) CPU_HZ, [(ClockDomain::Systimer, 10), 
     0x88 "AES" (aes) => [src::AES];
     0x89 "SHA" (sha) => [];
     0x8a "RSA" (rsa) => [src::RSA];
+    0x8b "ECC_MULT" (ecc) => [src::ECC];
     0x91 "GPIO" (gpio) => [src::GPIO];
     0x96 "PCR" (pcr) => [];
+    0xa4 "WIFI_MAC" (wifi) => [0, 2];
+    0xa5 "WIFI_MAC2" alias (wifi) delta 0x1000 => [];
+    0xad "WIFI_PWR" alias (wifi) delta 0x9000 => [];
     0xa3 "IEEE802154" (radio) => [src::ZB_MAC];
+    0xa0 "RF_CAL" (rf_cal) @ 0x0c0..=0x817 => [];
     0xaf "I2C_ANA_MST" (ana_mst) delta -0x800 @ 0x800..=0xfff => [];
     // the LP address space: PMU at 0xb0000 is generic; the four LP blocks below are one device
     0xb0 "LP_CLKRST" (lpsys) delta -0x400 @ 0x400..=0x7ff => [];
@@ -462,6 +484,12 @@ impl DeviceSet for Peripherals {
     fn misc(&self) -> &Misc { &self.misc }
     fn misc_mut(&mut self) -> &mut Misc { &mut self.misc }
     fn pre_access(&mut self, block: u32, _off: u32, _write: bool) {
+        if block == 0x04 {
+            self.i2c.route(&self.gpio, 46, 45, 63);
+            let clock=self.pcr.read(0x24);
+            self.i2c.external_clock_config=Some(((clock>>12)&255)|((clock&63)<<8)|(((clock>>6)&63)<<14)|(clock&(1<<20)));
+        }
+        if matches!(block, 0xa4 | 0xa5 | 0xad) { self.wifi.mac.now_cycles = self.clock.cycles(); }
         if block == 0xb2 { self.rng.now = self.clock.cycles() as u32; }
         if block == 0xa3 { self.radio.log_unknown = self.misc.log_unknown; }
     }
@@ -470,13 +498,18 @@ impl DeviceSet for Peripherals {
 impl Peripherals {
     pub fn new(mac: [u8; 6]) -> Self {
         Peripherals {
+            i2c: esp_periph::i2c::I2c::new(),
+            wifi: crate::wifi::WifiMacC6::new(),
+            i2s: I2s::new(CPU_HZ),
+            adc: Adc::new(AdcLayout::C6),
+            rf_cal: RfCal::default(),
             uart: [Uart::new(UartLayout::C6), Uart::new(UartLayout::C6)], usb: UsbSerialJtag::new(CPU_HZ), systimer: Systimer::new(),
-            timg: [TimerGroup::new(), TimerGroup::new()], gpio: Gpio::new(),
+            timg: [TimerGroup::new(), TimerGroup::new()], gpio: {let mut gpio=Gpio::new();gpio.func_out_sel.fill(128);gpio}, ledc: Ledc::new(LedcLayout::C6),
             efuse: efuse_c6(mac, 0, 1, 1, 0, 3),
             spi0: SpiMemC6({ let mut s = SpiMem::new(false); s.has_psram = false; s }),
             spi1: SpiMemC6({ let mut s = SpiMem::new(true); s.has_psram = false; s }),   // no PSRAM on the C6
-            sha: Sha::new(), aes: Aes::new(), rsa: Rsa::new(),
-            rmt: RmtC6::new(CPU_HZ), gdma: GdmaC6::new(), spi2: GpSpi::new(), radio: Ieee802154::new(),
+            sha: Sha::new(), aes: Aes::new(), rsa: Rsa::new(), ecc: esp_periph::ecc::Ecc::default(),
+            rmt: RmtCompact::new(CPU_HZ), parlio: crate::parlio::Parlio::new(), gdma: GdmaC6::new(), spi2: GpSpi::new(), radio: Ieee802154::new(),
             intmtx: IntMatrix::new(), intc: Intc::new(), cache: Cache::new(), lpsys: LpSys::new(), pcr: Pcr::new(), ana_mst: AnaMst::new(), assist_debug: AssistDebug::new(),
             rng: Rng::new(), cpu_sub: RegRam::new(),
             misc: Misc::new(), spi_exec: false, clock: Self::new_clock(),
@@ -503,7 +536,19 @@ impl Peripherals {
     pub fn read32(&mut self, addr: u32) -> u32 { mmio::read32(self, addr) }
 
     pub fn write32(&mut self, addr: u32, v: u32) {
+        if (PERIPH_BASE + 0x90004..=PERIPH_BASE + 0x9007c).contains(&addr) && addr & 3 == 0 {
+            let pin = ((addr - PERIPH_BASE - 0x90000) / 4 - 1) as u8;
+            self.gpio.set_io_mux(pin, v);
+        }
+        if addr == PERIPH_BASE + 0x96020 && v & (1 << 1) != 0 { self.i2c.reset(); }
         if mmio::write32(self, addr, v).contains(WriteEffect::SPI_EXEC) { self.spi_exec = true; }
+        if addr == PERIPH_BASE + 0x960ac { self.parlio.set_clock(v); }
+        if addr == PERIPH_BASE + 0x96034 && v & 2 != 0 { self.ledc = Ledc::new(LedcLayout::C6); }
+        if addr == PERIPH_BASE + 0x96034 || addr == PERIPH_BASE + 0x96038 {
+            let clk = self.pcr.read(0x38);
+            self.ledc.external_clock_hz = if self.pcr.read(0x34) & 3 != 1 || clk & (1 << 22) == 0 { 0 }
+                else { match (clk >> 20) & 3 { 1 => 80_000_000, 2 => 20_000_000, 3 => 40_000_000, _ => 0 } };
+        }
     }
 
     /// The CPU-subsystem window (0x20001000): the machine-level PLIC is the interrupt controller;
@@ -517,7 +562,7 @@ impl Peripherals {
 
     /// Advance every clocked device by `cycles` CPU cycles (16 MHz systimer, 80 MHz APB-domain
     /// timers, the RTC slow clock), with delivered-tick accounting so a slow clock never drifts.
-    pub fn tick(&mut self, cycles: u64) { Dispatch::tick(self, cycles); }
+    pub fn tick(&mut self, cycles: u64) { Dispatch::tick(self, cycles); self.gpio.input_changes.clear(); }
 
     /// CPU cycles until the earliest device deadline (systimer, TIMG, the radio's air-time and
     /// timer countdowns, a running RMT channel), conservative by one device tick;
@@ -534,5 +579,35 @@ impl Peripherals {
         self.last_status = st;
         self.intc.update(&self.intmtx.map, &st);
         changed
+    }
+}
+
+#[cfg(test)]
+mod rf_cal_tests {
+    use super::*;
+    #[test]
+    fn dc_and_power_measurements_complete_independently() {
+        let mut cal = RfCal::default();
+        cal.write(0x418, 2);
+        cal.tick(80);
+        assert_eq!(cal.read(0x418), 2);
+        cal.write(0x418, 3);
+        cal.tick(40);
+        cal.write(0x810, 1);
+        cal.tick(40);
+        assert_eq!(cal.read(0x418), (1 << 22) | 3);
+        assert_eq!(cal.read(0x814), 0);
+        cal.tick(40);
+        assert_eq!(cal.read(0x814), 7 << 14);
+        cal.write(0xc0, 1 << 14);
+        assert_eq!(cal.read(0xcc) & (1 << 8), 0);
+        cal.tick(80);
+        assert_ne!(cal.read(0xcc) & (1 << 8), 0);
+        cal.write(0x474, 3);
+        assert_eq!(cal.read(0x4a0), 0);
+        cal.tick(80);
+        assert_eq!(cal.read(0x4a0), 1 << 16);
+        cal.write(0x814, u32::MAX);
+        assert_eq!(cal.read(0x814), 7 << 14);
     }
 }

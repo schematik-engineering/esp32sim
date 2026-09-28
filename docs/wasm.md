@@ -217,3 +217,137 @@ bootloader and partition table and differ only in `app`.
 the cycle, so their application timers never drift apart: every broadcast is sent while the other
 mote is transmitting, and nothing is ever heard. Real motes are staggered by their power-on; here
 it has to be said out loud.
+
+## Host ADC samples
+
+`esp32sim_set_adc(emu, gpio, raw)` sets a 12-bit input code for a physical ADC GPIO and returns zero on success, one for an unsupported pin, an out-of-range code, or a null emulator. S3 accepts GPIO1 through 20, C3 GPIO0 through 5, and C6 GPIO0 through 6. Inputs persist across firmware reboot.
+
+The firmware still selects the ADC unit/channel and starts a conversion through SENS on S3 or APB_SARADC on C3/C6. The model latches the selected input, advances a conversion deadline, and publishes the data and completion registers. Arduino's resolution mapping runs unchanged in firmware. Raw inputs represent codes after attenuation; this interface does not convert voltages or emulate calibration transfer curves. S3 output-invert bits are honored. Continuous/DMA acquisition, completion IRQ routing and analog-clock/sample-cycle accuracy are not implemented. Conversion latency currently uses fourteen SAR clocks at the programmed divider.
+
+The real-WASM regression consumes existing hardware firmware artifacts without rewriting firmware:
+
+```sh
+cargo build --release --target wasm32-unknown-unknown -p esp32sim-wasm
+node tools/adc-test.mjs /path/to/io-fixtures /path/to/roms
+```
+
+The fixture directory contains `{esp32s3,esp32c3,esp32c6}/{artifact.json,fixture.json}` from Schematik's hardware I/O fixture builder. Each run boots the ROM and compiler-provided flash files, sends the firmware's `A` command, and checks raw readings at 0, 1024, 3072 and 4095. Register definitions follow Espressif ESP-IDF 5.5's chip-specific `adc_ll.h`, `sens_reg.h`, and `apb_saradc_reg.h`.
+# Project circuit configuration
+
+`esp32sim_configure_circuit(e, data, len)` accepts eight-byte records before boot:
+
+- `[1, pin, count_lo, count_hi, 0, 0, 0, 0]`: WS2812 strip.
+- `[2, id, SDA, SCL, address, width, height, 0]`: SSD1306 display.
+
+The call returns zero on success and one for invalid configuration or a booted machine. Limits are sixteen strips and sixteen displays. Display IDs and `(SDA,SCL,address)` tuples must be unique. The actual GPIO matrix routing selects an I²C device; sharing an address on separate wires does not merge device state. Controller resets preserve external devices. Replacing the configured board detaches its old devices.
+
+Changed display output uses binary message kind2 with payload `[5,id,width,height,...page-packed mono bytes]`. Each frame owns its bytes. This model implements logical SSD1306 GDDRAM addressing, power, inversion, entire-display mode and start-line offset from the [Solomon Systech specification](https://www.mouser.com/datasheet/2/813/SSD1306-3401599.pdf). Physical SEG/COM mounting, scrolling, contrast and external reset wiring are not yet modeled.
+
+### Structured Wi-Fi configuration and observed state
+
+`esp32sim_wifi_configure(e, ssid_ptr, ssid_len, password_ptr, password_len, channel)`
+accepts literal UTF-8 credentials. Commas and equals signs have no special meaning.
+SSID length is 1–32 bytes, channel is 1–14, and the password is empty for an open AP,
+8–63 bytes for WPA2, or 64 hexadecimal digits for a raw PSK. It returns 0 on success,
+1 for an unsupported radio, and 2 for invalid configuration. Configuration logs contain
+no credentials or SSID. The old `esp32sim_wifi` comma-separated interface remains
+available for existing callers.
+
+`esp32sim_wifi_state(e)` derives the badge state from the virtual AP protocol exchange:
+0 disconnected, 1 authentication/key negotiation in progress, 2 associated with WPA2
+keys installed or an open AP. Unsupported chips and null instances return `u32::MAX`.
+Relay readiness does not change this state. DHCP/IP acquisition is separate.
+
+S3 and C3 support these calls. The C3 Arduino fixture passes scan, WPA2 association and
+DHCP with its unchanged hardware binary through the actual WASM module. C6 radio
+calibration now reaches MAC initialization, but its MAC is not yet connected to an AP.
+
+## Host microphone PCM
+
+`esp32sim_audio_configure(e,id,kind,port,data_gpio,bclk_gpio,ws_gpio,sample_rate,channels)` attaches PCM16LE input to a physical microphone. IDs are 0–15 per emulator instance. Rates are 8,000–96,000 Hz, with one or two interleaved channels. `kind=0` feeds an ADC GPIO; its port/BCLK/WS arguments must be zero. `kind=1` feeds standard I2S RX. S3 has ports 0 and 1; C3/C6 have port 0. For I2S, `port=0xffffffff` discovers the receiver through the firmware's GPIO matrix. Each source retains its own data/BCLK/WS wiring; several microphones on different wires can coexist. Reconfiguring an ID replaces its previous input and clears its queue. A duplicate receiver/wiring assignment is rejected.
+
+`esp32sim_audio_push(e,id,ptr,len)` accepts complete PCM16LE frames, at most 768,000 bytes per call. Each source queue holds at most two seconds of frames and drops the oldest frames on overflow. Auto-port sources keep a separate bounded queue for each possible controller, at most two on S3. Queues continue advancing in emulated time while their controller is inactive; when the whole emulator is paused, the fixed capacity still applies. Queue underrun supplies PCM zero, which maps to ADC code 2048. `esp32sim_audio_reset(e,id)` clears queued and current samples. Firmware reboot preserves external microphone configuration, queued frames and the current sample; controller registers and DMA reset normally.
+
+These calls return 0 on success, 1 for an unsupported or unconfigured target, and 2 for malformed input or conflicting configuration. `esp32sim_audio_info(e,id,field)` reports the active receiver's register-derived sample rate, sample width, channel count and running state for fields 0–3. Those fields are zero until a wired receiver starts. Field 4 is the observed port, or `0xffffffff` when no receiver matches. ADC sources report their host rate/format. Hosts can turn changes into their existing audio-configuration UI events without guessing which I2S controller the firmware chose.
+
+ADC PCM advances on the emulated 80 MHz APB clock, independently of how often firmware calls `analogRead`. Stereo input is averaged to mono; signed PCM is mapped to the full raw 12-bit range with nearest rounding. Normal register-driven ADC conversion and Arduino resolution conversion still execute in firmware.
+
+I2S RX supports standard master reception with 16-, 24- or 32-bit slots/data, mono slot selection or stereo, and the modeled crystal/PLL clock dividers. Sixteen-bit host samples are expanded into the high bits of 24-/32-bit DMA words. GPIO matrix data/BCLK/WS must match a configured source. GDMA fills firmware descriptors, writes back length/ownership/EOF and raises the chip's DMA interrupt. C6's RX clock comes from PCR; C3's GPIO input-select bit differs from S3/C6. The implementation follows ESP-IDF 5.5's chip-specific `i2s_ll.h`, `i2s_reg.h`, `gpio_sig_map.h`, `gpio_reg.h`, `gdma_reg.h` and `pcr_reg.h`. PDM, external/slave clocks, multichannel TDM, inverted/bit-reordered links and analog voltage/calibration modeling are outside this PCM path. Resampling currently holds each input sample; it does not apply an anti-alias filter.
+
+Schematik's `tests/fixtures/esp32sim/audio/check.mjs` runs the actual WASM module against compiler-produced Arduino flash artifacts. It checks the flash-manifest hashes, ADC sample levels, stereo DMA bytes, source isolation, host reset, underrun and firmware reboot. On S3 it also switches the unchanged firmware from I2S0 to I2S1 and verifies automatic routing. The fixture uses canonical board YAML through the existing hardware fixture builder; no firmware rewriting, facade imports or C++ stubs participate.
+
+### Camera input (ESP32-S3)
+
+`esp32sim_camera_configure(emu, ptr, 20)` attaches one OV2640 or OV5640 to the
+project board. Bytes are `[PIDlo, PIDhi, id, SDA, SCL, XCLK, PCLK, VSYNC, HREF,
+D0, D1, D2, D3, D4, D5, D6, D7, PWDN, RESET, fps]`. PID is `0x0026` for
+OV2640 and `0x5640` for OV5640. GPIOs must be distinct and in the chip's range;
+PWDN/RESET may be 255 (unconnected). The host supplies physical project wiring,
+not a firmware I2C controller number. SCCB follows the GPIO matrix on either
+I2C controller. Parallel data and clock wiring must match LCD_CAM's matrix
+routes. C3/C6 return unsupported.
+
+`esp32sim_camera_push(emu, id, width, height, format, ptr, length)` replaces the
+latest external frame. Host formats are RGB565 little endian (0), YUYV (1),
+grayscale (2), JPEG (3), and RGB888 (4). Frames are bounded to 1600×1200 and
+5,760,000 bytes; raw byte counts must match geometry. JPEG SOI/SOF/EOI and encoded
+dimensions are checked. Encoded JPEG is used only while the sensor is in JPEG
+mode. Raw inputs are packed into the sensor's configured RGB565/YUYV/Y8 stream.
+Host dimensions must match the sensor's SCCB configuration before any bytes
+reach DMA. No image is generated when external input is absent.
+
+`esp32sim_camera_info(emu, id, field)` returns sensor width (0), height (1),
+DVP format (2), or configured/streaming state (3). These are wire formats, not
+`esp_camera` SDK enum values. OV2640 grayscale firmware commonly receives YUYV
+and extracts luma; OV5640 also has a Y8 wire mode. Sensor configuration and the
+latest host image survive a chip reboot, while LCD_CAM/GDMA are reset. The real
+firmware reinitializes SCCB. `esp32sim_camera_reset(emu, id)` removes host input;
+an already captured firmware framebuffer can still be queued by the driver.
+Configure/push/reset return 0 on success, 1 for unsupported/missing devices, and
+2 for invalid arguments.
+
+The model supports the S3 8-bit parallel interface and existing GDMA descriptor
+semantics, including byte-count EOF, ownership checks, circular SRAM buffers,
+and VSYNC independent of receiver start. Frame timing uses the host's 1–30 fps
+setting with a 5% vertical blanking interval and a 50% active interval; individual
+DVP edges, exposure, lens/ISP effects, and JPEG encoding are not simulated. The
+host supplies encoded JPEG bytes. A JPEG that exceeds the firmware's allocated
+buffer or does not fill its minimum DMA chunk is rejected/timed out by the real
+driver; bytes are never padded to manufacture a successful capture. 16-bit DVP
+and alternate HSYNC/DE capture modes do not transfer frames.
+
+Register behavior follows Espressif's [S3 camera driver](https://github.com/espressif/esp32-camera/blob/master/target/esp32s3/ll_cam.c),
+[OV2640 driver](https://github.com/espressif/esp32-camera/blob/master/sensors/ov2640.c),
+and [OV5640 driver](https://github.com/espressif/esp32-camera/blob/master/sensors/ov5640.c).
+
+### Positional servos
+
+`esp32sim_servo_configure(emu, id, pin, min_us, max_us, min_angle, max_angle)`
+attaches a calibrated physical servo to GPIO. IDs are 0–15, pulse endpoints are
+ordered integers within 100–5000 microseconds, and angle endpoints are ordered
+signed millidegrees within −360000–360000. Returns 0 on success, 1 for an absent
+chip pin, or 2 for invalid arguments. Invalid updates preserve the previous
+configuration. Reconfiguring the same pin preserves its last position.
+
+`esp32sim_servo_info(emu, id, field)` returns active input (field 0), rounded pulse
+microseconds (1), or signed angle millidegrees (2). A valid input is a nonconstant
+20–400 Hz PWM waveform with a 100–5000 microsecond high pulse. Position maps the
+pulse linearly between the physical calibration endpoints and clamps outside
+them. A missing signal holds the previous position; this model does not simulate
+mechanical speed, inertia or electrical load. Configurations and positions survive
+firmware reboot; the GPIO controller independently resets. Multiple IDs can share
+a GPIO while retaining independent calibration.
+
+The source is the actual GPIO-matrix-routed PWM output: LEDC on S3/C3/C6, plus the
+S3 MCPWM up-counting generators used by ESP32Servo 3.2.1. The MCPWM model covers
+clock gating/reset, timer prescalers/periods, generator A/B compare/shadow updates,
+continuous force, output inversion and timer/compare interrupts. Down/up-down
+counting, carrier modulation, dead time, and multi-transition generator patterns
+do not produce a servo measurement. This is not a motor-control plant model.
+
+The host must supply calibration. A UI may offer a generic adjustable
+1000–2000 microsecond / 0–180 degree range, but that is not a measured range for a
+specific servo. Firmware library endpoints do not automatically change physical
+calibration. ESP32Servo 3.2.1 resets its timer to 10 bits on initial attach, and
+its S3 detach path releases bookkeeping without stopping or disconnecting MCPWM;
+those unchanged-firmware behaviors remain visible in the physical output.

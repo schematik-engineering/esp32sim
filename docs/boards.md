@@ -67,7 +67,7 @@ Needs `--flash-mb 16 --psram-mb 8`. Example: `examples/waveshare-cam/run-autopli
 | ST7701S 480×480 panel | LCD_CAM RGB (16-bit: D0–D15, DE 17, VSYNC 3, HSYNC 46, PCLK 9) | frames assembled from the GDMA out-channel at the programmed pixel clock (bounce buffers or direct framebuffer), `LCD_VSYNC` per frame |
 | GT911 touch @0x14 | I2C0 | product ID/config/status/points; UI pointer events become touch points (latched until the driver reads them) |
 | ES8311 / ES7210 | I2C0 @0x18 / 0x40; I2S0 (MCLK 5, BCLK 16) | codec registers; audio captured from I2S0 |
-| Backlight LEDC on GPIO 4 | LEDC | unmodelled, harmless |
+| Backlight LEDC on GPIO 4 | LEDC | static duty/frequency observable; brightness not connected |
 
 Needs `--flash-mb 16 --psram-mb 8`; `examples/waveshare-lcd4b/run-energy-panel.sh` runs the esp32-screen panel.
 
@@ -93,7 +93,7 @@ the SoC at its next existing bus tick.
 | ST7789 172×320 panel | SPI2 (MOSI 6, SCLK 7, CS 14, D/C 15, RST 21) through GDMA | `DcsPanel::st7789()`: 240×320 GRAM, window/RAMWR/MADCTL/COLMOD/inversion/sleep/on; the glass shows RAM columns 34..206 in the mirrored scan direction, BGR swapped back |
 | WS2812 | GPIO 8 via RMT | a one-LED `Ws2812Chain` |
 | BOOT button | GPIO 9, active low | `press boot 150` |
-| Backlight | LEDC on GPIO 22 | unmodelled, harmless |
+| Backlight | LEDC on GPIO 22 | static duty/frequency observable; brightness not connected |
 | TF card | SPI2 (MISO 5, CS 4) | not modelled |
 | 802.15.4 radio | the C6's MAC (`esp32c6::periph::Ieee802154`) | energy detect answered with synthetic per-channel levels |
 

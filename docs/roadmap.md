@@ -30,7 +30,7 @@ Ordered by value; each item links to its plan where one exists.
    I2C on the C6 layout, watchdogs, the PHY's baseband calibration (stubbed), real radios.
 6. **More boards** — Touch-LCD-4B done (`waveshare-lcd4b`: LVGL panel, touch/swipe, SID player audio).
    Next candidates as firmware needs them; `--board waveshare-*` variants share the codec/PSRAM/I2C work.
-7. **Peripherals on demand** — LEDC, PCNT, ADC, SPI2/3 masters, RX sides of I2S/RMT/UART DMA,
+7. **Peripherals on demand** — LEDC hardware fades, PCNT, ADC, SPI2/3 masters, RX sides of I2S/RMT/UART DMA,
    LCD side of LCD_CAM. Each appears as "unknown register" in the log when a firmware needs it.
 8. **PIE completeness** — FFT, GPIO and s32 instruction groups (decoded, not executed).
 9. **Browser build (WebAssembly)** — done ([wasm.md](wasm.md)): the emulator in the page,

@@ -80,11 +80,12 @@ impl VirtualNet {
     }
 
     fn ipv4(&mut self, p: &[u8], src: &[u8; 6]) -> Vec<Vec<u8>> {
-        if p.len() < 20 { return Vec::new(); }
+        if p.len() < 20 || p[0] >> 4 != 4 || be16(&p[6..8]) & 0x3fff != 0 { return Vec::new(); }
         let ihl = ((p[0] & 0xf) as usize) * 4;
         if p.len() < ihl.max(20) { return Vec::new(); }
         // Trust the header's total length: the frame may carry padding or a trailing FCS.
-        let total = (u16::from_be_bytes([p[2], p[3]]) as usize).clamp(ihl, p.len());
+        let total = u16::from_be_bytes([p[2], p[3]]) as usize;
+        if ihl < 20 || total < ihl || total > p.len() { return Vec::new(); }
         let (proto, body) = (p[9], &p[ihl..total]);
         let mut sip = [0u8; 4]; sip.copy_from_slice(&p[12..16]);
         let mut dip = [0u8; 4]; dip.copy_from_slice(&p[16..20]);
@@ -92,7 +93,7 @@ impl VirtualNet {
             17 if body.len() >= 8 && be16(&body[2..4]) == 67 => self.dhcp(&body[8..], src),
             // with NAT the flow goes out through a host socket; DNS is redirected to the host's own
             // resolver but still looks like it came from the emulated one
-            17 if self.nat.is_some() => {
+            17 if body.len() >= 8 && self.nat.is_some() => {
                 let (sport, dport) = (be16(&body[0..2]), be16(&body[2..4]));
                 let (host_dst, reply_src) = if dport == 53 { (self.nat.as_ref().unwrap().resolver, dip) } else { (dip, dip) };
                 let now = self.now_us;

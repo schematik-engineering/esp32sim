@@ -297,10 +297,14 @@ impl SocBus for TestBus {
     fn uart_input(&mut self, _n: usize, _data: &[u8]) {}
     fn gpio_set_input(&mut self, _pin: u8, _level: bool) {}
     fn gpio_input(&self) -> u64 { 0 }
+    fn gpio_output(&self) -> (u64, u64) { (0, 0) }
+    fn pwm_output(&self, _pin: u32) -> Option<(f64, u32)> { None }
     fn observe_gpio(&mut self, on: bool) { self.gpio_events = on.then(Vec::new); }
     fn take_gpio_events(&mut self) -> Vec<(u64, u8, bool)> { self.gpio_events.as_mut().map(std::mem::take).unwrap_or_default() }
     fn board(&mut self) -> &mut dyn BoardModel { &mut *self.board }
     fn board_ref(&self) -> &dyn BoardModel { &*self.board }
+    fn refresh_board_devices(&mut self) {}
+    fn set_board(&mut self, board: esp_soc::Board) { self.board = board; }
     fn audio(&self) -> (&[i16], u32) { (&[], 44_100) }
     fn irq_sources_of(&self, _core: usize, _line: u32) -> Vec<usize> { Vec::new() }
     fn set_debug(&mut self, _flags: &DebugFlags) {}

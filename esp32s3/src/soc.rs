@@ -98,7 +98,12 @@ impl esp_soc::SocBus for SocBus {
         let cause = self.periph.rtc.reset_cause;
         let old = std::mem::replace(&mut self.periph, periph::Peripherals::new(mac));
         let p = &mut self.periph;
+        p.adc.inputs = old.adc.inputs;
+        p.adc.sampled = old.adc.sampled;
+        p.adc.audio = old.adc.audio;
+        p.i2s0.inputs = old.i2s0.inputs; p.i2s1.inputs = old.i2s1.inputs;
         p.efuse = old.efuse;
+        p.gpio.restore_external(&old.gpio);
         p.gpio.strap = old.gpio.strap;
         p.misc.log_unknown = old.misc.log_unknown; p.spi1.log = old.spi1.log;
         p.spi0.jedec = old.spi0.jedec; p.spi1.jedec = old.spi1.jedec;   // the flash chip is not reset: its ID keeps the --flash-mb capacity
@@ -111,6 +116,7 @@ impl esp_soc::SocBus for SocBus {
         self.attach_board_devices();
         self.refresh_tick_budget();
         self.irq_dirty = true;
+        self.refresh_board_inputs();
         cause
     }
     fn sw_reset(&self) -> bool { self.periph.rtc.sw_reset }
@@ -119,6 +125,10 @@ impl esp_soc::SocBus for SocBus {
     fn console_take(&mut self) -> [Vec<u8>; 4] {
         [std::mem::take(&mut self.periph.usb.tx_out), std::mem::take(&mut self.periph.uart[0].tx_out), std::mem::take(&mut self.periph.uart[1].tx_out), std::mem::take(&mut self.periph.uart[2].tx_out)]
     }
+    fn audio_adc(&mut self, pin: u32) -> Option<&mut Option<esp_periph::pcm::PcmInput>> { self.periph.adc.audio_input(pin) }
+    fn audio_i2s(&mut self, port: u32) -> Option<&mut esp_periph::I2s> { match port { 0 => Some(&mut self.periph.i2s0), 1 => Some(&mut self.periph.i2s1), _ => None } }
+    fn adc_observation(&self,pin:u32)->Option<esp_periph::adc::AdcSample>{self.periph.adc.observation(pin)}
+    fn adc_set_input(&mut self, pin: u32, value: u32) -> bool { self.periph.adc.set_input(pin, value) }
     fn serial_input(&mut self, data: &[u8]) {
         let before = self.periph.usb.irq();
         self.periph.usb.host_input(data);
@@ -129,6 +139,25 @@ impl esp_soc::SocBus for SocBus {
         let before = u.irq();
         u.host_input(data);
         self.irq_dirty |= before != u.irq();
+        self.refresh_tick_budget();
+    }
+    fn uart_pin_input(&mut self, pin:u8, baud:u32, byte:u8) {
+        for (n, signal) in [12, 15, 18].into_iter().enumerate() {
+            let route=self.periph.gpio.func_in_sel[signal];
+            if route & 0xff == (pin as u32 | 0x80) && self.periph.gpio.enable & (1u64<<pin)==0 {
+                self.periph.uart[n].pin_input(baud,byte,None);
+                self.irq_dirty=true;
+            }
+        }
+    }
+    fn uart_tx_route(&self, port: usize, pin: u8, baud: u32) -> bool {
+        let Some(signal) = [12, 15, 18].get(port).copied() else {
+            return false;
+        };
+        pin < 49
+            && self.periph.gpio.enable & (1u64 << pin) != 0
+            && self.periph.gpio.func_out_sel[pin as usize] & 1023 == signal
+            && self.periph.uart[port].matches_baud(baud, None)
     }
     fn gpio_set_input(&mut self, pin: u8, level: bool) {
         let old_input = self.periph.gpio.input;
@@ -167,8 +196,41 @@ impl esp_soc::SocBus for SocBus {
     fn observe_gpio(&mut self, on: bool) { self.gpio_events = if on { Some(Vec::new()) } else { None }; }
     fn take_gpio_events(&mut self) -> Vec<(u64, u8, bool)> { self.gpio_events.as_mut().map(std::mem::take).unwrap_or_default() }
     fn gpio_input(&self) -> u64 { self.periph.gpio.input }
+    fn gpio_pulls(&self) -> (u64, u64) { (self.periph.gpio.pull_up, self.periph.gpio.pull_down) }
+    fn gpio_output(&self) -> (u64, u64) { (self.periph.gpio.out, self.periph.gpio.enable) }
+    fn pwm_output(&self, pin: u32) -> Option<(f64, u32)> { self.periph.ledc.output(&self.periph.gpio, pin).or_else(|| self.periph.mcpwm.iter().find_map(|pwm| pwm.output(&self.periph.gpio,pin))) }
+    fn network_enable(&mut self, enabled: bool) -> bool {
+        if self.periph.wifi.ap.is_none() { return false; }
+        self.periph.wifi.relay = enabled;
+        self.periph.wifi.eth_tx.clear();
+        self.periph.wifi.eth_rx.clear();
+        true
+    }
+    fn network_receive(&mut self, frame: &[u8]) -> bool {
+        let wifi = &mut self.periph.wifi;
+        if !wifi.relay || !(14..=1518).contains(&frame.len()) || wifi.eth_rx.len() >= 64 { return false; }
+        wifi.eth_rx.push(frame.to_vec());
+        true
+    }
+    fn take_network_frames(&mut self) -> Vec<Vec<u8>> {
+        if self.periph.wifi.relay { std::mem::take(&mut self.periph.wifi.eth_tx) } else { Vec::new() }
+    }
     fn board(&mut self) -> &mut dyn BoardModel { &mut *self.board }
     fn board_ref(&self) -> &dyn BoardModel { &*self.board }
+    fn refresh_board_inputs(&mut self) {
+        self.board.gpio_drive(self.cycles,self.periph.gpio.enable,self.periph.gpio.out);
+        self.sync_board_inputs();
+        self.refresh_tick_budget();
+    }
+    fn refresh_board_devices(&mut self) {
+        for i2c in &mut self.periph.i2c {i2c.clear_devices();}
+        self.attach_board_devices();
+    }
+    fn set_board(&mut self, board: esp_soc::Board) {
+        self.board = board;
+        for i2c in &mut self.periph.i2c { i2c.clear_devices(); }
+        self.attach_board_devices();
+    }
     fn audio(&self) -> (&[i16], u32) { let a = self.periph.audio(); (&a.pcm, a.sample_rate) }
     fn camera_frames(&self) -> u64 { self.periph.lcd_cam.frames }
     fn irq_sources_of(&self, core: usize, line: u32) -> Vec<usize> { (0..NUM_SOURCES).filter(|&s| self.periph.intmatrix.map[core][s] == line).collect() }

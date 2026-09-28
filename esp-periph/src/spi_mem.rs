@@ -60,16 +60,28 @@ impl SpiMem {
         let fsize = flash.len();
         let rd = |a: u32, n: usize| -> Vec<u8> { (0..n).map(|i| { let x = a as usize + i; if x < fsize { flash[x] } else { 0xff } }).collect() };
         let misc = self.regs.read(0x34);
-        if self.has_psram && cmd & (1 << 18) != 0 && misc & 1 != 0 && misc & 2 == 0 {   // USR command with CS0 disabled, CS1 enabled: the octal PSRAM
+        if self.has_psram && cmd & (1 << 18) != 0 && misc & 1 != 0 && misc & 2 == 0 {   // USR command with CS0 disabled, CS1 enabled: PSRAM
             let c16 = user2 & 0xffff;
             let has_miso = user & (1 << 28) != 0; let has_mosi = user & (1 << 27) != 0;
             if self.log { eprintln!("[spi1] psram cmd {:#06x} addr {:#x} miso {} mosi {}", c16, addr, if has_miso { miso_bytes } else { 0 }, if has_mosi { mosi_bytes } else { 0 }); }
             let psize = psram.len();
+            if psize == 0 {
+                if has_miso { self.set_w_bytes(&vec![0xff; miso_bytes]); }
+                return;
+            }
             match c16 {
+                0x9f => {
+                    let density = match psize { 0x200000 => Some(0), 0x400000 => Some(0x20), 0x800000 => Some(0x40), _ => None };
+                    let mut id = vec![0xff; miso_bytes];
+                    if let Some(density) = density {
+                        for (out, byte) in id.iter_mut().zip([0x0d, 0x5d, density | 2, 0, 0, 0]) { *out = byte; }
+                    }
+                    self.set_w_bytes(&id);
+                }
                 0x4040 => { let i = (addr & 0xf) as usize; let d: Vec<u8> = (0..miso_bytes).map(|k| *self.psram_mr.get(i + k).unwrap_or(&0)).collect(); self.set_w_bytes(&d); }   // mode register read
                 0xC0C0 => { let d = self.w_bytes(mosi_bytes); let i = (addr & 0xf) as usize; for (k, b) in d.iter().enumerate() { if i + k == 0 || i + k == 8 { self.psram_mr[i + k] = *b; } } }   // mode register write (MR0/MR8 writable)
-                0x8080 => { let d = self.w_bytes(mosi_bytes); self.dirty.push((DirtyMem::Psram, addr as usize, d.len())); for (k, b) in d.iter().enumerate() { let x = addr as usize + k; if x < psize { psram[x] = *b; } } }   // sync write
-                0x0000 => { let d: Vec<u8> = (0..miso_bytes).map(|k| { let x = addr as usize + k; if x < psize { psram[x] } else { 0 } }).collect(); self.set_w_bytes(&d); }   // sync read
+                0x02 | 0x38 | 0x8080 => { let d = self.w_bytes(mosi_bytes); self.dirty.push((DirtyMem::Psram, addr as usize, d.len())); for (k, b) in d.iter().enumerate() { let x = addr as usize + k; if x < psize { psram[x] = *b; } } }   // sync write
+                0x03 | 0x0b | 0xeb | 0x0000 => { let d: Vec<u8> = (0..miso_bytes).map(|k| { let x = addr as usize + k; if x < psize { psram[x] } else { 0 } }).collect(); self.set_w_bytes(&d); }   // sync read
                 _ => { if has_miso { self.set_w_bytes(&vec![0u8; miso_bytes]); } }
             }
             return;

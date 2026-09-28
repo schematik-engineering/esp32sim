@@ -30,6 +30,7 @@ pub fn step<B: Bus>(cpu: &mut Cpu, bus: &mut B) -> Result<(), Trap> { step_outco
 /// Execute one slow-path event and retain its exact fetch window and trap timing.
 pub fn step_outcome<B: Bus>(cpu: &mut Cpu, bus: &mut B) -> StepOutcome {
     let pc = cpu.pc;
+    bus.note_instruction_cycles(1);
     // The SoC's INTC decides enable/priority and hands us the line (`Core::set_irq`); the CPU
     // only gates on mstatus.MIE.
     if cpu.waiting || cpu.mie_enabled() {

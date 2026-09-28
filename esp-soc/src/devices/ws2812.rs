@@ -1,22 +1,91 @@
-/// A chain of WS2812-class LEDs fed by a decoded RMT bit stream: 24 bits per LED, G then R then
+/// A chain of WS2812-class LEDs fed by RMT, GPIO pulses, or clocked parallel samples: 24 bits per LED, G then R then
 /// B, MSB first, in chain order. `leds` holds the colours in *physical* order when the chain was
 /// made with a map (a ring wired out of sequence, a grid wired serpentine), so everything above
 /// the board — the page, the PNG, the report, the tests — sees the module as the eye does.
 pub struct Ws2812Chain {
     pub leds: Vec<[u8; 3]>,
     pub updates: u64,
+    gpio: GpioStream,
     physical: Option<&'static [usize]>,
+}
+
+#[derive(Default)]
+struct GpioStream {
+    high_since: Option<u64>,
+    low_since: Option<u64>,
+    bits: Vec<bool>,
+    invalid: bool,
 }
 
 impl Ws2812Chain {
     /// `n` LEDs in chain order.
-    pub fn new(n: usize) -> Self { Ws2812Chain { leds: vec![[0; 3]; n], updates: 0, physical: None } }
+    pub fn new(n: usize) -> Self { Ws2812Chain { leds: vec![[0; 3]; n], updates: 0, gpio: GpioStream::default(), physical: None } }
 
     /// A chain whose LED `i` sits at physical position `map[i]`. `map` must be a permutation.
     pub fn mapped(map: &'static [usize]) -> Self {
         let mut seen = vec![false; map.len()];
         for &p in map { assert!(p < map.len() && !seen[p], "WS2812 physical map is not a permutation: {:?}", map); seen[p] = true; }
-        Ws2812Chain { leds: vec![[0; 3]; map.len()], updates: 0, physical: Some(map) }
+        Ws2812Chain { leds: vec![[0; 3]; map.len()], updates: 0, gpio: GpioStream::default(), physical: Some(map) }
+    }
+
+    /// WS2812 pulse framing: high pulses encode bits; >=50 us low latches GRB.
+    /// Uses the parallel decoder's permissive high envelope, not strict revision-specific timings.
+    /// https://cdn.sparkfun.com/assets/e/6/1/f/4/WS2812B-LED-datasheet.pdf
+    pub fn gpio_drive(&mut self, cycle: u64, hz: u32, enabled: bool, high: bool) {
+        if !enabled || hz == 0 { self.gpio = GpioStream::default(); return; }
+        self.advance_gpio(cycle, hz);
+        if high {
+            if self.gpio.high_since.is_none() {
+                if let Some(start)=self.gpio.low_since {
+                    let ns=cycle.saturating_sub(start).saturating_mul(1_000_000_000)/u64::from(hz);
+                    // ponytail: enforce minimum LOW and reset framing; revision-specific maximum LOW windows are not modeled.
+                    if ns<150 {self.gpio.invalid=true;}
+                }
+                self.gpio.high_since = Some(cycle);
+                self.gpio.low_since = None;
+            }
+        } else if let Some(start) = self.gpio.high_since.take() {
+            let ns = cycle.saturating_sub(start).saturating_mul(1_000_000_000) / u64::from(hz);
+            if !(150..=1100).contains(&ns) { self.gpio.invalid = true; }
+            if !self.gpio.invalid && self.gpio.bits.len() < self.leds.len() * 24 {
+                self.gpio.bits.push(ns >= 550);
+            }
+            self.gpio.low_since = Some(cycle);
+        }
+    }
+
+    pub fn advance_gpio(&mut self, cycle: u64, hz: u32) {
+        if hz == 0 { return; }
+        if self.gpio.low_since.is_some_and(|start| cycle.saturating_sub(start).saturating_mul(1_000_000) >= 50 * u64::from(hz)) {
+            let bits = std::mem::take(&mut self.gpio.bits);
+            if !self.gpio.invalid { self.from_bits(&bits); }
+            self.gpio.invalid = false;
+            self.gpio.low_since = None;
+        }
+    }
+
+    /// Recover pulse widths from a clocked physical lane. Low reset periods delimit frames.
+    pub fn from_samples(&mut self, samples:&[u16], lane:u8, clock_hz:u32) {
+        if lane >= 16 || clock_hz == 0 { return; }
+        let mut bits=Vec::new();
+        let mut at=0;
+        while at<samples.len() {
+            while at<samples.len() && samples[at] & (1<<lane)==0 { at+=1; }
+            let start=at;
+            while at<samples.len() && samples[at] & (1<<lane)!=0 { at+=1; }
+            let high=at-start;
+            let start=at;
+            while at<samples.len() && samples[at] & (1<<lane)==0 { at+=1; }
+            let low=at-start;
+            if high==0 { break; }
+            let high_ns=high as u64*1_000_000_000/u64::from(clock_hz);
+            if !(150..=1100).contains(&high_ns) { bits.clear(); continue; }
+            bits.push(high_ns>=550);
+            if low as u64*1_000_000>=50*u64::from(clock_hz) {
+                self.from_bits(&bits); bits.clear();
+            }
+        }
+        if !bits.is_empty() { self.from_bits(&bits); }
     }
 
     /// Decode one transmission. A frame shorter than one LED (a lone reset pulse, a truncated
@@ -40,6 +109,51 @@ mod tests {
     fn bits(bytes: &[u8]) -> Vec<bool> { bytes.iter().flat_map(|&v| (0..8).map(move |i| v & (0x80 >> i) != 0)).collect() }
 
     #[test]
+    fn gpio_timing_limits_and_long_uptime_do_not_accept_glitches_or_overflow() {
+        for (high,low,valid) in [(400,0,false),(400,149,false),(400,150,true),(149,850,false),(150,850,true),(1100,450,true),(1101,450,false),(400,3800,true)] {
+            let mut c=Ws2812Chain::new(1);let mut at=0;
+            for _ in 0..24 {c.gpio_drive(at,1_000_000_000,true,true);at+=high;c.gpio_drive(at,1_000_000_000,true,false);at+=low;}
+            c.advance_gpio(u64::MAX,1_000_000_000);
+            assert_eq!(c.updates,u64::from(valid),"high={high}, low={low}");
+            c.gpio_drive(0,160_000_000,true,true);c.gpio_drive(u64::MAX,160_000_000,true,false);
+            assert!(c.gpio.invalid,"an indefinitely high line is not a data bit");
+        }
+    }
+
+    #[test]
+    fn gpio_pulses_require_output_and_complete_reset_interval() {
+        for hz in [160_000_000,240_000_000] {
+            let mut c=Ws2812Chain::new(1);
+            let tick=|ns:u64| ns*u64::from(hz)/1_000_000_000;
+            let mut at=0;
+            for bit in bits(&[0x12,0x34,0x56]) {
+                c.gpio_drive(at,hz,true,true);
+                at+=tick(if bit {800}else{400});
+                c.gpio_drive(at,hz,true,false);
+                at+=tick(if bit {450}else{850});
+            }
+            let falling=c.gpio.low_since.unwrap();
+            c.advance_gpio(falling+tick(50_000)-1,hz);
+            assert_eq!(c.updates,0,"reset must last >=50 us");
+            c.advance_gpio(falling+tick(50_000),hz);
+            assert_eq!((c.leds[0],c.updates),([0x34,0x12,0x56],1));
+            c.advance_gpio(at+tick(100_000),hz);assert_eq!(c.updates,1);
+            at+=tick(200_000);
+            for bit in bits(&[0xff,0xff,0xff]) {
+                c.gpio_drive(at,hz,false,true);at+=tick(if bit {800}else{400});
+                c.gpio_drive(at,hz,false,false);at+=tick(850);
+            }
+            c.advance_gpio(at+tick(50_000),hz);assert_eq!(c.updates,1,"input pins cannot transmit");
+            at+=tick(100_000);
+            c.gpio_drive(at,hz,true,true);at+=tick(2000);c.gpio_drive(at,hz,true,false);
+            for _ in 0..24 {at+=tick(850);c.gpio_drive(at,hz,true,true);at+=tick(400);c.gpio_drive(at,hz,true,false);}
+            c.advance_gpio(at+tick(50_000),hz);assert_eq!(c.updates,1,"invalid high pulse invalidates frame");
+            at+=tick(100_000);c.gpio_drive(at,hz,true,true);c.gpio_drive(at+tick(400),hz,true,false);
+            c.advance_gpio(at+tick(100_000),hz);assert_eq!(c.updates,1,"partial pixel is ignored");
+        }
+    }
+
+    #[test]
     fn grb_on_the_wire_becomes_rgb_in_chain_order() {
         let mut c = Ws2812Chain::new(2);
         c.from_bits(&bits(&[0x10, 0xab, 0x03, 1, 2, 3]));
@@ -56,6 +170,20 @@ mod tests {
         let mut c = Ws2812Chain::mapped(&REVERSED);
         c.from_bits(&bits(&[0, 1, 0, 0, 2, 0, 0, 3, 0]));
         assert_eq!(c.leds, [[3, 0, 0], [2, 0, 0], [1, 0, 0]]);
+    }
+
+    #[test]
+    fn physical_parallel_lanes_preserve_identity_and_reset_boundaries() {
+        let a=bits(&[0x10,0xab,0x03]); let b=bits(&[0x98,0x76,0x54]);
+        let mut samples=Vec::new();
+        for i in 0..24 { samples.extend([3, u16::from(a[i]) | (u16::from(b[i])<<1),0,0]); }
+        samples.extend(std::iter::repeat_n(0,200));
+        let mut first=Ws2812Chain::new(1);let mut second=Ws2812Chain::new(1);
+        first.from_samples(&samples,0,3_200_000);second.from_samples(&samples,1,3_200_000);
+        assert_eq!(first.leds,vec![[0xab,0x10,0x03]]);
+        assert_eq!(second.leds,vec![[0x76,0x98,0x54]]);
+        assert_eq!((first.updates,second.updates),(1,1));
+        first.from_samples(&samples,0,0); assert_eq!(first.updates,1);
     }
 
     #[test]

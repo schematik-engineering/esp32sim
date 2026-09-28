@@ -26,16 +26,16 @@ wifi station: got ip:10.0.2.15
 What is modelled:
 - PHY calibration loops satisfied with faked done-bits; scan, open-system auth, association.
 - The 802.11 MAC (TX queue registers, RX descriptor ring, interrupt events) — see below.
-- A **virtual AP** (`esp32s3/src/wifi.rs`): beacons, probe responses, auth/assoc, and the WPA2
+- A **virtual AP** (`esp-wifi/src/wifi.rs`): beacons, probe responses, auth/assoc, and the WPA2
   four-way handshake (PMK from the passphrase, PTK derivation, MIC, GTK delivered AES-key-wrapped).
 - The **AES accelerator** (`Aes` in `periph.rs`, DMA and block mode) — the supplicant unwraps the
   group key with it, so without this peripheral WPA2 stops dead at message 3.
 - Crypto primitives (`esp32s3/src/crypto.rs`): SHA-1, HMAC-SHA1, PBKDF2, the 802.11 PRF, AES for
   every key length in both directions, AES key wrap — all checked against RFC/FIPS/802.11i vectors.
-- A **virtual network** (`esp32s3/src/net.rs`): DHCP, ARP, ICMP echo, a DNS responder and an SNTP
+- A **virtual network** (`esp-wifi/src/net.rs`): DHCP, ARP, ICMP echo, a DNS responder and an SNTP
   server that hands out the host clock, so `esp_netif` reaches `IP_EVENT_STA_GOT_IP` and firmware
   waiting for time gets it.
-- A **user-mode NAT** (`esp32s3/src/nat.rs`, `--net nat`, on by default): TCP and UDP flows are
+- A **user-mode NAT** (`esp-wifi/src/nat.rs`, `--net nat`, on by default): TCP and UDP flows are
   terminated in the emulator and relayed over ordinary host sockets, the way Contiki-NG's NAT64
   does it — no libslirp, no root, no tun device. Guest name lookups go to the host's own resolver.
 - The **RSA/MPI accelerator** (`Rsa` in `periph.rs`) and **SHA over GDMA including SHA-384/512**.
@@ -132,3 +132,16 @@ or `esptool write_flash 0 hw/atech/flash-8M.bin` restores the original dump byte
 References: esp32-open-mac (github.com/esp32-open-mac/esp32-open-mac, `main/hardware.c`,
 `main/mac.c`) and its blog (zeus.ugent.be/blog/23-24/open-source-esp32-wifi-mac/); Ebiroll's and
 esp32-open-mac's QEMU forks for the classic ESP32 (Apache-2.0, consulted for behaviour only).
+
+## C6 MAC v2
+
+The shared virtual AP performs authentication, WPA2 key exchange, and DHCP for S3, C3 and C6. `esp32c6/src/wifi.rs` adapts C6 registers to that MAC state. Register addresses come from the unchanged Arduino 3.3.8 driver used by `examples/wifi-arduino` and the C6 ROM. Packet metadata follows the SDK's `esp_wifi_he_types.h` MAC version 2 layout.
+
+- MAC base `0x600a4000`: init `0xddc`, interrupt status/clear `0xc48/0xc4c`, RX reload/base/next/last `0x80/0x84/0x88/0x8c`. TX queue PLCP0 is `0xd6c` minus 16 times the queue, completion/clear `0xcb8/0xcb4`.
+- TSF base `0x600ad000`: control `0x14`, time-set `0x18/0x1c`, latched time `0x20/0x24`, power interrupt status/clear `0xb0/0xb4`.
+- Wi-Fi DMA has 14-bit size and length fields, length at bit 14. C6 general GDMA uses 12-bit fields. RX leaves owner and has-data set until the driver recycles the descriptor. An occupied descriptor cannot be overwritten.
+- TX has an 8-byte per-MPDU descriptor preceding the 802.11 frame, with its length in the low 14 bits. RX has 84 fixed bytes followed by 8 bytes of packet-length/status metadata, then the frame and FCS. CSI/subframe extension lengths stay zero for the modeled single legacy MPDU.
+
+`tools/wifi-test.mjs` and `tools/wifi-wasm-test.mjs` run exact flash artifacts and require `WIFI:AP_FOUND` plus `WIFI:IP:10.0.2.15`. Native tests cover the C6 register map, TSF, IRQ clearing and receive lengths. WASM tests exercise literal credentials and AP-derived state for all three chips.
+
+This proves station scan, WPA2 and DHCP with the unchanged fixture. It does not establish HE/aggregation, multiple stations, monitor mode, packet loss/retry timing or external protocol parity. RF calibration is deterministic and idealized; the C6 driver still emits early PLL-calibration timeout warnings before successfully starting Wi-Fi. No firmware symbols or connection states are patched.

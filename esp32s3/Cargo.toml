@@ -10,3 +10,4 @@ emu-core = { path = "../emu-core" }
 esp-periph = { path = "../esp-periph" }
 esp-soc = { path = "../esp-soc" }
 xtensa-lx7 = { path = "../xtensa-lx7" }
+esp-wifi = { path = "../esp-wifi" }
