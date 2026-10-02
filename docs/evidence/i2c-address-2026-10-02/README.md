@@ -1,4 +1,9 @@
-# EX211: runtime I2C addresses and general calls
+# EX211: runtime I2C addresses, aliases, and general calls
+
+The initial-revision sections below preserve the `996fddd` results and limits.
+The PCA9685 follow-up at the end supersedes first-match selection for nonzero
+addresses. The original `results.json` remains unchanged and identifies the
+earlier artifacts.
 
 The shared controller updates each selected device's stored address after a data
 write. General-call writes select every matching device on the active pin pair,
@@ -111,3 +116,91 @@ and test logs stay outside Git under `/tmp/gap-i2c-*.log`; build outputs are ign
 Personal paths and unrelated host details are omitted from the curated receipt.
 This does not affect protocol outputs or work counts. No private add-on sources
 or captures are included, and no remote publication is performed.
+
+
+## PCA9685 alias follow-up
+
+Base: `f3a2ec3965806d39ec2ddc5fc44aae667848c1cd`.
+Implementation: `bf5d672f7b0daf48a9a349a741120ab687f4ff78`. This extends EX211's
+correctness contract to nonzero group addresses and per-transaction refusal.
+The fork `221080f` controller and PCA9685 address methods were inspected before
+implementation. Existing `matches_address` and `start_address` hooks already
+support programmable aliases; no new trait methods are needed.
+
+The controller now visits every match at any address and retains every device
+that ACKs `start_address`. Writes reach all selected devices, and reads combine
+their bytes with bitwise AND, matching the fork's open-drain data resolution.
+This supersedes the initial implementation's first-match collision behavior.
+Attachment identity, same-address/same-pin replacement, runtime address changes,
+and pin-aware filtering are unchanged. Aliases do not create extra attachments.
+
+The focused regression `shared_programmable_aliases_and_all_call` failed before
+the fix: the second device's register was `0`, expected `85` after a `0x55`
+all-call write. It now passes. The test programs and enables all three subaddresses
+and the all-call address, checks disable/re-enable, observes the actual address
+in `start_address`, excludes devices on another pin pair, rejects general-call
+reads, and allows a later matching device to ACK when the first refuses.
+A repeated-start read combines `0xf0` and `0x5a` into `0x50`.
+
+The test-only board supplies two register-level PCA9685 models at `0x40` and
+`0x41` on SDA8/SCL9, plus an isolated `0x40` model on SDA6/SCL7. The same
+[pca9685 sketch](pca9685/src/main.cpp) runs unchanged on S3, C3, and C6 using
+unmodified Arduino-ESP32 3.3.8 and Adafruit PWM Servo Driver 3.0.3 at commit
+`a98850b815bf9696c8ffdc2a0f89d657c52dd44b`. Adafruit BusIO is pinned to 1.17.4.
+The group driver's `begin()` resets MODE1, so the sketch initializes that handle
+before explicitly enabling all-call on the individual devices.
+
+The library writes and reads channel-zero PWM registers through both main
+addresses and the all-call address. Every chip prints:
+
+```text
+PCA begin 1 1 1
+PCA main 300 450 and 256
+PCA group 600 600
+PCA disabled 600 700
+PCA reset 0
+PCA DONE
+```
+
+Both models observe exactly one general-call reset and return MODE1 `0x11`.
+The isolated model observes no address phases. Every run has zero reboots.
+Final pinned-build work counts:
+
+| Chip | Cycles | Instructions |
+| --- | ---: | ---: |
+| S3 | 18,000,063 | 5,012,461 |
+| C3 | 12,000,058 | 12,000,058 |
+| C6 | 13,000,000 | 13,000,000 |
+
+The first successful build resolved BusIO 1.17.4 transitively. Its S3 run retired
+5,012,592 instructions at the same cycle count. Rebuilding with the explicit BusIO pin changed the S3 instruction count;
+all protocol outputs stayed equal.
+The final artifact hashes and samples are in [pca9685/results.json](pca9685/results.json).
+These single functional runs do not establish speed or hardware timing.
+
+Reproduction from the repository root:
+
+```sh
+pio run -d docs/evidence/i2c-address-2026-10-02/pca9685
+tools/fetch-demo-assets.sh --no-linux
+ESP32SIM_ROM_DIR="$PWD/web/wasm/fw" \
+I2C_FIRMWARE_DIR="$PWD/docs/evidence/i2c-address-2026-10-02/.pio/build" \
+PCA_FIRMWARE_DIR="$PWD/docs/evidence/i2c-address-2026-10-02/pca9685/.pio/build" \
+  cargo +1.99.0 test --release -p esp32sim --test i2c_address -- --include-ignored --nocapture
+```
+
+The original sketch build command above supplies `I2C_FIRMWARE_DIR`. Both sets
+of external tests run together: 13 passed, including the seven focused checks
+and six firmware runs. The full CI commands above were rerun with Rust 1.99.0:
+614 release tests passed, 27 external tests were filtered, both strict Clippy
+commands passed, and the WASM build and all eight demos passed. The final privacy
+check and manual review cover the added evidence.
+
+This fixture implements the register and address behavior needed to prove bus
+transport. It does not model PCA9685 PWM waveforms, oscillator settling, OE, or
+full device semantics. No private add-on source was copied, and no private
+add-on acceptance or physical timing result is claimed. The earlier limitations
+on STOP-deferred address changes remain. Raw logs stay outside Git under
+`/tmp/gap-i2c-alias-*.log` and `/tmp/gap-i2c-pca-build*.log`; compiled firmware
+and dependency checkouts remain ignored. The curated receipt contains only
+relevant hashes, configuration, numeric samples, and test outcomes.
