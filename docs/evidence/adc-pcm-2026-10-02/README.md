@@ -146,3 +146,63 @@ The initial local commit command hit the shared Git-metadata sandbox boundary.
 An authorized escalation created the local commit; no review rejection occurred.
 Only this worktree's index and branch metadata were updated. No other worktree
 files, private add-on files, GitHub comments or remote refs were changed.
+
+## Raw-count follow-up
+
+The add-on's kind-0 fixture needs post-attenuation counts, independent of the
+voltage transfer curve. Its voltage-stream failures were S3 875, C3 1201 and
+C6 838 for PCM -16384, where the fixture expects 1024. This extends EX216's
+output contract; the original voltage results and hashes above remain intact.
+The base is `cc19744104e38297d39ea4e46eecfea1e14a3e2d`.
+
+`AnalogStream::new_raw(rate, cpu_hz, bias_count, now)` creates a raw stream.
+Attach it through the same `AnalogSource::Stream` variant. `push_raw(&[u16], now)`
+accepts exact counts from 0 through 4095. It rejects the entire upload if any
+count is invalid or the receiver is a voltage stream, before advancing time or
+changing the queue. Invalid raw bias and invalid rate/clock are also rejected.
+The existing `push(&[i16], now)` on a raw stream maps each PCM sample using
+`((PCM + 32768) * 4095 + 32767) / 65535`, the integer equivalent of the requested
+rounding rule. Hosts that already compute counts can use `push_raw` directly.
+
+Both modes share the existing clock, drop-oldest queue, hold behavior and reset
+persistence. Before the first sample the raw stream returns its supplied bias;
+after underrun it holds the last count. For microphone silence use bias 2048
+and zero PCM. All counts bypass attenuation/calibration at conversion time.
+Voltage construction, PCM pushes and voltage transfer curves are unchanged.
+Raw sources have no physical voltage: `AnalogInputs::volts` returns zero for
+raw mode, as it does for constant raw inputs. This follow-up covers S3/C3/C6;
+classic ESP32's separate voltage-only conversion path is not extended.
+
+The external tests reuse the exact retained Arduino binaries, without changing
+or rebuilding the sketch or driver. In addition to the original tone/silence/
+bound captures, each chip captures three more 1,024-sample blocks:
+
+- Empty raw input: every count is exactly 777.
+- Direct uploads: exact plateaus `[0, 1, 1024, 2048, 3071, 4094, 4095]`.
+- PCM `[-32768, -16384, -1, 0, 16384, 32767]`: exact plateaus
+  `[0, 1024, 2047, 2048, 3071, 4095]`.
+
+Each plateau is 256 host samples at 16 kHz. Firmware samples at about 8 kHz,
+then holds the last value for the remainder of the capture. The assertion
+checks all 1,024 counts: collapsing adjacent duplicates must give exactly the
+expected sequence, without intermediate or extra values. Register tests also
+check bias, exact values and hold-last at every attenuation setting on all
+three chips. A source unit test checks invalid-upload atomicity, PCM endpoints
+and midpoint rounding, drop-oldest overflow and voltage-mode rejection.
+
+Reproduction uses the same commands and firmware paths above. The source-unit
+filter `stream` includes the new raw test; omit the filter when running
+`cargo +1.99.0 test -p esp32sim --test adc_stream -- --skip external_` to include
+both register checks. `raw-results.json` retains the new outcomes and hashes
+without replacing the historical receipt. Continuous/DMA ADC remains unsupported,
+and the private add-on's full fixture is not rerun by these upstream tests.
+
+Follow-up implementation `b918fce` passes all gates with Rust 1.99.0: 642
+release workspace tests, zero failures/ignored tests after excluding `external_*`,
+three source tests, two register tests, native/WASM Clippy, WASM build and all
+eight requested Node workloads. The three external tests pass all 15 captures,
+including nine raw captures totaling 9,216 exactly checked ADC counts. All
+three chips return the exact sequences above, and original voltage measurements
+are unchanged. Firmware hashes are identical to the original EX216 receipt.
+No new test failures, golden updates or tolerance changes occurred in this
+follow-up. Privacy and diff checks pass. The change is committed locally only.
