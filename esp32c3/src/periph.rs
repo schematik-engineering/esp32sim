@@ -270,13 +270,11 @@ impl Peripherals {
 
 
     pub fn read32(&mut self, addr: u32) -> u32 {
-        if addr & !0xfff == PERIPH_BASE + 0x3f000 { return crate::gdma::read(&self.gdma, addr & 0xfff); }
         mmio::read32(self, addr)
     }
 
     pub fn write32(&mut self, addr: u32, v: u32) {
         if addr == PERIPH_BASE + 0xc0018 && v & (1 << 11) != 0 { self.ledc = Ledc::new(LedcLayout::C3); }
-        if addr & !0xfff == PERIPH_BASE + 0x3f000 { crate::gdma::write(&mut self.gdma, addr & 0xfff, v); return; }
         if addr == 0x6001_3004 && v & (1 << 5) != 0 && self.i2c.has_pinned_devices() {
             let pins = self.i2c_pin(54).zip(self.i2c_pin(53));
             self.i2c.set_pins(pins);
