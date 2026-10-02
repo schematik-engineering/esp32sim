@@ -1,4 +1,5 @@
 use emu_core::Bus;
+use esp_periph::Device;
 use esp_periph::i2c::{I2c, I2cDevice, Reg8Device, INT_NACK};
 use esp_soc::{BoardModel, SocBus};
 use std::sync::{Arc, Mutex};
@@ -122,6 +123,7 @@ fn send(i2c: &mut I2c, bytes: &[u8], stop: bool) -> bool {
         ],
         false,
     );
+    i2c.tick(100_000);
     i2c.int_raw & INT_NACK == 0
 }
 
@@ -178,11 +180,13 @@ fn shared_general_call_fanout_ack_lifetime_and_filtering() {
     assert!(send(&mut i2c, &[0], false)); // END retains both recipients.
     i2c.detach(0x58);
     commands(&mut |o, v| i2c.write(o, v), &[6], &[(1, 1), (2, 0)], false);
+    i2c.tick(100_000);
     assert_eq!(second.lock().unwrap().resets, 2);
     assert_eq!(first.lock().unwrap().resets, 1);
     assert!(send(&mut i2c, &[0], false));
     i2c.set_pins(Some((6, 7)));
     commands(&mut |o, v| i2c.write(o, v), &[6], &[(1, 1), (2, 0)], false);
+    i2c.tick(100_000);
     assert_ne!(i2c.int_raw & INT_NACK, 0);
     i2c.clear_devices();
     assert!(!send(&mut i2c, &[0, 6], true));
@@ -214,6 +218,7 @@ fn chip(bus: &mut impl SocBus, base: u32, classic: bool) {
             &[(6, 0), (1, bytes.len() as u32), (2, 0)],
             classic,
         );
+        bus.tick(100_000);
         assert_eq!(bus.read32(base + 0x20).unwrap() & INT_NACK == 0, ack);
     }
     commands(
@@ -222,6 +227,7 @@ fn chip(bus: &mut impl SocBus, base: u32, classic: bool) {
         &[(6, 0), (1, 1), (3, 1), (2, 0)],
         classic,
     );
+    bus.tick(100_000);
     assert_eq!(bus.read32(base + 0x1c).unwrap(), 0xea);
 }
 #[test]
@@ -447,6 +453,7 @@ fn shared_programmable_aliases_and_all_call() {
         &[(6, 0), (1, 2), (6, 0), (1, 1), (3, 1), (2, 0)],
         false,
     );
+    i2c.tick(100_000);
     assert_eq!(i2c.read(0x1c), 0x50);
     for state in [&a, &b] {
         assert_eq!(state.lock().unwrap().starts.last(), Some(&(0x70, true)));

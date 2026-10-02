@@ -1,10 +1,11 @@
 //! I2C master controller (I2C0/I2C1) and the `I2cDevice` trait the board's bus devices implement.
 //! The controller executes the command list (RSTART/WRITE/READ/STOP/END) written by the driver
-//! at `trans_start`, moving bytes between the FIFOs and the addressed device, and raises the
+//! after `trans_start`, clocking bytes between the FIFOs and addressed devices, and raises the
 //! NACK / END_DETECT / TRANS_COMPLETE interrupts the IDF `i2c_master` driver waits for.
 use crate::device::{Device, WriteEffect};
 use crate::regram::RegRam;
 use std::collections::VecDeque;
+use emu_core::ClockDomain;
 
 pub trait I2cDevice {
     /// Current 7-bit address, sampled after each data write. Defaults to the attached address.
@@ -44,12 +45,18 @@ pub struct I2c {
     nack: bool,
     pub log: bool,
     pub transactions: u64,
+    active: bool,
+    command_index: usize,
+    byte_index: usize,
+    remaining: u64,
+    /// C6 supplies its PCR divider in the S3/C3 CLK_CONF layout.
+    pub external_clock_config: Option<u32>,
 }
 
 impl I2c {
     pub fn new() -> Self {
         I2c { regs: RegRam::new(), tx: VecDeque::new(), rx: VecDeque::new(), int_raw: 0, int_ena: 0, cmd: [0; 16], classic: false, devices: Vec::new(), cur: Vec::new(), pins: None, expect_addr: false, nack: false,
-              log: false, transactions: 0 }
+              log: false, transactions: 0, active: false, command_index: 0, byte_index: 0, remaining: 0, external_clock_config: None }
     }
     /// Classic ESP32 has the same controller registers but 16 command slots and older opcodes.
     pub fn new_classic() -> Self { Self { classic: true, ..Self::new() } }
@@ -84,7 +91,7 @@ impl I2c {
 
     pub fn read(&mut self, off: u32) -> u32 {
         match off {
-            0x08 => (self.nack as u32) | (((self.int_raw & INT_TIMEOUT != 0) as u32) << 2) | ((self.rx.len() as u32 & 0x3f) << 8) | ((self.tx.len() as u32 & 0x3f) << 18),   // SR: resp_rec, timeout, rxfifo_cnt, txfifo_cnt
+            0x08 => (self.nack as u32) | ((self.active as u32) << 4) | (((self.int_raw & INT_TIMEOUT != 0) as u32) << 2) | ((self.rx.len() as u32 & 0x3f) << 8) | ((self.tx.len() as u32 & 0x3f) << 18),   // SR: resp_rec, timeout, rxfifo_cnt, txfifo_cnt
             0x14 => ((self.rx.len() as u32 & 0x1f) << 5) | ((self.tx.len() as u32 & 0x1f) << 15),                        // FIFO_ST: waddr = count, raddr = 0
             0x1c => self.rx.pop_front().unwrap_or(0) as u32,
             0x20 => self.int_raw,
@@ -99,7 +106,12 @@ impl I2c {
     #[allow(clippy::possible_missing_else)]
     pub fn write(&mut self, off: u32, v: u32) {
         match off {
-            0x04 => { self.regs.write(off, v & !(1 << 5)); if v & (1 << 5) != 0 { self.run(); } }               // CTR.TRANS_START
+            0x04 => {
+                let reset = !self.classic && v & (1 << 10) != 0;
+                self.regs.write(off, v & !(1 << 5) & if self.classic { u32::MAX } else { !(1 << 10) });
+                if reset { self.active = false; self.cur.clear(); self.expect_addr = false; self.nack = false; }
+                if v & (1 << 5) != 0 { self.run(); }
+            }               // CTR.TRANS_START
             0x18 => { if v & (1 << 13) != 0 { self.tx.clear(); } if v & (1 << 12) != 0 { self.rx.clear(); } self.regs.write(off, v & !(3 << 12)); }
             0x1c => { if self.tx.len() < 32 { self.tx.push_back(v as u8); } }
             0x24 => self.int_raw &= !v,
@@ -109,71 +121,124 @@ impl I2c {
         }
     }
 
-    fn run(&mut self) {
-        self.nack = false;
-        self.transactions += 1;
-        for i in 0..if self.classic { 16 } else { 8 } {
-            let c = self.cmd[i];
-            let op = match ((c >> 11) & 7, self.classic) {
-                (0, true) => 6,
-                (2, true) => 3,
-                (3, true) => 2,
-                (op, _) => op,
-            };
-            let n = (c & 0xff) as usize;
-            let ack_check = c & (1 << 8) != 0;
-            match op {
-                6 => self.expect_addr = true,                                            // RSTART
-                1 => {                                                                   // WRITE n bytes
-                    for _ in 0..n {
-                        let b = self.tx.pop_front().unwrap_or(0);
-                        let ack = if self.expect_addr {
-                            self.expect_addr = false;
-                            let addr = b >> 1; let rd = b & 1 != 0;
-                            self.cur.clear();
-                            for (k, (configured, device)) in self.devices.iter_mut().enumerate() {
-                                if device.matches_address(*configured, addr, rd) && (device.pins().is_none() || device.pins() == self.pins) && device.start_address(addr, rd) {
-                                    self.cur.push(k);
-                                }
-                            }
-                            if self.log { eprintln!("[i2c] start addr {:#04x} {}{}", addr, if rd { "R" } else { "W" }, if self.cur.is_empty() { " (no device)" } else { "" }); }
-                            !self.cur.is_empty()
-                        } else {
-                            if self.log { eprintln!("[i2c]   write {:#04x}", b); }
-                            let mut ack = false;
-                            for &k in &self.cur {
-                                let (addr, device) = &mut self.devices[k];
-                                ack |= device.write(b);
-                                *addr = device.address(*addr);
-                            }
-                            ack
-                        };
-                        if !ack && ack_check {
-                            self.nack = true; self.int_raw |= INT_NACK; self.cmd[i] |= 1 << 31;
-                            self.cur.clear();
-                            return;
-                        }
-                    }
-                }
-                3 => {                                                                   // READ n bytes
-                    for _ in 0..n {
-                        let mut b = 0xff;
-                        for &k in &self.cur { b &= self.devices[k].1.read(); }
-                        if self.log { eprintln!("[i2c]   read  {:#04x}", b); }
-                        if self.rx.len() < 32 { self.rx.push_back(b); }
-                    }
-                }
-                2 => {                                                                   // STOP
-                    for &k in &self.cur { self.devices[k].1.stop(); }
-                    self.cur.clear(); self.cmd[i] |= 1 << 31; self.int_raw |= INT_TRANS_COMPLETE;
-                    return;
-                }
-                4 => { self.cmd[i] |= 1 << 31; self.int_raw |= INT_END_DETECT; return; } // END: driver continues later
-                _ => { self.cmd[i] |= 1 << 31; return; }
-            }
-            self.cmd[i] |= 1 << 31;
+    fn op(&self) -> u32 {
+        match ((self.cmd[self.command_index] >> 11) & 7, self.classic) {
+            (0, true) => 6,
+            (2, true) => 3,
+            (3, true) => 2,
+            (op, _) => op,
         }
     }
+
+    fn clock_ticks(&self, cycles: u64) -> u64 {
+        if self.classic { return cycles.max(1); }
+        let c = self.external_clock_config.unwrap_or_else(|| self.regs.read(0x54));
+        let a = u64::from((c >> 8) & 63);
+        let b = u64::from((c >> 14) & 63);
+        let denominator = a.max(1);
+        let divisor = (u64::from(c & 255) + 1) * denominator + if a > 0 { b } else { 0 };
+        let hz = if c & (1 << 20) != 0 { 17_500_000 } else { 40_000_000 };
+        (cycles * divisor * 80_000_000).div_ceil(hz * denominator).max(1)
+    }
+
+    fn schedule(&mut self) {
+        if self.command_index >= if self.classic { 16 } else { 8 } { self.active = false; return; }
+        let mask = if self.classic { 0x3fff } else { 0x1ff };
+        let cycles = match self.op() {
+            1 | 3 if self.cmd[self.command_index] & 255 != 0 => {
+                let high = self.regs.read(0x38);
+                let extra = if self.classic {
+                    let filter = self.regs.read(0x50);
+                    if filter & 8 == 0 { 7 } else { 6 + (filter & 7).max(2) }
+                } else { (high >> 9) & 127 };
+                ((self.regs.read(0) & mask) + 1 + (high & mask) + extra) * 9
+            }
+            op @ (6 | 2) => {
+                let off = if op == 6 { 0x40 } else { 0x48 };
+                (self.regs.read(off) & mask) + (self.regs.read(off + 4) & mask) + if self.classic { 0 } else { 2 }
+            }
+            _ => 0,
+        };
+        self.remaining = if cycles == 0 { 1 } else { self.clock_ticks(cycles.into()) };
+    }
+
+    fn run(&mut self) {
+        if self.active { return; }
+        self.nack = false;
+        self.transactions += 1;
+        self.active = true;
+        self.command_index = 0;
+        self.byte_index = 0;
+        self.schedule();
+    }
+
+    fn advance(&mut self, mut ticks: u64) {
+        while self.active && ticks >= self.remaining {
+            ticks -= self.remaining;
+            self.step();
+            if self.active { self.schedule(); }
+        }
+        if self.active { self.remaining -= ticks; }
+    }
+
+    fn step(&mut self) {
+        let i = self.command_index;
+        let c = self.cmd[i];
+        let n = (c & 255) as usize;
+        match self.op() {
+            6 => self.expect_addr = true,
+            1 if self.byte_index < n => {
+                let b = self.tx.pop_front().unwrap_or(0);
+                let ack = if self.expect_addr {
+                    self.expect_addr = false;
+                    let addr = b >> 1; let rd = b & 1 != 0;
+                    self.cur.clear();
+                    for (k, (configured, device)) in self.devices.iter_mut().enumerate() {
+                        if device.matches_address(*configured, addr, rd) && (device.pins().is_none() || device.pins() == self.pins) && device.start_address(addr, rd) {
+                            self.cur.push(k);
+                        }
+                    }
+                    if self.log { eprintln!("[i2c] start addr {addr:#04x} read={rd}"); }
+                    !self.cur.is_empty()
+                } else {
+                    if self.log { eprintln!("[i2c]   write {b:#04x}"); }
+                    let mut ack = false;
+                    for &k in &self.cur {
+                        let (addr, device) = &mut self.devices[k];
+                        ack |= device.write(b);
+                        *addr = device.address(*addr);
+                    }
+                    ack
+                };
+                if !ack && c & (1 << 8) != 0 {
+                    self.nack = true; self.int_raw |= INT_NACK; self.cmd[i] |= 1 << 31;
+                    self.cur.clear(); self.active = false;
+                    return;
+                }
+                self.byte_index += 1;
+                if self.byte_index < n { return; }
+            }
+            3 if self.byte_index < n => {
+                let mut b = 0xff;
+                for &k in &self.cur { b &= self.devices[k].1.read(); }
+                if self.log { eprintln!("[i2c]   read  {b:#04x}"); }
+                if self.rx.len() < 32 { self.rx.push_back(b); }
+                self.byte_index += 1;
+                if self.byte_index < n { return; }
+            }
+            1 | 3 => {}
+            2 => {
+                for &k in &self.cur { self.devices[k].1.stop(); }
+                self.cur.clear(); self.int_raw |= INT_TRANS_COMPLETE; self.active = false;
+            }
+            4 => { self.int_raw |= INT_END_DETECT; self.active = false; }
+            _ => self.active = false,
+        }
+        self.cmd[i] |= 1 << 31;
+        self.command_index += 1;
+        self.byte_index = 0;
+    }
+
 }
 
 impl Default for I2c { fn default() -> Self { Self::new() } }
@@ -197,5 +262,9 @@ impl Device for I2c {
     fn read(&mut self, off: u32) -> u32 { I2c::read(self, off) }
     fn write(&mut self, off: u32, v: u32) -> WriteEffect { I2c::write(self, off, v); WriteEffect::NONE }
     fn irq_sources(&self) -> u64 { self.irq() as u64 }
+    fn clock(&self) -> Option<ClockDomain> { Some(ClockDomain::Apb) }
+    fn tick(&mut self, ticks: u64) { self.advance(ticks); }
+    fn has_deadline(&self) -> bool { true }
+    fn next_deadline(&self) -> Option<u64> { self.active.then_some(self.remaining) }
     fn debug(&mut self, on: bool) { self.log = on; }
 }

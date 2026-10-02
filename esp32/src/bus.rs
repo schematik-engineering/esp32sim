@@ -521,6 +521,7 @@ impl Bus for SocBus {
     }
     fn tick(&mut self, cycles: u32) -> u32 {
         self.cycles += cycles as u64;
+        self.board.advance_to(self.cycles);
         self.periph.tick(cycles as u64);
         self.flush_rmt();
         self.flush_gpio();

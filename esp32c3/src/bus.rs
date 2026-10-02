@@ -340,6 +340,7 @@ impl SocBus {
     /// Run the SPI1 controller if the guest just kicked it, then advance device time.
     fn devices(&mut self, cycles: u32) {
         if self.periph.spi_exec { self.run_spi(); }
+        self.board.advance_to(self.cycles);
         self.periph.tick(cycles as u64);
         if self.periph.aes.dma_pending { self.aes_dma_step(); }
         if !self.periph.wifi.tx_pending.is_empty() { self.wifi_tx_step(); }
@@ -355,7 +356,6 @@ impl SocBus {
             self.board.rmt_frame(pin, &bits);
             self.irq_dirty = true;
         }
-        self.board.advance_to(self.cycles);
         for edge in self.board.take_edges() {
             self.periph.gpio.set_input(edge.pin, edge.level);
             if let Some(events) = &mut self.gpio_events { events.push((edge.cycle, edge.pin, edge.level)); }
