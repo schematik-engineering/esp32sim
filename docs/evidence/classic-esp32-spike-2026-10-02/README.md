@@ -1284,6 +1284,117 @@ ADC conversion, a linear transfer without the 11 dB nonlinear LUT above raw 2880
 fixed touch counts, no touch threshold interrupt/wakeup, no ADC continuous/DMA/ULP or
 Wi-Fi arbitration, and no electrical contention/noise or variable DAC supply model.
 
+## Classic BLE extension
+
+EX199 now uses EX200's shared virtual controller from PR #172 on classic ESP32.
+The adapter is `62e3e1adc2513fc71ba65e7490e2550c1d23389f` on `b7aef31`, which combines the classic target with
+`47d750d` from the shared BLE branch. The preserved prototype `0755b8b` and its
+`a79fa7a` receipt were inspected before porting. The material difference is the
+classic LX6/Bluedroid adapter running through EX200's shared VHCI lifecycle and
+machine function hooks, including its yield after each received packet.
+
+Only the classic chip's adapter and wiring changed. `esp32/src/ble.rs` adapts the
+S3 windowed-Xtensa glue with identical trampoline bytes and classic DRAM, DROM and
+MMU addresses. `esp_soc::ble::vhci::Ble` owns controller lifecycle, symbol hooks,
+TX power hooks, guest task creation and callback delivery. The shared 512-byte
+packet reservation fits the classic controller BSS. Memory-release hooks preserve
+that storage; reboot restores substituted flash bytes by physical offset and
+resets BLE while keeping hook addresses for the next boot. The guest task uses
+4096 bytes of stack, priority 23 and core 0.
+
+No shared-code addition was needed. EX200 already includes the prototype's
+Bluedroid commands, including Write Default Link Policy Settings `0x080f`,
+Write/Read Local Name `0x0c13`/`0x0c14`, and Read Local Extended Features `0x1004`,
+with protocol tests. All four chips therefore use one controller implementation.
+No other chip, CPU core, shared lifecycle or scheduler changed.
+
+### Checks and unchanged firmware
+
+- `cargo build --release`: pass.
+- `cargo test --workspace`: 555 passed, 0 failed, 22 existing ignored tests.
+- `cargo test -p esp32 ble::tests`: all five adapter tests pass. They exercise
+  actual Xtensa instruction windows, callback arguments and yielding, DROM callback
+  tables, undersized BSS rejection, function-boundary dispatch, and physical flash
+  restoration after the MMU mapping changes.
+- `tools/wasm-build.sh`: pass.
+- `node tools/check-evidence-privacy.mjs` and `git diff --check`: pass.
+- Only the new `esp32/src/ble.rs` was formatted with
+  `rustfmt --edition 2021 esp32/src/ble.rs`; status confirmed no formatter spillover.
+
+All supplied `/tmp/esp32-ble-firmware/{server,notify,write,scan}` source, ELF,
+factory-image and configuration hashes still match the original build manifest.
+The four sketches match the official Arduino-ESP32 3.3.8 tag byte-for-byte.
+They were not rebuilt or edited. Original builds used `esp32dev`, pioarduino
+`55.03.38-1` and ESP-IDF libraries `5.5.4+sha.735507283d`.
+
+The runnable [acceptance check](ble-run.py) uses the same scripts and handles as
+the prototype. Obtain the official example files from the 3.3.8 URLs in
+[the validation receipt](ble-validation.json), preserving their
+`libraries/BLE/examples/NAME/NAME.ino` layout under the `--arduino` directory.
+Then run from the repository root:
+
+```sh
+python3 docs/evidence/classic-esp32-spike-2026-10-02/ble-run.py \
+  --emulator target/release/esp32sim \
+  --firmware /tmp/esp32-ble-firmware \
+  --rom "$HOME/.platformio/packages/tool-esp-rom-elfs/esp32_rev300_rom.elf" \
+  --arduino /tmp/esp32-ble2-arduino-3.3.8 \
+  --output target/ble2/final
+```
+
+Each run uses `--chip esp32 --boot rom --ble --no-dump`, matching ELF and factory
+image, and `--no-reboot` except for the software-reset check. Exact commands,
+scripts, hashes, checks and instruction counts are in [the run receipt](ble-runs.json).
+
+| Example | Checked output |
+| --- | --- |
+| Server | Advertises `BLE Server Example` and service `4fafc201-1fb5-459e-8fcc-c5c9c331914b`; connects, discovers, reads `Hello World says Neil` at `0x002a`. |
+| Notify | Advertises `ESP32` and the service; connects, discovers, subscribes at `0x002b`, receives exactly `01000000`, `02000000`, `03000000`, `04000000`. |
+| Write | Advertises `MyESP32`; connects and discovers the service; `New value: Hello from host` proves onWrite delivery; reading `0x002a` returns the same bytes. The unchanged sketch does not advertise the service UUID. |
+| Scan | Prints `Name: esp32sim`, Battery Service `180f`, `Devices found: 1`, and `Scan done!`. |
+| Reboot | RTC software reset at 0.6 modeled seconds; two guest initializations and advertisements with the same name and service, at 0.288095 and 0.888076 seconds. |
+
+### Timing, retained negatives and limits
+
+| Example | Modeled boot to first advertising, s | Wall to first advertising, s | Total wall, s |
+| --- | --- | --- | --- |
+| Server | 0.288095 | 4.972164 | 6.554084 |
+| Notify | 0.288283 | 5.539447 | 9.441072 |
+| Write | 0.288113 | 4.794730 | 6.257232 |
+| Scan | not advertising | not advertising | 12.095914 |
+| Reboot | 0.288095 | 4.849759 | 10.500313 |
+
+Single sequential native runs on macOS 26.6.2, Darwin arm64, Rust 1.96.0.
+Modeled time is bus cycles divided by 240 MHz. Wall time is Python `perf_counter`
+from process launch to reading the first advertising stderr line, including image
+loading and scheduling. Host activity was uncontrolled; the first 0.7 seconds of
+Server overlapped the targeted adapter-test command. No full-suite or release/WASM
+build overlapped these final runs. These measurements make no speedup or physical
+Bluetooth timing claim.
+
+The first harness run exited 1 because the installed Arduino package had advanced
+to 3.3.9 and its Server source contains an extra `advertiseOnDisconnect(true)` call.
+Checking the official 3.3.8 tag confirmed the supplied firmware source was unchanged.
+The same run incorrectly required a service UUID in Write's advertisements, although
+that unchanged example only exposes it through discovery. Both checks were corrected
+once; the retry passed without emulator or firmware changes. Initial numeric results,
+failed checks and hashes remain in [the negative receipt](ble-negative.json). A
+supplemental web fetch returned `Cache miss`; fetching the official sources with
+Python urllib succeeded. All build commands and individual simulator processes exited successfully.
+
+Limits remain EX200's one unencrypted LE link, legacy advertising, ATT MTU 23,
+20-byte script writes, no RF or pairing, and no calibrated connection-event timing.
+The callback task polls once per guest tick and remains allocated until reboot.
+Matching unstripped ELF symbols and windowed-Xtensa callbacks are required.
+WASM was built, not exercised in a browser. S3/C3/C6 firmware was not rerun here;
+their code is unchanged and their adapter tests passed in the workspace suite.
+
+Raw logs remain under ignored `target/ble2`; only curated checks, hashes and numeric
+samples are retained here. Home paths are normalized to `/Users/alice`; virtual
+BLE addresses are fixtures. Original and normalized run-log hashes are preserved.
+No personal inventory or raw private capture is committed. Manual privacy review
+and the tracked-evidence checker cover the new receipts and script.
+
 ## Modeled behavior and known gaps
 
 The target models the classic memory/cache windows, both MMU tables, mask ROM and SRAM,

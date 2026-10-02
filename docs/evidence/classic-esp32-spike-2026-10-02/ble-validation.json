@@ -1,0 +1,153 @@
+{
+  "experiment": "EX199",
+  "related_experiment": "EX200",
+  "date": "2026-10-02",
+  "base_revision": "b7aef310f6864af58417e62706ca1d8a5fcc9289",
+  "shared_ble_revision": "47d750d3e6e9dcbde47202147b40cec6c2cffc2e",
+  "prototype_revision": "0755b8bd4739d6d89ea0de4c97cd04cfd6bd5058",
+  "prototype_evidence_revision": "a79fa7a146c6bf8400d84eb5d7a04bcc1b7ae62a",
+  "adapter_revision": "62e3e1adc2513fc71ba65e7490e2550c1d23389f",
+  "shared_controller_changes": "None. Shared controller equals the prototype except for pub mod vhci; Bluedroid HCI support and tests were already in EX200.",
+  "source_sha256": {
+    "esp32/src/ble.rs": "8d1480dd25d6a89cb0ec82d74e575ecd754711ad4c406cae0c80ab6811821897",
+    "esp-soc/src/ble.rs": "ed164617c8ca7a4682934416b499cbf20acb220453d2071584257988d15c0216",
+    "esp-soc/src/ble/vhci.rs": "94b65780ea87c527ae3df126c4a8feeb45b123ee9c0e3d8f86504cecf20f73af"
+  },
+  "commands": {
+    "cargo build --release": "pass",
+    "cargo test --workspace": "pass: 555 passed, 0 failed, 22 ignored",
+    "cargo test -p esp32 ble::tests": "pass: 5 passed",
+    "tools/wasm-build.sh": "pass",
+    "node tools/check-evidence-privacy.mjs": "pass: 1496 tracked evidence files, including 15 gzip files; manual review completed",
+    "git diff --check": "pass; git diff --cached --check also passed for staged evidence"
+  },
+  "logs": {
+    "build": {
+      "path": "target/ble2/build.log",
+      "sha256": "3f78f3b74c0066529420f98e2f86e18fa4b51a2978aef2c704c993aa46c24bda",
+      "bytes": 290
+    },
+    "workspace-tests": {
+      "path": "target/ble2/workspace-tests.log",
+      "sha256": "59a3ece330258224c28f8ecc9ba888fffe6aca387b696ce735d5d9696e616451",
+      "bytes": 53866
+    },
+    "adapter-tests": {
+      "path": "target/ble2/adapter-tests.log",
+      "sha256": "f58a7326522d6cf15174229404217a837e20d66b92fd038c993d945c4eaa25b0",
+      "bytes": 744
+    },
+    "wasm-build": {
+      "path": "target/ble2/wasm-build.log",
+      "sha256": "9637ffcb90734262b23f5192b3ad4c3cbec26c38544c24debbe8abc099bf7fb6",
+      "bytes": 976
+    },
+    "final-checks": {
+      "path": "target/ble2/final-checks.log",
+      "sha256": "087edc39259e95894c3c5ef723d46cf7d6c3167c0cc560531faed658b6efc828",
+      "bytes": 1297
+    },
+    "privacy": {
+      "path": "target/ble2/privacy.log",
+      "sha256": "ed54eae373f8412ac657020ce942d217c1f333d7184f650ede6d34b08e261133",
+      "bytes": 130
+    }
+  },
+  "wasm_sha256": "03c929b1fd2695e1b200abb3464848e991772db9508138fe86f5028a1c2f2a0c",
+  "firmware": {
+    "framework": "Arduino-ESP32 3.3.8",
+    "libs": "5.5.4+sha.735507283d",
+    "platform": "https://github.com/pioarduino/platform-espressif32.git#55.03.38-1",
+    "board": "esp32dev",
+    "rebuilt": false,
+    "provenance": "All supplied artifacts and sources match the original build manifest byte-for-byte. Sketches also match the official 3.3.8 tag fetched independently. Installed framework now reports 3.3.9; it was not used to rebuild.",
+    "original_build_command": "pio run --project-dir /tmp/esp32-ble-firmware/<example>",
+    "artifacts": {
+      "server": {
+        "platformio.ini": {
+          "sha256": "b86c69259be417474b2dfef705f80db5720beff2f80b471ef5762f2a65651500",
+          "bytes": 152
+        },
+        "src/main.cpp": {
+          "sha256": "ebb7ba07b385799db98652fa30697c0ff30d934f67e4f1c8b01e798fa1d7956c",
+          "bytes": 1666
+        },
+        ".pio/build/esp32dev/firmware.elf": {
+          "sha256": "71cb81d036a9b08bc704949ba0f2ba2849c8ccb4206be5ec403df2317221fb77",
+          "bytes": 11682580
+        },
+        ".pio/build/esp32dev/firmware.factory.bin": {
+          "sha256": "f350885b67add4df403e5e9e9db032f2e356964d899b51c0fc7e39370c8371d6",
+          "bytes": 1177200
+        }
+      },
+      "notify": {
+        "platformio.ini": {
+          "sha256": "b86c69259be417474b2dfef705f80db5720beff2f80b471ef5762f2a65651500",
+          "bytes": 152
+        },
+        "src/main.cpp": {
+          "sha256": "4104a310fcb7a5413721fbebf01c650978efbfea4a7740975adf050b640c1543",
+          "bytes": 3850
+        },
+        ".pio/build/esp32dev/firmware.elf": {
+          "sha256": "79c02ab06724ad3c0b160a796b60a379e7be68c42f420690d084534a5ec63672",
+          "bytes": 11694148
+        },
+        ".pio/build/esp32dev/firmware.factory.bin": {
+          "sha256": "fe163bf2b09b4bc52660a5f2a72cdcf9509c33c09c3dbcbbf6f9b3623adf8fb1",
+          "bytes": 1181600
+        }
+      },
+      "write": {
+        "platformio.ini": {
+          "sha256": "b86c69259be417474b2dfef705f80db5720beff2f80b471ef5762f2a65651500",
+          "bytes": 152
+        },
+        "src/main.cpp": {
+          "sha256": "e7d5d8bb03f12194e8ea84c6b607b295916650de8b03cacff04a7c8fb736c6c8",
+          "bytes": 1868
+        },
+        ".pio/build/esp32dev/firmware.elf": {
+          "sha256": "74826fd683ca91324d1f80ea4dcd86c8472f9a759389581888cfd47ed3d2d73e",
+          "bytes": 11691908
+        },
+        ".pio/build/esp32dev/firmware.factory.bin": {
+          "sha256": "999ad548d37e93cb5dd03d3a9e0a44fd84fdd04fb541fd88638e158095768235",
+          "bytes": 1177568
+        }
+      },
+      "scan": {
+        "platformio.ini": {
+          "sha256": "b86c69259be417474b2dfef705f80db5720beff2f80b471ef5762f2a65651500",
+          "bytes": 152
+        },
+        "src/main.cpp": {
+          "sha256": "90502d0863416af26e3d0787ea5cd3524acb764ca0feaf7a3f65994c5844e1dc",
+          "bytes": 1341
+        },
+        ".pio/build/esp32dev/firmware.elf": {
+          "sha256": "5106d6349a36f9c6b27384366d1da5d41c746084ee62a43446e8dbf059ec80db",
+          "bytes": 11673104
+        },
+        ".pio/build/esp32dev/firmware.factory.bin": {
+          "sha256": "3be93e1b64cf4fabd59bf2812c71dd1fa42b1def363b726be83692b1e5c6900a",
+          "bytes": 1171520
+        }
+      }
+    },
+    "official_urls": {
+      "Server": "https://raw.githubusercontent.com/espressif/arduino-esp32/3.3.8/libraries/BLE/examples/Server/Server.ino",
+      "Notify": "https://raw.githubusercontent.com/espressif/arduino-esp32/3.3.8/libraries/BLE/examples/Notify/Notify.ino",
+      "Write": "https://raw.githubusercontent.com/espressif/arduino-esp32/3.3.8/libraries/BLE/examples/Write/Write.ino",
+      "Scan": "https://raw.githubusercontent.com/espressif/arduino-esp32/3.3.8/libraries/BLE/examples/Scan/Scan.ino"
+    }
+  },
+  "negatives": [
+    "Initial harness exit 1: Server and reboot unchanged_official_sketch=false against installed 3.3.9. Corrected reference to official 3.3.8.",
+    "Initial harness exit 1: Write advertising service=4fafc201-1fb5-459e-8fcc-c5c9c331914b=false. Unchanged Write omits service UUID from advertisements; checked service by GATT discovery as EX200 does. Both harness errors corrected together for one successful retry; no firmware or emulator fix.",
+    "Supplemental web fetch of the official Server example returned Cache miss. Python urllib fetched all four official 3.3.8 sources successfully."
+  ],
+  "privacy": "Home paths use the normalized /Users/alice label. No process inventory, host identifier or raw capture committed. Raw build logs remain ignored; their hashes refer to original local files. BLE addresses are synthetic fixtures. Run receipts retain original and normalized log hashes. Numeric observations unchanged.",
+  "adoption": "Retained in local classic-ble2 adapter and separate evidence commits. No shared-code commit needed. Never pushed."
+}
