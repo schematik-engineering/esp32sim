@@ -360,6 +360,16 @@ impl SocBus {
         if self.periph.spi_exec { self.run_spi(); }
         self.board.advance_to(self.cycles);
         self.periph.tick(cycles as u64);
+        if self.periph.sha.dma_pending {
+            if let Some(ch) = self.periph.gdma.out_channel_for(7) {
+                let mut sha = std::mem::take(&mut self.periph.sha);
+                let mut channel = self.periph.gdma.out[ch];
+                sha.dma_step(&mut channel, self);
+                self.periph.sha = sha;
+                self.periph.gdma.out[ch] = channel;
+                self.irq_dirty = true;
+            }
+        }
         if self.periph.aes.dma_pending { self.aes_dma_step(); }
         if !self.periph.wifi.tx_pending.is_empty() { self.wifi_tx_step(); }
         if self.periph.wifi.ap.is_some() { self.wifi_air_step(); self.wifi_net_step(); }

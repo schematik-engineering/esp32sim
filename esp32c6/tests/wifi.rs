@@ -19,7 +19,7 @@ fn machine_with_ap() -> esp32c6::Machine {
 /// The channel switch as the ROM's `freq_chan_en_sw` and the PHY library's
 /// `ram_set_chan_freq_sw_start` perform it: index into +0xC0, pulse bit 14, poll +0xCC bit 8.
 #[test]
-fn channel_switch_is_done_at_the_start_pulse() {
+fn channel_switch_completes_after_one_microsecond() {
     let mut bb = ModemBb::new();
     assert_eq!(Device::read(&mut bb, 0xcc) & (1 << 8), 0, "no switch was asked for yet");
 
@@ -28,6 +28,7 @@ fn channel_switch_is_done_at_the_start_pulse() {
     Device::write(&mut bb, 0xc0, v);
     assert_eq!(Device::read(&mut bb, 0xcc) & (1 << 8), 0, "the index alone starts nothing");
     Device::write(&mut bb, 0xc0, v | 1 << 14);
+    bb.tick(80);
     assert_ne!(Device::read(&mut bb, 0xcc) & (1 << 8), 0, "done");
     Device::write(&mut bb, 0xc0, v);
     assert_ne!(Device::read(&mut bb, 0xcc) & (1 << 8), 0, "still done after the pulse ends");
@@ -51,13 +52,15 @@ fn mac_core_reports_ready_to_hal_init() {
 
 /// `ram_iq_est_enable`: +0x474 bit 0 then bit 1, wait for +0x4A0 bit 16.
 #[test]
-fn iq_estimate_is_done_while_started() {
+fn iq_estimate_completes_after_one_microsecond() {
     let mut bb = ModemBb::new();
     Device::write(&mut bb, 0x474, 1);
     assert_eq!(Device::read(&mut bb, 0x4a0) & (1 << 16), 0, "enabled, not started");
     Device::write(&mut bb, 0x474, 3);
+    bb.tick(80);
     assert_ne!(Device::read(&mut bb, 0x4a0) & (1 << 16), 0);
     Device::write(&mut bb, 0x474, 0);
+    Device::write(&mut bb, 0x474, 3);
     assert_eq!(Device::read(&mut bb, 0x4a0) & (1 << 16), 0, "the next estimate waits for its own start");
 }
 
@@ -164,4 +167,19 @@ fn aes_runs_through_gdma() {
     let dw0 = m.bus.read32(in_desc).unwrap();
     assert_eq!((dw0 >> 12 & 0xfff, dw0 >> 30), (16, 1), "16 bytes, SUC_EOF, owner back with the CPU");
     assert!(!m.bus.periph.gdma.gdma.inp[0].running && !m.bus.periph.gdma.gdma.out[0].running);
+}
+
+#[test]
+fn phy_calibration_registers_complete_and_rearm_through_mmio() {
+    let mut p = esp32c6::periph::Peripherals::new([0; 6]);
+    for (start, status, mask) in [(0x418, 0x418, 1 << 22), (0x810, 0x814, 7 << 14)] {
+        for _ in 0..2 {
+            p.write32(0x600a0000 + start, 0);
+            p.write32(0x600a0000 + start, 1);
+            p.tick(158);
+            assert_eq!(p.read32(0x600a0000 + status) & mask, 0);
+            p.tick(2);
+            assert_eq!(p.read32(0x600a0000 + status) & mask, mask);
+        }
+    }
 }

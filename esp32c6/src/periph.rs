@@ -343,6 +343,7 @@ pub struct Peripherals {
     pub sha: Sha,
     pub aes: Aes,
     pub rsa: Rsa,
+    pub ecc: crate::ecc::Ecc,
     pub rmt: RmtC6,
     pub parlio: crate::parlio::Parlio,
     pub i2s0: I2s,
@@ -395,6 +396,7 @@ device_set! { Peripherals; clock: (clock) CPU_HZ, [(ClockDomain::Systimer, 10), 
     0x88 "AES" (aes) => [src::AES];
     0x89 "SHA" (sha) => [];
     0x8a "RSA" (rsa) => [src::RSA];
+    0x8b "ECC_MULT" (ecc) => [src::ECC];
     0x91 "GPIO" (gpio) => [src::GPIO];
     0x96 "PCR" (pcr) => [];
     0xa0 "MODEM_BB" (modem_bb) => [];
@@ -437,7 +439,7 @@ impl Peripherals {
             efuse: efuse_c6(mac, 0, 1, 1, 0, 3),
             spi0: SpiMemC6({ let mut s = SpiMem::new(false); s.has_psram = false; s }),
             spi1: SpiMemC6({ let mut s = SpiMem::new(true); s.has_psram = false; s }),   // no PSRAM on the C6
-            sha: Sha::new(), aes: Aes::new(), rsa: Rsa::new(),
+            sha: Sha::new(), aes: Aes::new(), rsa: Rsa::new(), ecc: Default::default(),
             i2s0: I2s::new(CPU_HZ), rmt: RmtC6::new(CPU_HZ), parlio: crate::parlio::Parlio::new(), gdma: GdmaC6::new(), spi2: GpSpi::new(), radio: Ieee802154::new(), modem_bb: ModemBb::new(), wifi_mac: WifiMac::new(),
             intmtx: IntMatrix::new(), intc: Intc::new(), cache: Cache::new(), lpsys: LpSys::new(), pcr: Pcr::new(), ana_mst: AnaMst::new(), assist_debug: AssistDebug::new(),
             rng: Rng::new(), cpu_sub: RegRam::new(),

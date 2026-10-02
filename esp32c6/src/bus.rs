@@ -535,6 +535,16 @@ impl SocBus {
         self.pcm_sources.advance(cycles as u64, crate::periph::CPU_HZ);
         if self.periph.radio.rx_write.is_some() { self.radio_rx_store(); }
         if self.periph.spi2.dma_tx_pending.is_some() { self.spi2_dma_tx(); }
+        if self.periph.sha.dma_pending {
+            if let Some(ch) = self.periph.gdma.gdma.out_channel_for(7) {
+                let mut sha = std::mem::take(&mut self.periph.sha);
+                let mut channel = self.periph.gdma.gdma.out[ch];
+                sha.dma_step(&mut channel, self);
+                self.periph.sha = sha;
+                self.periph.gdma.gdma.out[ch] = channel;
+                self.irq_dirty = true;
+            }
+        }
         if self.periph.aes.dma_pending { self.aes_dma_step(); }
         if !self.periph.wifi_mac.tx_pending.is_empty() { self.wifi_tx_step(); }
         if self.periph.wifi_mac.ap.is_some() { self.wifi_air_step(); self.wifi_net_step(); }

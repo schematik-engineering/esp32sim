@@ -1,0 +1,185 @@
+{
+  "base": "6e562b863f4a5c94c5055747e8331452adaf2de1",
+  "reference": "221080ffccfa829106b398f896653535853c76c8",
+  "addon": "b0f59f359ca46509f7a1a4c0dbad9066ca6bb7e8",
+  "environment": {
+    "os": "Darwin",
+    "arch": "arm64",
+    "rustc": "1.99.0 (b940084d7 2026-09-28)",
+    "node": "22.23.1"
+  },
+  "source_sha256": {
+    "esp-periph/src/sha.rs": "8462e4bb3e2728fa26c84e0421339dfdfbd59fe6145225a1325942b91b35049e",
+    "esp32c3/src/bus.rs": "396309c285ba771f5aef7b918a7190ed61503c27c2dbbac39ee821bf83a914ed",
+    "esp32c3/tests/sha_dma.rs": "63f596a0a2a74a34471d8800fcdaf6e04bb0e7c20a32c66b07a652d2757619ae",
+    "esp32c6/src/bus.rs": "7400ee56a239bda574916bb6ff03fb3b65842592c8155d215c04c935ed142233",
+    "esp32c6/src/ecc.rs": "1bf0c8c13e1d7684a4e7e55a2085a4c591e46fc380ab35a6a4cfd24daf9ecf9d",
+    "esp32c6/src/lib.rs": "52fe69842107db4963d8c84a70f9ca6f5c0658102bc4a6bd851fc1fecd9f8d9b",
+    "esp32c6/src/periph.rs": "8cd437cd12cb883f6a1eb13904a097e137cf50c5e756eefc59b541298ecdd64f",
+    "esp32c6/src/wifi.rs": "65d3155b8b6c156f5fe9e3f7bc184217d66ad7a57f714a9e98d151beb128b978",
+    "esp32c6/tests/sha_dma.rs": "308a34d31ef44f5acd3281e98393f313d259e8ffda308006db620c7cfefeab2f",
+    "esp32c6/tests/wifi.rs": "5001fc14383c29dc5a26c4ad4a61f6a4fd9569df4a1b6ee76e947d41d827b919"
+  },
+  "wasm_sha256": "e4e5b208a2d9e4b0869d8ba7712262da657c4714330773aa0345b85caa06c7a9",
+  "relay_sha256": "923d6dd82254975b6629aef133271234ccf86cb1bb511bfd504d44b0f795d2f1",
+  "rust_tests": {
+    "passed": 657,
+    "failed": 0,
+    "ignored": 0,
+    "measured": 0,
+    "filtered_out": 50
+  },
+  "acceptance": [
+    {
+      "chip": "esp32c6",
+      "emulatorVersion": "fix-net-pinned",
+      "buildFingerprint": "63894078fadddce06f280ab9453623ac68a0efc1eeae58855e0446c406033f4e",
+      "firmware": [
+        {
+          "filename": "bootloader.bin",
+          "offset": 0,
+          "sha256": "d8499f4367c3a8377d513a2fd0e94b5ad6974d2c13591b52bad56183aa7002e7"
+        },
+        {
+          "filename": "partitions.bin",
+          "offset": 32768,
+          "sha256": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1"
+        },
+        {
+          "filename": "boot_app0.bin",
+          "offset": 57344,
+          "sha256": "f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0"
+        },
+        {
+          "filename": "firmware.bin",
+          "offset": 65536,
+          "sha256": "f9040488eb7b44b8b36f4871d26977b471dcdeb0731b7bd90aec96bb8acecd44"
+        }
+      ],
+      "checks": [
+        "WPA2 and DHCP",
+        "GET /binary: 256 exact bytes",
+        "GET /large: 65536 exact bytes",
+        "POST /echo: 19 exact bytes",
+        "MQTT binary publish/subscribe: 256 exact bytes and disconnect",
+        "WebSocket: 256 exact binary bytes, UTF-8 text and disconnect",
+        "Guest connection to 172.16.0.1 blocked",
+        "Guest connection to 192.168.1.1 blocked",
+        "Guest connection to 169.254.169.254 blocked",
+        "Guest connection to 203.0.113.1 blocked",
+        "Guest MQTT CONNACK timeout after 2 emulated seconds against silent loopback broker",
+        "Local firmware serial still responds after relay session closes"
+      ],
+      "exit_code": 0,
+      "timeout_ms": 2001
+    },
+    {
+      "chip": "esp32c3",
+      "emulatorVersion": "fix-net-pinned",
+      "buildFingerprint": "fae5150a4b691c7451f80459e58be0e2087b9fcfff18283f8127396aa9dc076a",
+      "firmware": [
+        {
+          "filename": "bootloader.bin",
+          "offset": 0,
+          "sha256": "47f8c05bd1a66e6dc4b196c618b4fd37a4de652f3096c27a1bb86adb5c6d969b"
+        },
+        {
+          "filename": "partitions.bin",
+          "offset": 32768,
+          "sha256": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1"
+        },
+        {
+          "filename": "boot_app0.bin",
+          "offset": 57344,
+          "sha256": "f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0"
+        },
+        {
+          "filename": "firmware.bin",
+          "offset": 65536,
+          "sha256": "44c700548bc543cf5a865435a4a51d2db4c47128a83e120b83a40f83755308f4"
+        }
+      ],
+      "checks": [
+        "WPA2 and DHCP",
+        "GET /binary: 256 exact bytes",
+        "GET /large: 65536 exact bytes",
+        "POST /echo: 19 exact bytes",
+        "MQTT binary publish/subscribe: 256 exact bytes and disconnect",
+        "WebSocket: 256 exact binary bytes, UTF-8 text and disconnect",
+        "Guest connection to 172.16.0.1 blocked",
+        "Guest connection to 192.168.1.1 blocked",
+        "Guest connection to 169.254.169.254 blocked",
+        "Guest connection to 203.0.113.1 blocked",
+        "Guest MQTT CONNACK timeout after 2 emulated seconds against silent loopback broker",
+        "Local firmware serial still responds after relay session closes"
+      ],
+      "exit_code": 0,
+      "timeout_ms": 2000
+    }
+  ],
+  "gates": {
+    "clippy_native": "pass",
+    "clippy_wasm": "pass",
+    "release_workspace": "pass",
+    "fetch_assets": "pass",
+    "wasm_build": "pass",
+    "wasm_smoke": [
+      "hello",
+      "c3-hello",
+      "c6-hello",
+      "c6-energy-scan",
+      "c6-contiki",
+      "c6-contiki-net",
+      "c6-rpl-net",
+      "panel"
+    ],
+    "privacy": "pass: 1607 tracked evidence files, including 17 gzip files"
+  },
+  "local_log_sha256": {
+    "addon-build-retry.log": "cddf39aac978093fb8e73c3bf4a825363274d85276ecae4d5222c0f7bb682f54",
+    "addon-build.log": "06e57f12aa8a984af2d0efbd8a1dfb45c2cdc2bb6299f5e2f1192a63651157e1",
+    "addon-ecc.log": "372ab5248d847b2191f723c013ff657bbb69286a66f5edbd2d22fef6f370cea5",
+    "addon-lock.log": "fbe0f8dc7360eb94b6bd42220fb05ffbd0af248395a5b6f8bd4b72f4f6f9da74",
+    "addon-pin.log": "355e702244057828910f92e88c8f4b59003dec106e7acce4d09d31447a60f4bc",
+    "addon-pinned-lock.log": "fbe0f8dc7360eb94b6bd42220fb05ffbd0af248395a5b6f8bd4b72f4f6f9da74",
+    "addon-pinned.log": "033c5f93a21e514b7a76dfe4e152e8f538d5314ab464d6f320e9bcac53a08ce7",
+    "assets.log": "26923702fc5f718c1f45200d0249d7d236902828999ace9ee575e9b5d5441a4b",
+    "clippy-final.log": "0a7c645e3a4e1ca37d60e82507b43c46f5489c266ad65741a744d4e4db9d1732",
+    "clippy-retry.log": "7d09fba652f4e083cf2a8d99ac27008ce76262f3c4833ac711214d8f8e54f9e3",
+    "clippy-wasm-final.log": "187ae45f84ba5a1ddbaf22ac6cb37a8cd5e68b3f2d79671745ac9e31007a68bf",
+    "clippy-wasm.log": "8c210e8a8a5fe8d15058dc6b5e3f5c3ed74594aef3bd68a9d334ac14eed76446",
+    "clippy.log": "8e2cdf6feeee5377ce20d867f5155571606854a65266ea669a8ada03ab8204da",
+    "clone.log": "803aa2af1ac97758fbbb57dac246b936b4c9a21a97caaedb55c291311a486029",
+    "focused-retry.log": "29578f64e7484a8b913548ee2c0578015a9f7193f0db484af547c59d19382bea",
+    "focused.log": "4f21f9f6bd3a323d5556ae372a8aa0f990ffe1b3c5b3a067a4a197db386205cb",
+    "fork-c6.log": "28c8242f3f1ba69d88a98359e666d453b4b2f4d10bf48e5de61624b8125d2777",
+    "repro-c3-final.log": "ba4adeb9af05ee25b759cfcdfa1da6e83dfad4dd8249c859a424f045ab536e28",
+    "repro-c3-pinned.log": "82fb72cc48c7971e13fadc0d8752d7a71f99e3dee0d50b784fba68820ceec9e6",
+    "repro-c3-retry.log": "2e676c536781eec78ac088f9ba95c47e7fc53f070abf78904438bc98ab15013a",
+    "repro-c3.log": "edaaffa552016ae21e063b77b92c6be1cc4ba46f3f9d2c982fc6b5704a21d09f",
+    "repro-c6-ecc.log": "97c07fcc50dd6b939f7aa5e24825a8c4d6bf010a9a5253977cd30d18265aca21",
+    "repro-c6-pinned.log": "79e0e55bc07274e9165dd554d64c6e432b1d4802dad1650d60ca3907d2431545",
+    "repro-c6-retry.log": "6d86045b4f75d6075c98b28e4143e85b202de6152efd59c01335b9e6f855e4f4",
+    "repro-c6.log": "b6e71c1d9fa6bc45f9af99ab41d0c6558e73455e2b7cac801b869b5247065ae2",
+    "tests-final.log": "e89443ddeaab2f5a9d716ac74f132aed61d9e4a6d5a19902f94b063c8fe14c30",
+    "tests.log": "33221bf4055641170e43db9a745a18d74d4c5e300a84ef88582bb5949be6cf50",
+    "wasm-build-final.log": "ec8b951c2d330d81f78c2a0268891cd7c4d0304340fa05d8abd7b7ebce5bb4c1",
+    "wasm-build.log": "3f2c2b70e8b22142a0ea6f8208e7fbd38836de324e8c7b023cb662f32a8b26f8",
+    "wasm-tests-final.log": "0f1fce8ac150bb3df75f5f87a8b29493d698a0b6a3adc595126cfb68185ddd42",
+    "wasm-tests.log": "ce78b8f5a2629c95aca91b3fde2725407c07d83068904b242544fbd155b1fdb6",
+    "privacy-final.log": "22ed66ac63bd67b0cfd1a2aa2e3e777c43d5e1850ae2c01befa3c95298d55d82"
+  },
+  "earlier_outcomes": {
+    "focused.log": "failed: wrong ClockDomain import",
+    "focused-retry.log": "failed: wrong ClockDomain import; stopped focused command retries",
+    "clippy.log": "failed: chunks_exact lint",
+    "clippy-retry.log": "passed",
+    "repro-c3.log": "failed: manifest version mismatch",
+    "repro-c6.log": "failed: manifest version mismatch",
+    "repro-c3-retry.log": "passed: 12 checks, current add-on, no ECC",
+    "repro-c6-retry.log": "failed: TLS negotiation deadline, no ECC",
+    "repro-c6-ecc.log": "failed: public MQTT -4 before TLS, current add-on",
+    "fork-c6.log": "failed: public MQTT -4 before TLS; DHCP/HTTP passed",
+    "repro-c3-final.log": "passed: 12 checks, current add-on, ECC enabled"
+  }
+}
