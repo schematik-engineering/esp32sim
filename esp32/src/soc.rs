@@ -118,6 +118,9 @@ impl esp_soc::SocBus for SocBus {
         for port in 0..2 { self.periph.i2s[port].inner.rx_input = std::mem::take(&mut old.i2s[port].inner.rx_input); }
         self.periph.gpio.restore_inputs(&old.gpio);
         self.periph.efuse = old.efuse;
+        self.periph.wifi.ap = old.wifi.ap;
+        self.periph.wifi.net = old.wifi.net;
+        self.periph.wifi.log = old.wifi.log;
         self.periph.misc.log_unknown = old.misc.log_unknown;
         self.periph.gpio.gpio.strap = old.gpio.gpio.strap;
         self.periph.rtc.0.ram = old.rtc.0.ram;
