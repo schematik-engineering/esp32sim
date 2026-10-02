@@ -362,6 +362,7 @@ pub struct Peripherals {
     pub systimer: Systimer,
     pub timg: [TimerGroup; 2],
     pub gpio: Gpio,
+    pub io_mux: esp_periph::RegRam,
     pub efuse: Efuse,
     pub spi0: SpiMemC6,
     pub spi1: SpiMemC6,
@@ -395,6 +396,7 @@ pub struct Peripherals {
 
 // Every peripheral, where it sits (4 KB block number from 0x60000000), and its interrupt sources.
 device_set! { Peripherals; clock: (clock) CPU_HZ, [(ClockDomain::Systimer, 10), (ClockDomain::Apb, 2), (ClockDomain::RtcSlow, 1067), (ClockDomain::Cpu, 1)];
+    0x90 "IO_MUX" (io_mux) => [];
     0x00 "UART0" (uart[0]) => [src::UART0];
     0x01 "UART1" (uart[1]) => [src::UART1];
     0x02 "SPI0" (spi0) => [];
@@ -444,7 +446,7 @@ impl Peripherals {
     pub fn new(mac: [u8; 6]) -> Self {
         Peripherals {
             uart: [Uart::new(UartLayout::C6), Uart::new(UartLayout::C6)], usb: UsbSerialJtag::new(CPU_HZ), systimer: Systimer::new(),
-            timg: [TimerGroup::new(), TimerGroup::new()], gpio: Gpio::new(),
+            timg: [TimerGroup::new(), TimerGroup::new()], gpio: Gpio::new(), io_mux: esp_periph::RegRam::new(),
             efuse: efuse_c6(mac, 0, 1, 1, 0, 3),
             spi0: SpiMemC6({ let mut s = SpiMem::new(false); s.has_psram = false; s }),
             spi1: SpiMemC6({ let mut s = SpiMem::new(true); s.has_psram = false; s }),   // no PSRAM on the C6
@@ -470,6 +472,22 @@ impl Peripherals {
             0xb1 => "LP_AON/LP_UART/LP_I2C/LP_WDT", 0xb2 => "LP_IO/LP_I2C_ANA/LPPERI/LP_ANA_PERI",
             0xb3 => "LP_TEE/LP_APM/OTP_DEBUG", 0xc0 => "TRACE", 0xc2 => "ASSIST_DEBUG", 0xc5 => "INTPRI", 0xc8 => "CACHE",
             _ => "?",
+        }
+    }
+
+    pub fn uart_route(&self, port: usize) -> esp_soc::uart::UartRoute {
+        let clock = self.pcr.read(4 + port as u32 * 12);
+        esp_soc::uart::UartPins::C6.route(port, &self.gpio, &self.io_mux,
+            self.uart[port].baud(clock, 20_000_000))
+    }
+
+    pub fn uart_pin_input(&mut self, input: &esp_soc::uart::UartInput) {
+        if input.data.is_empty() { return; }
+        for port in 0..2 {
+            let route = self.uart_route(port);
+            if route.rx_pin != Some(input.pin) { continue; }
+            if route.matches_baud(input.baud) { self.uart[port].host_input(&input.data); }
+            else { self.uart[port].int_raw |= 1 << 3; }
         }
     }
 
