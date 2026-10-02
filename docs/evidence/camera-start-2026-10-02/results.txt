@@ -1,0 +1,26 @@
+sensor=26 capture=0 CAMERA:FRAME:96:96:0:18432:19e161b5:00:b6
+sensor=26 capture=1 CAMERA:FRAME:96:96:0:18432:19e161b5:00:b6
+sensor=26 capture=2 CAMERA:FRAME:96:96:0:18432:19e161b5:00:b6
+sensor=26 after-deinit-init=0 CAMERA:FRAME:160:120:4:2443:0ead8274:ff:d9
+sensor=26 after-deinit-init=1 CAMERA:FRAME:160:120:4:2443:0ead8274:ff:d9
+sensor=26 after-deinit-init=2 CAMERA:FRAME:160:120:4:2443:0ead8274:ff:d9
+sensor=26 jit-compiled=2415 jit-failed=0
+S3 sensor 26: exact RGB565 and JPEG DMA, reboot, empty input, identity and bounds passed
+sensor=5640 capture=0 CAMERA:FRAME:96:96:0:18432:19e161b5:00:b6
+sensor=5640 capture=1 CAMERA:FRAME:96:96:0:18432:19e161b5:00:b6
+sensor=5640 capture=2 CAMERA:FRAME:96:96:0:18432:19e161b5:00:b6
+sensor=5640 after-deinit-init=0 CAMERA:FRAME:160:120:4:2443:0ead8274:ff:d9
+sensor=5640 after-deinit-init=1 CAMERA:FRAME:160:120:4:2443:0ead8274:ff:d9
+sensor=5640 after-deinit-init=2 CAMERA:FRAME:160:120:4:2443:0ead8274:ff:d9
+sensor=5640 jit-compiled=2407 jit-failed=0
+S3 sensor 5640: exact RGB565 and JPEG DMA, reboot, empty input, identity and bounds passed
+
+ok   wasm JIT handoff: shared-memory block committed at a scheduler boundary
+ok   hello: board none, 4.3 M insns in 0.5 s wall (9.2 Minsn/s), 129 console lines, 0 binary frames
+ok   c3-hello: board none, 480.0 M insns in 0.9 s wall (517.2 Minsn/s), 125 console lines, 0 binary frames
+ok   c6-hello: board none, 480.0 M insns in 1.0 s wall (494.3 Minsn/s), 121 console lines, 0 binary frames
+ok   c6-energy-scan: board waveshare-c6-lcd147, 480.0 M insns in 4.6 s wall (104.3 Minsn/s), 149 console lines, 141 binary frames
+ok   c6-contiki: board waveshare-c6-lcd147, 1920.0 M insns in 5.2 s wall (370.7 Minsn/s), 181 console lines, 17 binary frames
+ok   c6-contiki-net: 2 nodes, n0 tx 5/rx 5, n1 tx 5/rx 5, 30 s simulated in 5.5 s wall (6x real time)
+ok   c6-rpl-net: 2 nodes, n0 tx 27/rx 27, n1 tx 27/rx 27, 90 s simulated in 16.6 s wall (5x real time)
+ok   panel: board waveshare-lcd4b, 142.5 M insns in 7.7 s wall (18.4 Minsn/s), 193 console lines, 254 binary frames

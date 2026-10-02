@@ -1,0 +1,47 @@
+{
+  "baseline": "8cc5d233611d32586bfbb4c4885f6570aa8a64ba",
+  "fork_reference": "221080ffccfa829106b398f896653535853c76c8",
+  "addon_revision": "77fad324fda139476206606879447da999b33570",
+  "firmware_source_sha256": "951fcad3b4297182e7bfd41c4ebb930fff8d748cc605ea3a61f0e4aaf6caa6f5",
+  "firmware_build_fingerprint": "96373a28ade8be68e90d044b2802be8e84cae4ad1f997503d36639165cece402",
+  "flash_bytes": 8388608,
+  "psram_bytes": 0,
+  "segments": [
+    {
+      "filename": "bootloader.bin",
+      "offset": 0,
+      "bytes": 19984,
+      "sha256": "6f232c4aafe7d21239a1c59404723ca2cfdca063ef73501a21126a8cef39f432"
+    },
+    {
+      "filename": "partitions.bin",
+      "offset": 32768,
+      "bytes": 3072,
+      "sha256": "1d9cca96de0fe07ad7fc0648b9878ddecd9ce565e38b589ad20fea698ed4c80c"
+    },
+    {
+      "filename": "boot_app0.bin",
+      "offset": 57344,
+      "bytes": 8192,
+      "sha256": "f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0"
+    },
+    {
+      "filename": "firmware.bin",
+      "offset": 65536,
+      "bytes": 372800,
+      "sha256": "9daf5b72a9c18f7e03ef548a72b3d03c3a2ff2a33c855c59f8ea51fd75322bfb"
+    }
+  ],
+  "inputs": {
+    "jpeg_sha256": "2c106c966079ffa04e1a67cd81401c8f3a9fa668a1338fb6dd435ef6076e46dd",
+    "rom_sha256": "c0ce0f338d1de1bdc6efbef1591779a2a42c1ab7d759d3c6ae8ae63a7dd34cfd",
+    "addon_wasm_sha256": "eccc1989f169bdd332be850bfbad129fa3b60dcb2cc941f34b62eb52fd728c82",
+    "upstream_wasm_sha256": "7318e1c8f5c8fa46e21070aa4f6b4e8268867a611e3c0feed9651aaae65a50ea"
+  },
+  "implementation_sha256": {
+    "esp32s3/src/bus.rs": "b4c573d1637a0315ec950e5033d1147cf28d86969e3b77bc20c5c64b9587bd5b",
+    "esp32s3/src/bus/dma.rs": "5927eea6a5012ea51c642e38e58eda00986b2a94512345ea4cc6aea1004a60e9",
+    "esp32s3/src/periph.rs": "351c0a8a9b4359179b7e2fa66dd187e836893656ab3ccf1e0682ba56a0ca8ac7",
+    "esp32s3/src/bus/tests.rs": "286ac8a847edb77ea3b8d18407cc517ebc8c0cc28d4d2a4375563407fdeb1b58"
+  }
+}
