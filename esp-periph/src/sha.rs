@@ -19,6 +19,48 @@ impl Sha {
         if first { self.init(); }
         self.compress();
     }
+    /// Consume a bounded SHA request from a GDMA descriptor chain.
+    pub fn dma_step(&mut self, channel: &mut crate::gdma::GdmaOutCh, bus: &mut impl emu_core::Bus) {
+        self.dma_pending = false;
+        let bs = self.block_bytes();
+        let Some(want) = (self.block_num as usize).checked_mul(bs) else { return; };
+        if want == 0 || want > 1_048_576 { return; }
+        let mut input = Vec::with_capacity(want);
+        let mut descriptors = Vec::new();
+        let mut desc = channel.desc;
+        let mut visited = std::collections::HashSet::new();
+        while desc != 0 && input.len() < want {
+            if !visited.insert(desc) || visited.len() > 512 { return; }
+            let Ok(dw0) = bus.read32(desc) else { return; };
+            let len = ((dw0 >> 12) & 0xfff) as usize;
+            if dw0 & (1 << 31) == 0 || len == 0 || len > (dw0 & 0xfff) as usize { return; }
+            let (Ok(buf), Ok(next)) = (bus.read32(desc.wrapping_add(4)), bus.read32(desc.wrapping_add(8))) else { return; };
+            for i in 0..len.min(want - input.len()) {
+                let Some(address) = buf.checked_add(i as u32) else { return; };
+                let Ok(byte) = bus.read8(address) else { return; };
+                input.push(byte);
+            }
+            descriptors.push((desc, dw0));
+            if dw0 & (1 << 30) != 0 { break; }
+            desc = next;
+        }
+        if input.len() != want { return; }
+        let mut first = self.dma_first;
+        for block in input.chunks_exact(bs) {
+            self.hash_block(block, first);
+            first = false;
+        }
+        for (desc, dw0) in descriptors {
+            let _ = bus.write32(desc, dw0 & !(1 << 31));
+            channel.int_raw |= 1;
+            if dw0 & (1 << 30) != 0 {
+                channel.int_raw |= 1 << 1;
+                channel.eof_desc = desc;
+            }
+        }
+        self.busy = false;
+    }
+
     fn init(&mut self) {
         self.h = [0; 16];
         match self.mode {

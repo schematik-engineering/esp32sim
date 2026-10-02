@@ -5,57 +5,43 @@
 //! every register below is here because the closed PHY/WiFi library was seen waiting on it, with
 //! the waiting code named. The specimen is `examples/c6-wifi-station`; the plan and the order of
 //! work are in `docs/wifi-c6-plan.md`.
+use emu_core::ClockDomain;
 use esp_periph::{Device, RegRam, WriteEffect};
 
-/// The modem baseband block (`0x600A0000`). Register RAM, plus the handshakes the PHY library
-/// polls:
-///
-/// - **Channel switch.** The ROM's `freq_chan_en_sw` puts the channel index into `+0xC0` bits
-///   13:7 and pulses bit 14 (start); the library's `ram_set_chan_freq_sw_start` then spins on
-///   `+0xCC` bit 8 (done). The synthesiser settling is not modelled: the switch is done at the
-///   start pulse, and stays done until the next one.
-/// - **IQ estimate.** `ram_iq_est_enable` (from `dc_iq_est_new`, which the scan runs on every
-///   channel) sets `+0x474` bit 0 (enable) then bit 1 (start) and spins on `+0x4A0` bit 16
-///   (done). There is no signal to estimate: done follows the start bit, and the result
-///   registers read as written, zero.
-pub struct ModemBb {
-    ram: RegRam,
-    chan_done: bool,
-    /// the channel index of the last switch, and how many there were (for `--debug` and tests)
-    pub chan_index: u32,
-    pub chan_switches: u32,
-}
-impl Default for ModemBb { fn default() -> Self { Self::new() } }
-impl ModemBb {
-    pub fn new() -> Self { ModemBb { ram: RegRam::new(), chan_done: false, chan_index: 0, chan_switches: 0 } }
-}
-
-const FREQ_CHAN: u32 = 0xc0;
-const FREQ_CHAN_START: u32 = 1 << 14;
-const FREQ_STATUS: u32 = 0xcc;
-const FREQ_STATUS_DONE: u32 = 1 << 8;
-const IQ_EST: u32 = 0x474;
-const IQ_EST_START: u32 = 1 << 1;
-const IQ_EST_STATUS: u32 = 0x4a0;
-const IQ_EST_DONE: u32 = 1 << 16;
-
+/// Ideal-radio TX DC calibration, decoded from libphy txdc_cal_new.
+/// START is bit0, DONE bit22; zero comparator outputs represent no DC imbalance.
+/// The one-microsecond conversion is deterministic, not physical analog timing.
+#[derive(Default)]
+pub struct ModemBb { ram: RegRam, remaining: [u64; 4], done: [bool; 4], pub chan_index: u32, pub chan_switches: u32 }
+impl ModemBb { pub fn new() -> Self { Self::default() } }
 impl Device for ModemBb {
     fn read(&mut self, off: u32) -> u32 {
         match off {
-            FREQ_STATUS => self.ram.read(off) & !FREQ_STATUS_DONE | if self.chan_done { FREQ_STATUS_DONE } else { 0 },
-            IQ_EST_STATUS => self.ram.read(off) & !IQ_EST_DONE | if self.ram.read(IQ_EST) & IQ_EST_START != 0 { IQ_EST_DONE } else { 0 },
+            0x4a0 => u32::from(self.done[3]) << 16,
+            0xcc => self.ram.read(off) | (u32::from(self.done[2]) << 8),
+            0x418 => self.ram.read(off) | (u32::from(self.done[0]) << 22),
+            0x814 => u32::from(self.done[1]) * (7 << 14),
             _ => self.ram.read(off),
         }
     }
-    fn write(&mut self, off: u32, v: u32) -> WriteEffect {
-        if off == FREQ_CHAN && v & FREQ_CHAN_START != 0 && self.ram.read(off) & FREQ_CHAN_START == 0 {
-            self.chan_index = (v >> 7) & 0x7f;
-            self.chan_switches += 1;
-            self.chan_done = true;
+    fn write(&mut self, off: u32, value: u32) -> WriteEffect {
+        if off == 0x474 && value & 3 == 3 && self.ram.read(off) & 3 != 3 { self.done[3] = false; self.remaining[3] = 80; }
+        if off == 0xc0 && value & (1 << 14) != 0 && self.ram.read(off) & (1 << 14) == 0 { self.chan_index = (value >> 7) & 0x7f; self.chan_switches += 1; self.done[2] = false; self.remaining[2] = 80; }
+        if off == 0x418 || off == 0x810 {
+            let unit = usize::from(off == 0x810);
+            if value & 1 != 0 && self.ram.read(off) & 1 == 0 { self.done[unit] = false; self.remaining[unit] = 80; }
         }
-        self.ram.write(off, v);
+        if off != 0x814 && off != 0x4a0 { self.ram.write(off, if off == 0x418 { value & 0x003f_ffff } else if off == 0xcc { value & !(1 << 8) } else { value }); }
         WriteEffect::NONE
     }
+    fn clock(&self) -> Option<ClockDomain> { Some(ClockDomain::Apb) }
+    fn tick(&mut self, ticks: u64) {
+        for unit in 0..4 {
+            if self.remaining[unit] > 0 { self.remaining[unit] = self.remaining[unit].saturating_sub(ticks); if self.remaining[unit] == 0 { self.done[unit] = true; } }
+        }
+    }
+    fn has_deadline(&self) -> bool { true }
+    fn next_deadline(&self) -> Option<u64> { self.remaining.iter().copied().filter(|ticks| *ticks > 0).min() }
 }
 
 /// The 802.11 MAC (`0x600A4000`) that the closed `libpp`/`libnet80211` drive
