@@ -37,6 +37,7 @@ pub struct SocBus {
     pub rtc_fast: Vec<u8>,
     pub rtc_slow: Vec<u8>,
     pub flash: Vec<u8>,
+    pub ble: esp_soc::ble::vhci::Ble,
     pub rng: Rng,
     pub mmu: [[u32; 2048]; 2],
     pub periph: Peripherals,
@@ -61,6 +62,7 @@ impl SocBus {
             rtc_fast: vec![0; 0x2000],
             rtc_slow: vec![0; 0x2000],
             flash: vec![0xff; flash_size],
+            ble: Default::default(),
             rng: Rng::new(),
             mmu: [[MMU_INVALID; 2048]; 2],
             periph: Peripherals::new(mac),
@@ -74,7 +76,7 @@ impl SocBus {
             ver: 0,
         }
     }
-    fn flash_off(&self, addr: u32) -> Option<usize> {
+    pub(crate) fn flash_off(&self, addr: u32) -> Option<usize> {
         let (table, index) = if (DBUS_LOW..DBUS_HIGH).contains(&addr) {
             (0, ((addr - DBUS_LOW) >> 16) as usize)
         } else if (IBUS_LOW..IBUS_HIGH).contains(&addr) {

@@ -5,6 +5,7 @@ fn ble_is_opt_in_and_requires_a_supported_adapter_and_symbols() {
     assert!(!parse(&["esp32sim".into()], "esp32s3").ble);
     assert!(parse(&["esp32sim".into(), "--ble".into()], "esp32s3").ble);
     let symbols = std::collections::HashMap::new();
+    assert!(esp32::machine([0; 6], 4 << 20).bus.enable_ble(&symbols).unwrap_err().contains("esp_bt_controller_init"));
     assert!(esp32s3::machine([0; 6]).bus.enable_ble(&symbols).is_err());
     assert!(esp32c3::machine([0; 6], 4 << 20).bus.enable_ble(&symbols).is_err());
     assert!(esp32c6::machine([0; 6], 4 << 20).bus.enable_ble(&symbols).is_err());

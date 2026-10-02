@@ -22,14 +22,14 @@ PSRAM and register presets.
 | `--mac xx:xx:xx:xx:xx:xx` | the station MAC the efuses report |
 | `--serial TEXT` | bytes into the USB-Serial/JTAG console before the run |
 | `--elf F` (repeatable) | symbols for logs/profiles (app ELF, bootloader ELF) |
-| `--ble` | virtual BLE controller on S3/C3/C6; requires the matching application `--elf` |
+| `--ble` | virtual BLE controller on ESP32/S3/C3/C6; requires the matching application `--elf` |
 | `--flash-mb N`, `--psram-mb N` | flash size (JEDEC follows it) and octal PSRAM size (default 8 / 2) |
 | `--board atech14\|waveshare-cam\|waveshare-lcd4b\|waveshare-amoled18-v2\|none` | board model (default atech14); on the C6: `waveshare-c6-lcd147` or `none` |
 | `--strap HEX`, `--reset-cause HEX`, `--efuse-regs F`, `--regs-init F` | reproduce a real chip's boot state (used by the differential tests) |
 | `--no-reboot` | stop at the first chip reset instead of rebooting from ROM |
 | `--flash-at OFFSET=FILE` (repeatable) | write a file into flash at a hex offset — a data partition's contents (the panel's `demo` partition takes `energydata.json`) |
 | `--stub SYMBOL[=value]` (repeatable) | return `value` (default 0) immediately when execution reaches the function's entry; numeric function addresses require a `0x` prefix; accepts decimal, `0x` hex, `true` (1) or `false` (0); rejects invalid values |
-| `--ble` | opt-in virtual BLE controller on S3/C3/C6; requires the matching application `--elf` |
+| `--ble` | opt-in virtual BLE controller on ESP32/S3/C3/C6; requires the matching application `--elf` |
 | `--wifi SPEC` | attach a virtual access point the WiFi blob hears, plus a virtual network (DHCP/ARP/ICMP/DNS/SNTP; station 10.0.2.15, gateway 10.0.2.2) — for example `ssid=demo,chan=6,psk=demo-password,bssid=02:00:00:00:00:01`. `password` and `pass` alias `psk`; unknown keys and invalid values are rejected. Open and WPA2-PSK networks both join end to end, on S3, C3 and C6 (docs/wifi-plan.md, docs/esp32c3.md, docs/wifi-c6-plan.md) |
 | `--net nat\|none` | what the virtual network does with traffic it is not itself answering: `nat` (default) forwards TCP and UDP to the host's own network through ordinary sockets, `none` refuses it |
 | `--trace-fn PREFIX` (repeatable) | log every call to functions whose name starts with PREFIX, with args and caller; append `$` for an exact name |
@@ -118,10 +118,10 @@ UI's audio stream and reports sample counts/peak (how to check sound without lis
 ## Virtual BLE
 
 `--ble --elf firmware.elf` substitutes the controller lifecycle and legacy VHCI
-functions on S3 and C3, or the native NimBLE transport on C6. The guest host and sketch remain unchanged.
+functions on classic ESP32, S3 and C3, or the native NimBLE transport on C6. The guest host and sketch remain unchanged.
 An emulator-created FreeRTOS task delivers controller packets through guest
-callbacks. S3 uses the windowed Xtensa ABI; C3 uses RV32IMC. Unstripped controller,
-VHCI, task and BSS symbols are required on S3/C3. C6 requires native transport,
+callbacks. ESP32 and S3 use the windowed Xtensa ABI; C3 uses RV32IMC. Unstripped controller,
+VHCI, task and BSS symbols are required on ESP32/S3/C3. C6 requires native transport,
 NPL and mbuf allocator symbols; its board image needs `--flash-mb 8`.
 
 `[ble]` output reports advertising data and discovered GATT handles. Script commands
