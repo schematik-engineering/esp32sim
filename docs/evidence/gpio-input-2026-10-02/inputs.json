@@ -1,0 +1,323 @@
+{
+  "esp32s3": {
+    "flashBytes": 8388608,
+    "psramBytes": 0,
+    "flash": [
+      {
+        "filename": "bootloader.bin",
+        "offset": 0,
+        "bytes": 19984,
+        "sha256": "6f232c4aafe7d21239a1c59404723ca2cfdca063ef73501a21126a8cef39f432"
+      },
+      {
+        "filename": "partitions.bin",
+        "offset": 32768,
+        "bytes": 3072,
+        "sha256": "1d9cca96de0fe07ad7fc0648b9878ddecd9ce565e38b589ad20fea698ed4c80c"
+      },
+      {
+        "filename": "boot_app0.bin",
+        "offset": 57344,
+        "bytes": 8192,
+        "sha256": "f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0"
+      },
+      {
+        "filename": "firmware.bin",
+        "offset": 65536,
+        "bytes": 331808,
+        "sha256": "0ed9255bae36cb81fcec725475c89e81aebdfec07e171690781181bacf9cfd36"
+      }
+    ],
+    "compiler": {
+      "name": "platformio",
+      "version": "6.1.19",
+      "compilerSha256": "5e599f00ca913977715df9cfa51a8b63ff05538bdd3a871e65dc061dda06dccf",
+      "configurationSha256": "b6240d9cd8e06f3cd94e912c7176fcb9f524b470fc90cbc80e98a21e67d637fd",
+      "packages": [
+        {
+          "name": "contrib-piohome",
+          "version": "3.4.4",
+          "sha256": "895d814d31330f12b120ad32cb4ec29c28dfedeb64d1ba497a235b0ab476fd1d"
+        },
+        {
+          "name": "espressif32",
+          "version": "55.03.38",
+          "sha256": "bef202180776a871d7c3d083d6a65260c344d557efa75180216d4770c023a8f9"
+        },
+        {
+          "name": "framework-arduinoespressif32",
+          "version": "3.3.8",
+          "sha256": "fba3ee1bdfa56013cad484f6de34c4b1d20c0751dff30a0a01afebfd41fc1363"
+        },
+        {
+          "name": "framework-arduinoespressif32-libs",
+          "version": "5.5.4+sha.735507283d",
+          "sha256": "9492ee54778abe8687723ab3a66f342b4b3cc0f74f839ae7ff70e09ee33770e6"
+        },
+        {
+          "name": "framework-espidf",
+          "version": "3.50504.0",
+          "sha256": "b140a22728d866707b3deac19db25cad3bb72ebe31fc4630f83e100087466127"
+        },
+        {
+          "name": "tool-dfuutil-arduino",
+          "version": "1.11.0",
+          "sha256": "b2e47cbbc5d8d5a16d838b1a9dd061edd182b8c956961da425d47806e27e6362"
+        },
+        {
+          "name": "tool-esptoolpy",
+          "version": "5.2.0",
+          "sha256": "519a51bd27a3e1117633716b0dd16f348359a2e5bc882c4dbc9ac5d01b236b88"
+        },
+        {
+          "name": "tool-xtensa-esp-elf-gdb",
+          "version": "16.3.0+20250913",
+          "sha256": "9d9c8ea23b404f0aaf1a4ecbecafafe2000c32da09cdb311c5516496311fd71b"
+        },
+        {
+          "name": "toolchain-xtensa-esp-elf",
+          "version": "14.2.0+20260121",
+          "sha256": "c48c1b9576e07b786e4ae1cf17b9ee500317b7218c20d76a0238649f3424bb63"
+        }
+      ],
+      "libraries": [
+        {
+          "name": "Encoder",
+          "version": "1.4.4",
+          "sha256": "e163cf6a34608e1fdf03dc82a739364e695b03186b04d888f51580eeb0fe0e06"
+        },
+        {
+          "name": "Keypad",
+          "version": "3.1.1",
+          "sha256": "7c8470808bd692a0eefc82ee6fd9ceae199fab749d205039f63ef05364cd4827"
+        },
+        {
+          "name": "NewPing",
+          "version": "1.9.7",
+          "sha256": "9335d6f5846104853c4297f6e049357f5cddcb327276fac6904339f91fa31986"
+        }
+      ]
+    },
+    "sketchSha256": "9c491d47e13c82ce0ac93437ccf6153bf8bb7a7f8cffecb6b8000a98e757c3d1",
+    "pinsSha256": "28ba4546faced115da7f6ae624f49f561264594730025de21a4990ffd8f14109",
+    "rom": {
+      "filename": "esp32s3_rev0_rom.elf",
+      "bytes": 949552,
+      "sha256": "c0ce0f338d1de1bdc6efbef1591779a2a42c1ab7d759d3c6ae8ae63a7dd34cfd"
+    }
+  },
+  "esp32c3": {
+    "flashBytes": 4194304,
+    "psramBytes": 0,
+    "flash": [
+      {
+        "filename": "bootloader.bin",
+        "offset": 0,
+        "bytes": 19520,
+        "sha256": "da409642ea1619c16b4ef485219a91c3c2ae873ce3bae37330c24100bd747439"
+      },
+      {
+        "filename": "partitions.bin",
+        "offset": 32768,
+        "bytes": 3072,
+        "sha256": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1"
+      },
+      {
+        "filename": "boot_app0.bin",
+        "offset": 57344,
+        "bytes": 8192,
+        "sha256": "f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0"
+      },
+      {
+        "filename": "firmware.bin",
+        "offset": 65536,
+        "bytes": 319504,
+        "sha256": "1729d1a19d12aa0316d08774c2772dc87bd246b5b1ad180a2094f5d669a2d02d"
+      }
+    ],
+    "compiler": {
+      "name": "platformio",
+      "version": "6.1.19",
+      "compilerSha256": "e5c3a93651fc10025147ffce6d6b81bc043824111a1c6feee0a3adea5488d87a",
+      "configurationSha256": "142e62d359657066731266838565019a16d37ebdec298b23133e7416f7382b5c",
+      "packages": [
+        {
+          "name": "contrib-piohome",
+          "version": "3.4.4",
+          "sha256": "895d814d31330f12b120ad32cb4ec29c28dfedeb64d1ba497a235b0ab476fd1d"
+        },
+        {
+          "name": "espressif32",
+          "version": "55.03.38",
+          "sha256": "bef202180776a871d7c3d083d6a65260c344d557efa75180216d4770c023a8f9"
+        },
+        {
+          "name": "framework-arduinoespressif32",
+          "version": "3.3.8",
+          "sha256": "fba3ee1bdfa56013cad484f6de34c4b1d20c0751dff30a0a01afebfd41fc1363"
+        },
+        {
+          "name": "framework-arduinoespressif32-libs",
+          "version": "5.5.4+sha.735507283d",
+          "sha256": "9492ee54778abe8687723ab3a66f342b4b3cc0f74f839ae7ff70e09ee33770e6"
+        },
+        {
+          "name": "framework-espidf",
+          "version": "3.50504.0",
+          "sha256": "b140a22728d866707b3deac19db25cad3bb72ebe31fc4630f83e100087466127"
+        },
+        {
+          "name": "tool-dfuutil-arduino",
+          "version": "1.11.0",
+          "sha256": "b2e47cbbc5d8d5a16d838b1a9dd061edd182b8c956961da425d47806e27e6362"
+        },
+        {
+          "name": "tool-esptoolpy",
+          "version": "5.2.0",
+          "sha256": "519a51bd27a3e1117633716b0dd16f348359a2e5bc882c4dbc9ac5d01b236b88"
+        },
+        {
+          "name": "tool-riscv32-esp-elf-gdb",
+          "version": "16.3.0+20250913",
+          "sha256": "59df2459438c1f90aa7bf6e32559d2fdd136694b5f240e98545ade3cb59c8e05"
+        },
+        {
+          "name": "toolchain-riscv32-esp",
+          "version": "14.2.0+20260121",
+          "sha256": "ee251bc6d6a2066c714d657d1357fa89672fc5f199af65dec6e6c272b41d3468"
+        }
+      ],
+      "libraries": [
+        {
+          "name": "Encoder",
+          "version": "1.4.4",
+          "sha256": "e163cf6a34608e1fdf03dc82a739364e695b03186b04d888f51580eeb0fe0e06"
+        },
+        {
+          "name": "Keypad",
+          "version": "3.1.1",
+          "sha256": "7c8470808bd692a0eefc82ee6fd9ceae199fab749d205039f63ef05364cd4827"
+        },
+        {
+          "name": "NewPing",
+          "version": "1.9.7",
+          "sha256": "9335d6f5846104853c4297f6e049357f5cddcb327276fac6904339f91fa31986"
+        }
+      ]
+    },
+    "sketchSha256": "9c491d47e13c82ce0ac93437ccf6153bf8bb7a7f8cffecb6b8000a98e757c3d1",
+    "pinsSha256": "6e20d2300287c70602b0338da5de50d7c68b16e65dada5c99278b3af94977115",
+    "rom": {
+      "filename": "esp32c3_rev3_rom.elf",
+      "bytes": 556332,
+      "sha256": "19ac22e08707df926fb0cf4c54795d4067b983fae8635f396ded173a6d78fc3c"
+    }
+  },
+  "esp32c6": {
+    "flashBytes": 4194304,
+    "psramBytes": 0,
+    "flash": [
+      {
+        "filename": "bootloader.bin",
+        "offset": 0,
+        "bytes": 20976,
+        "sha256": "d8499f4367c3a8377d513a2fd0e94b5ad6974d2c13591b52bad56183aa7002e7"
+      },
+      {
+        "filename": "partitions.bin",
+        "offset": 32768,
+        "bytes": 3072,
+        "sha256": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1"
+      },
+      {
+        "filename": "boot_app0.bin",
+        "offset": 57344,
+        "bytes": 8192,
+        "sha256": "f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0"
+      },
+      {
+        "filename": "firmware.bin",
+        "offset": 65536,
+        "bytes": 296192,
+        "sha256": "551afb4bd5288f1f74811134b5b18c805c8641edc0818d6180e6681a1fa93a87"
+      }
+    ],
+    "compiler": {
+      "name": "platformio",
+      "version": "6.1.19",
+      "compilerSha256": "e5c3a93651fc10025147ffce6d6b81bc043824111a1c6feee0a3adea5488d87a",
+      "configurationSha256": "9940451a1ac246cc9c47329b5fdfcc3adf4d782886559d275fa188877d442f2d",
+      "packages": [
+        {
+          "name": "contrib-piohome",
+          "version": "3.4.4",
+          "sha256": "895d814d31330f12b120ad32cb4ec29c28dfedeb64d1ba497a235b0ab476fd1d"
+        },
+        {
+          "name": "espressif32",
+          "version": "55.03.38",
+          "sha256": "bef202180776a871d7c3d083d6a65260c344d557efa75180216d4770c023a8f9"
+        },
+        {
+          "name": "framework-arduinoespressif32",
+          "version": "3.3.8",
+          "sha256": "fba3ee1bdfa56013cad484f6de34c4b1d20c0751dff30a0a01afebfd41fc1363"
+        },
+        {
+          "name": "framework-arduinoespressif32-libs",
+          "version": "5.5.4+sha.735507283d",
+          "sha256": "9492ee54778abe8687723ab3a66f342b4b3cc0f74f839ae7ff70e09ee33770e6"
+        },
+        {
+          "name": "framework-espidf",
+          "version": "3.50504.0",
+          "sha256": "b140a22728d866707b3deac19db25cad3bb72ebe31fc4630f83e100087466127"
+        },
+        {
+          "name": "tool-dfuutil-arduino",
+          "version": "1.11.0",
+          "sha256": "b2e47cbbc5d8d5a16d838b1a9dd061edd182b8c956961da425d47806e27e6362"
+        },
+        {
+          "name": "tool-esptoolpy",
+          "version": "5.2.0",
+          "sha256": "519a51bd27a3e1117633716b0dd16f348359a2e5bc882c4dbc9ac5d01b236b88"
+        },
+        {
+          "name": "tool-riscv32-esp-elf-gdb",
+          "version": "16.3.0+20250913",
+          "sha256": "59df2459438c1f90aa7bf6e32559d2fdd136694b5f240e98545ade3cb59c8e05"
+        },
+        {
+          "name": "toolchain-riscv32-esp",
+          "version": "14.2.0+20260121",
+          "sha256": "ee251bc6d6a2066c714d657d1357fa89672fc5f199af65dec6e6c272b41d3468"
+        }
+      ],
+      "libraries": [
+        {
+          "name": "Encoder",
+          "version": "1.4.4",
+          "sha256": "e163cf6a34608e1fdf03dc82a739364e695b03186b04d888f51580eeb0fe0e06"
+        },
+        {
+          "name": "Keypad",
+          "version": "3.1.1",
+          "sha256": "7c8470808bd692a0eefc82ee6fd9ceae199fab749d205039f63ef05364cd4827"
+        },
+        {
+          "name": "NewPing",
+          "version": "1.9.7",
+          "sha256": "9335d6f5846104853c4297f6e049357f5cddcb327276fac6904339f91fa31986"
+        }
+      ]
+    },
+    "sketchSha256": "9c491d47e13c82ce0ac93437ccf6153bf8bb7a7f8cffecb6b8000a98e757c3d1",
+    "pinsSha256": "394ead72ae8523a5c3f4ebd2511676e3558a6b8bfd7baec2d4e17275ed5dad41",
+    "rom": {
+      "filename": "esp32c6_rev0_rom.elf",
+      "bytes": 489768,
+      "sha256": "788e1d38724aeb8fd974fa10c4a7b089c02627d35342ce84b9e0b12b239f3551"
+    }
+  }
+}

@@ -1,0 +1,237 @@
+{
+  "experiment": "EX214",
+  "base": "8cc5d233611d32586bfbb4c4885f6570aa8a64ba",
+  "implementation": "77f7dbeb9e034b7bcee426c232b582881b25b1bb",
+  "reference": "221080ffccfa829106b398f896653535853c76c8",
+  "environment": {
+    "architecture": "aarch64-apple-darwin",
+    "rustc": "1.99.0 (b940084d7 2026-09-28)",
+    "cargo": "1.99.0 (5f94df478 2026-08-27)",
+    "node": "v22.23.1",
+    "arduino": "3.3.8",
+    "platform": "55.03.38-1",
+    "native_sonar_quantum": 1,
+    "native_keypad_quantum": 64,
+    "timing": "instruction timing except explicitly labelled S3 ApproximateCostModel::default()"
+  },
+  "sonar": [
+    {
+      "chip": "esp32s3",
+      "timing": "instruction",
+      "quantum": 1,
+      "trigger_cycles": 2388,
+      "pulse_us": 0,
+      "cycles": 11500000,
+      "instructions": 11597756,
+      "pass": false
+    },
+    {
+      "chip": "esp32c3",
+      "timing": "instruction",
+      "quantum": 1,
+      "trigger_cycles": 1748,
+      "pulse_us": 5800,
+      "cycles": 5500000,
+      "instructions": 5500000,
+      "pass": true
+    },
+    {
+      "chip": "esp32c6",
+      "timing": "instruction",
+      "quantum": 1,
+      "trigger_cycles": 1779,
+      "pulse_us": 5799,
+      "cycles": 5500000,
+      "instructions": 5500000,
+      "pass": true
+    },
+    {
+      "chip": "esp32s3",
+      "timing": "ApproximateCostModel::default()",
+      "quantum": 1,
+      "trigger_cycles": 2624,
+      "pulse_us": 5800,
+      "cycles": 38665493,
+      "instructions": 5496393,
+      "pass": true
+    },
+    {
+      "chip": "esp32s3",
+      "timing": "instruction, virtual quanta disabled",
+      "quantum": 1,
+      "trigger_cycles": 2388,
+      "pulse_us": 0,
+      "cycles": 11500000,
+      "instructions": 11597756,
+      "pass": false
+    },
+    {
+      "chip": "esp32s3",
+      "timing": "instruction",
+      "quantum": 64,
+      "trigger_cycles": 2432,
+      "pulse_us": 5799,
+      "cycles": 6000274,
+      "instructions": 5784215,
+      "pass": true
+    }
+  ],
+  "keypad": [
+    {
+      "chip": "esp32s3",
+      "keys": [
+        "1",
+        "5",
+        "D"
+      ],
+      "cycles": 148000338,
+      "instructions": 8934009,
+      "reboots": 0,
+      "pass": true
+    },
+    {
+      "chip": "esp32c3",
+      "keys": [
+        "1",
+        "5",
+        "D"
+      ],
+      "cycles": 100500192,
+      "instructions": 100500192,
+      "reboots": 0,
+      "pass": true
+    },
+    {
+      "chip": "esp32c6",
+      "keys": [
+        "1",
+        "5",
+        "D"
+      ],
+      "cycles": 101000220,
+      "instructions": 101000220,
+      "reboots": 0,
+      "pass": true
+    }
+  ],
+  "trace_summary": {
+    "snapshots": 48,
+    "first": {
+      "cycle": 4142478,
+      "count": 91306,
+      "pc": "0x40384669"
+    },
+    "last": {
+      "cycle": 4144736,
+      "count": 91456,
+      "pc": "0x40384669"
+    },
+    "first_us": 5706,
+    "last_us": 5716,
+    "snapshot_elapsed_us": 9.408333333333333
+  },
+  "checks": {
+    "native_clippy": "pass",
+    "wasm_clippy_jit_tests": "pass",
+    "workspace": {
+      "passed": 611,
+      "failed": 0,
+      "ignored": 0,
+      "external_tests": "filtered by required --skip external_"
+    },
+    "wasm_scenarios": [
+      "hello",
+      "c3-hello",
+      "c6-hello",
+      "c6-energy-scan",
+      "c6-contiki",
+      "c6-contiki-net",
+      "c6-rpl-net",
+      "panel"
+    ],
+    "native_focus_and_firmware": {
+      "passed": 10,
+      "excluded": "external_s3_sonar"
+    },
+    "s3_approximate_firmware": "pass",
+    "privacy": "pass after staging; 1564 evidence files checked, including 15 gzip files; manual review completed"
+  },
+  "raw_logs": {
+    "baseline": {
+      "path": "target/ex214/gpio-input-baseline.log",
+      "sha256": "261d6821ee31667eaf2fc9ad9c9c3d25fb4fd6bcaa69e91b1c6363a62cb6319f",
+      "bytes": 1029
+    },
+    "release-only": {
+      "path": "target/ex214/gpio-input-release-only.log",
+      "sha256": "2d93874937f2236f720e4ab7a24e3c0447380a0d2149b9a0149c8b137129575a",
+      "bytes": 1481
+    },
+    "timer-trace": {
+      "path": "target/ex214/gpio-input-timer-trace.log",
+      "sha256": "9f181b5a046d16e961ef8768a6ab0a2bc1ca7ea164f465f0bac8ef765528f4f3",
+      "bytes": 3503
+    },
+    "focused": {
+      "path": "target/ex214/gpio-input-focused.log",
+      "sha256": "74981f04ac25fad5963f14704194d46a0761347f528e13f37776ff36699e44af",
+      "bytes": 1192
+    },
+    "keypad": {
+      "path": "target/ex214/gpio-input-keypad.log",
+      "sha256": "b863133de3d175b63ad6d67b75aa7ce9e9cad64390f9da05ee3cc36bc48452d0",
+      "bytes": 763
+    },
+    "clippy-final": {
+      "path": "target/ex214/gpio-input-clippy-final.log",
+      "sha256": "e5ae2d3bc5eac95af59c74060115d47a8d1d96dc5d3d8c2f152d10b193e5e0c4",
+      "bytes": 383
+    },
+    "wasm-clippy-final": {
+      "path": "target/ex214/gpio-input-wasm-clippy-final.log",
+      "sha256": "4768db7f47c19fde6532797724fa4eca332f2861b3de20fe88d32f410ec476a9",
+      "bytes": 368
+    },
+    "workspace-final": {
+      "path": "target/ex214/gpio-input-workspace-final.log",
+      "sha256": "f59592bdccf05ad8c8176555d17b4d7fe60d5f7f4016b4498c23eb280c4648c8",
+      "bytes": 55959
+    },
+    "wasm-test": {
+      "path": "target/ex214/gpio-input-wasm-test.log",
+      "sha256": "fbf8537cac8dbd678511cb0fe1028a5c1e79711586590b03687f0a1b3ae19984",
+      "bytes": 1965
+    },
+    "acceptance": {
+      "path": "target/ex214/gpio-input-acceptance.log",
+      "sha256": "75628bd12cc716097f0011aca31257dff6506831f46eb18af6c4d8b9bdf42ba8",
+      "bytes": 1301
+    },
+    "approximate-final": {
+      "path": "target/ex214/gpio-input-approximate-final.log",
+      "sha256": "0572644771f28de3dfc7cd8304e7e5a1e08c5474ccef8704976bec3af1878bf3",
+      "bytes": 393
+    },
+    "vq1": {
+      "path": "target/ex214/gpio-input-vq1.log",
+      "sha256": "794ba71d8af54426fb041c48c26357f4c80edb04d6a65ae92ee65bcf316bc9cc",
+      "bytes": 491
+    },
+    "q64": {
+      "path": "target/ex214/gpio-input-q64.log",
+      "sha256": "00df3bf1aec3124860cc56808a4946e2e1f8a8676aeb893b2c23cbf9be3ae03a",
+      "bytes": 233
+    },
+    "privacy": {
+      "path": "target/ex214/gpio-input-privacy.log",
+      "sha256": "a517b52745ec76cea7d7d3caf13beacccede28e9da04cdf12666d6a256ee7e46",
+      "bytes": 130
+    },
+    "privacy-final": {
+      "path": "target/ex214/gpio-input-privacy-final.log",
+      "sha256": "9cb2043583225faabcc5b12c2de597b51af12f3a832082c2baa2dd5ea985ec15",
+      "bytes": 130
+    }
+  },
+  "privacy": "Retained numeric samples, revisions, artifact hashes and compiler package identities. Excluded process/thread identifiers, machine/user names, local source paths and build session details from committed receipts. No private originals committed. Raw local logs are ignored under target/ex214. No historical hashes changed. No hardware calibration or speed comparison."
+}
