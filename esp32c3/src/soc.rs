@@ -52,7 +52,9 @@ impl esp_soc::SocBus for SocBus {
     fn ble_command(&mut self, command: &str) -> Result<(), String> { self.ble.command(command, self.cycles, periph::CPU_HZ) }
     fn cycles(&self) -> u64 { self.cycles }
     fn next_deadline(&self) -> Option<u64> {
-        match self.periph.cycles_until_timer() { u32::MAX => None, cycles => Some(cycles.max(1) as u64) }
+        let timer = match self.periph.cycles_until_timer() { u32::MAX => None, cycles => Some(cycles.max(1) as u64) };
+        let board = self.board.next_deadline().map(|t| t.saturating_sub(self.cycles).max(1));
+        match (timer, board) { (Some(a), Some(b)) => Some(a.min(b)), (a, b) => a.or(b) }
     }
     fn irq_dirty(&mut self) -> &mut bool { &mut self.irq_dirty }
     fn refresh_irq(&mut self) -> bool { self.periph.refresh_lines(); true }
@@ -121,6 +123,7 @@ impl esp_soc::SocBus for SocBus {
         // real silicon rather than POWERON.
         p.rtc.ram.write(0x38, cause | (cause << 6));
         self.mmu = [MMU_INVALID; MMU_ENTRIES];
+        self.attach_board_devices();
         cause
     }
     fn sw_reset(&self) -> bool { self.periph.rtc.sw_reset }
