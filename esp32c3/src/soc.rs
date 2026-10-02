@@ -110,6 +110,7 @@ impl esp_soc::SocBus for SocBus {
         let p = &mut self.periph;
         p.wifi.ap = old.wifi.ap; p.wifi.net = old.wifi.net; p.wifi.log = old.wifi.log; p.wifi.relay = old.wifi.relay;
         p.efuse = old.efuse;
+        p.adc.analog = old.adc.analog;
         p.misc.log_unknown = old.misc.log_unknown;
         p.usb.connected = old.usb.connected;
         p.rtc.reset_cause = cause;
@@ -141,6 +142,11 @@ impl esp_soc::SocBus for SocBus {
         let before = u.irq();
         u.host_input(data);
         self.irq_dirty |= before != u.irq();
+    }
+    fn analog_set(&mut self, pin: u8, src: esp_periph::AnalogSource) { self.periph.adc.analog.set(pin, src); }
+    fn adc_set_raw(&mut self, pin: u8, raw: u16) -> bool { pin <= 5 && self.periph.adc.analog.set_raw(pin, raw) }
+    fn adc_observation(&self, pin: u8) -> Option<esp_periph::AdcObservation> {
+        (pin <= 5).then(|| self.periph.adc.analog.observation(pin))
     }
     fn gpio_set_input(&mut self, pin: u8, level: bool) {
         let before = self.periph.gpio.input;
