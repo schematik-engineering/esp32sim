@@ -89,6 +89,10 @@ impl I2s {
             self.rx_data(cycles, pdm2pcm)
         }
     }
+    pub fn rx_selected_data(&mut self, cycles: u64, pdm2pcm: bool, sources: &mut super::PcmSources, selected: Option<usize>) -> Vec<u8> {
+        if sources.active() { self.rx_data_from(cycles, pdm2pcm, Some((sources, selected))) }
+        else { self.rx_data(cycles, pdm2pcm) }
+    }
     fn rx_data_from(&mut self, cycles: u64, pdm2pcm: bool,
         mut sources: Option<(&mut super::PcmSources, Option<usize>)>) -> Vec<u8> {
         self.rx_source = None;

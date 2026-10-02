@@ -42,8 +42,10 @@ pub struct SocBus {
     pub mmu: [[u32; 2048]; 2],
     pub periph: Peripherals,
     pub board: esp_soc::Board,
+    pub pcm_sources: esp_periph::i2s::PcmSources,
     pub rmt_observer: crate::rmt::RmtObserver,
     pub cycles: u64,
+    execution: emu_core::bus::ExecutionClock,
     pub last_fault: Option<(u32, bool)>,
     pub irq_dirty: bool,
     pub gpio_events: Option<Vec<(u64, u8, bool)>>,
@@ -67,8 +69,10 @@ impl SocBus {
             mmu: [[MMU_INVALID; 2048]; 2],
             periph: Peripherals::new(mac),
             board: Box::new(esp_soc::NoBoard),
+            pcm_sources: Default::default(),
             rmt_observer: Default::default(),
             cycles: 0,
+            execution: Default::default(),
             last_fault: None,
             irq_dirty: true,
             gpio_events: None,
@@ -136,6 +140,7 @@ impl SocBus {
         None
     }
     fn periph_read(&mut self, addr: u32, size: u32) -> u32 {
+        self.deliver_board_inputs();
         if let Some((cpu, n)) = Self::mmu_slot(addr) {
             return self.mmu[cpu][n];
         }
@@ -168,6 +173,8 @@ impl SocBus {
         }
         if let Some(n) = UART_FIFO_AHB.iter().position(|&fifo| fifo == a) {
             self.periph.uart[n].write(0, value);
+            self.board.uart_tx(self.periph.uart_route(n), value as u8);
+            self.irq_dirty = true;
             return;
         }
         if let Some(n) = I2C_FIFO_AHB.iter().position(|&fifo| fifo == a) {
@@ -189,8 +196,18 @@ impl SocBus {
                 (old & !(0xffff << sh)) | ((value & 0xffff) << sh)
             }
         };
-        self.periph.adc.now_cycles = self.cycles;
+        self.periph.adc.now_cycles = self.execution.now.max(self.cycles);
+        let old_enable = self.periph.gpio.gpio.enable;
         self.periph.write32(a, v);
+        if (0x3ff4_4000..0x3ff4_5000).contains(&a) || (0x3ff4_9000..0x3ff4_a000).contains(&a) {
+            self.board.gpio_waveform_at(self.execution.now.max(self.cycles), &self.periph.gpio.gpio, &self.periph.gpio.board_mux(), 256);
+        }
+        if let Some(port) = [0x3ff4_0000, 0x3ff5_0000, 0x3ff6_e000].iter().position(|&base| a == base) {
+            self.board.uart_tx(self.periph.uart_route(port), v as u8);
+        }
+        if old_enable != self.periph.gpio.gpio.enable && self.periph.gpio.gpio.changes.is_empty() {
+            self.board.gpio_output_at(self.execution.now.max(self.cycles), &[], self.periph.gpio.gpio.enable, self.periph.gpio.gpio.out);
+        }
         if self.periph.spi_exec {
             self.run_spi();
         }
@@ -206,10 +223,11 @@ impl SocBus {
         let changes = std::mem::take(&mut self.periph.gpio.gpio.changes);
         if let Some(events) = &mut self.gpio_events {
             for &(pin, level) in &changes {
-                events.push((self.cycles, pin, level));
+                events.push((self.execution.now.max(self.cycles), pin, level));
             }
         }
-        self.board.gpio_changes(&changes);
+        self.board.gpio_output_at(self.execution.now.max(self.cycles), &changes, self.periph.gpio.gpio.enable, self.periph.gpio.gpio.out);
+        self.deliver_board_inputs();
     }
     fn flush_rmt(&mut self) {
         for frame in std::mem::take(&mut self.periph.rmt.done) {
@@ -225,12 +243,32 @@ impl SocBus {
         self.periph.spi1.0.execute(&mut self.flash, &mut []);
         self.periph.spi1.0.dirty.clear();
     }
+    pub fn clear_i2c_devices(&mut self) {
+        for bus in &mut self.periph.i2c { bus.inner.clear_devices(); }
+    }
+    fn deliver_board_inputs(&mut self) {
+        self.board.advance_to(self.execution.now.max(self.cycles));
+        for edge in self.board.take_edges() {
+            self.periph.gpio.set_input(edge.pin, edge.level);
+            self.irq_dirty = true;
+            if let Some(events) = &mut self.gpio_events { events.push((edge.cycle, edge.pin, edge.level)); }
+        }
+        for pin in self.board.released_inputs() { esp_soc::SocBus::gpio_release_input(self, pin); }
+    }
     pub fn attach_board_devices(&mut self) {
+        for (pin, level) in self.board.input_levels() { self.periph.gpio.set_input(pin, level); }
+        self.deliver_board_inputs();
         for (bus, address, device) in self.board.i2c_devices() {
             if let Some(i2c) = self.periph.i2c.get_mut(bus as usize) {
                 i2c.attach(address, device);
             }
         }
+    }
+    pub(crate) fn dma_write_byte(&mut self, addr: u32, value: u8) -> bool {
+        let Some((mem, off, true)) = self.memory(addr) else { return false; };
+        let Some(byte) = mem.get_mut(off) else { return false; };
+        *byte = value;
+        true
     }
     pub(crate) fn dma_read_word(&mut self, addr: u32) -> Option<u32> {
         let mut bytes = [0; 4];
@@ -341,7 +379,7 @@ impl SocBus {
                 continue;
             };
             let host = index + 2;
-            let (clock_signal, mosi_signal, _miso_signal, cs_signals) = crate::spi::signals(host);
+            let (clock_signal, mosi_signal, miso_signal, cs_signals) = crate::spi::signals(host);
             let (clock_idle, mosi_idle) = self.periph.spi[index].idle_levels(&transfer);
             self.periph
                 .gpio
@@ -355,9 +393,13 @@ impl SocBus {
                     .set_output_signal(cs_signals[cs], polarity, true);
             }
             self.flush_gpio();
-            let rx = self
-                .board
-                .spi_transfer(host as u8, &transfer.tx, transfer.rx_len);
+            let gpio = &self.periph.gpio;
+            let pins = esp_soc::board::SpiPins {
+                sclk: gpio.output_pins(clock_signal), mosi: gpio.output_pins(mosi_signal),
+                miso: gpio.input_pin(miso_signal),
+                cs: gpio.low_outputs(),
+            };
+            let rx = self.board.spi_transfer_pins(host as u8, pins, &transfer.tx, transfer.rx_len);
             let mut in_eof = 0;
             if dma_rx && rx_len != 0 {
                 match self.dma_write_chain(in_link, &rx[..rx.len().min(rx_len)]) {
@@ -413,6 +455,8 @@ macro_rules! read {
     }};
 }
 impl Bus for SocBus {
+    fn begin_execution(&mut self, cycle: u64, instruction: u64) { self.execution.begin(cycle, instruction); }
+    fn note_instruction(&mut self, instruction: u64) { self.execution.note(instruction); }
     fn note_code_page(&mut self, _vidx: u32) {}
     fn read8(&mut self, a: u32) -> Result<u8, Fault> {
         if Self::is_periph(a) {
@@ -521,10 +565,12 @@ impl Bus for SocBus {
     }
     fn tick(&mut self, cycles: u32) -> u32 {
         self.cycles += cycles as u64;
-        self.board.advance_to(self.cycles);
+        self.deliver_board_inputs();
+        for input in self.board.uart_rx() { self.periph.uart_pin_input(&input); self.irq_dirty = true; }
         self.periph.tick(cycles as u64);
         self.flush_rmt();
         self.flush_gpio();
+        self.i2s_step(cycles as u64);
         self.wifi_step();
         1
     }

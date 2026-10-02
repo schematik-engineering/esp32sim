@@ -4,6 +4,7 @@ pub mod ble;
 pub mod bus;
 pub mod crypto;
 pub mod i2c;
+pub mod i2s;
 pub mod ledc;
 pub mod periph;
 pub mod rmt;

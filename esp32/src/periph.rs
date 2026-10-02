@@ -212,7 +212,7 @@ impl ClassicGpio {
             _ => off,
         }
     }
-    fn mux(&self, pin: usize) -> u32 {
+    pub(crate) fn mux(&self, pin: usize) -> u32 {
         IOMUX_OFFSETS
             .get(pin)
             .filter(|&&off| off != u32::MAX)
@@ -350,6 +350,32 @@ impl ClassicGpio {
         }
         let cfg = self.mux(pin);
         self.gpio.set_pulls(pin as u8, cfg & (1 << 8) != 0, cfg & (1 << 7) != 0);
+    }
+    pub fn input_pin(&self, signal: usize) -> Option<u8> {
+        let cfg = *self.gpio.func_in_sel.get(signal)?;
+        if cfg & 0xc0 == 0x80 {
+            let pin = (cfg & 63) as usize;
+            return (pin < 40 && self.matrix_pad(pin) && self.input_enabled(pin)).then_some(pin as u8);
+        }
+        Self::direct_pin(signal).filter(|&pin| (self.mux(pin) >> 12) & 7 == 1 && self.input_enabled(pin)).map(|p| p as u8)
+    }
+    pub(crate) fn low_outputs(&self) -> u64 {
+        (0..34).filter(|&pin| self.driven(pin) == Some(false)).fold(0, |mask, pin| mask | (1 << pin))
+    }
+    pub(crate) fn board_mux(&self) -> RegRam {
+        let mut mux = RegRam::new();
+        for pin in 0..40 {
+            let value = self.mux(pin);
+            mux.write(4 + pin as u32 * 4, (value & !(7 << 12)) | if self.matrix_pad(pin) { 1 << 12 } else { 0 });
+        }
+        mux
+    }
+    pub fn output_pins(&self, signal: usize) -> u64 {
+        (0..34).filter(|&pin| {
+            let cfg = self.gpio.func_out_sel[pin];
+            (self.matrix_pad(pin) && cfg & 0x3ff == signal as u32 && self.driven(pin).is_some())
+                || ((self.mux(pin) >> 12) & 7 == 1 && Self::direct_signal(pin) == Some(signal))
+        }).fold(0, |mask, pin| mask | (1 << pin))
     }
     /// Resolve a peripheral input routed through GPIO_FUNCm_IN_SEL_CFG.
     pub fn signal_input(&self, signal: usize) -> Option<bool> {
@@ -575,6 +601,7 @@ pub struct Peripherals {
     pub sha: ClassicSha,
     pub rsa: ClassicRsa,
     pub timg: [ClassicTimer; 2],
+    pub i2s: [crate::i2s::ClassicI2s; 2],
     pub i2c: [crate::i2c::I2c; 2],
     pub wifi: crate::wifi::WifiMac,
     pub analog: crate::wifi::Analog,
@@ -593,6 +620,8 @@ device_set! { Peripherals; clock: (clock) CPU_HZ, [(ClockDomain::Apb, 3), (Clock
     0x42 "SPI1" (spi1) => [];
     0x43 "SPI0" (spi0) => [];
     0x44 "GPIO" (gpio) => [];
+    0x4f "I2S0" (i2s[0]) => [32];
+    0x6d "I2S1" (i2s[1]) => [33];
     0x46 "FE" (fe) => [];
     0x48 "RTCCNTL" (rtc) => [SRC_RTC_CORE];
     0x49 "IO_MUX" alias (gpio) delta 0x1000 => [];
@@ -655,6 +684,7 @@ impl Peripherals {
             sha: ClassicSha::new(),
             rsa: ClassicRsa::new(),
             timg: [ClassicTimer::new(0), ClassicTimer::new(1)],
+            i2s: std::array::from_fn(|_| crate::i2s::ClassicI2s::new()),
             i2c: [crate::i2c::I2c::new(), crate::i2c::I2c::new()],
             wifi: crate::wifi::WifiMac::new(),
             analog: crate::wifi::Analog::new(),
@@ -663,6 +693,7 @@ impl Peripherals {
             spi_exec: false,
             clock: Self::new_clock(),
         };
+        for uart in &mut p.uart { uart.write(0x20, 1 << 27); }
         p.sync_crypto();
         p
     }
@@ -735,6 +766,7 @@ impl Peripherals {
         };
         if let Some(bus) = i2c.filter(|_| addr & 0xfff == 0x04 && v & (1 << 5) != 0) {
             let (scl, sda) = I2C_SIGNALS[bus];
+            self.i2c[bus].inner.set_pins(self.gpio.input_pin(sda).zip(self.gpio.input_pin(scl)));
             self.i2c[bus].set_lines(self.gpio.signal_input(scl), self.gpio.signal_input(sda));
         }
         if addr == 0x3ff0_00d0 && v & (1 << 2) != 0 { self.wifi.reset(); }
@@ -760,6 +792,17 @@ impl Peripherals {
                 && self.dport.ram.read(0xc4) & (1 << 11) == 0;
             self.rmt.clock_enabled = self.dport.ram.read(0xc0) & (1 << 9) != 0
                 && self.dport.ram.read(0xc4) & (1 << 9) == 0;
+        }
+        for port in 0..2 {
+            let bit = if port == 0 { 4 } else { 21 };
+            if addr == 0x3ff0_00c4 && v & (1 << bit) != 0 {
+                let input = std::mem::take(&mut self.i2s[port].inner.rx_input);
+                self.i2s[port] = crate::i2s::ClassicI2s::new();
+                self.i2s[port].inner.rx_input = input;
+            }
+            for signal in if port == 0 { [27, 28] } else { [164, 165] } {
+                self.gpio.set_output_signal(signal, false, self.i2s[port].inner.rx_running());
+            }
         }
         self.sync_ledc_outputs();
         self.sync_rmt_outputs();
@@ -806,6 +849,25 @@ impl Peripherals {
     fn sync_rmt_outputs(&mut self) {
         for (channel, level) in std::mem::take(&mut self.rmt.outputs) {
             self.gpio.set_output_signal(crate::rmt::SIGNAL0 + channel, level, true);
+        }
+    }
+    pub fn uart_route(&self, port: usize) -> esp_soc::uart::UartRoute {
+        let signal = [14, 17, 198][port];
+        let native = [(1, 3), (10, 9), (17, 16)][port];
+        let mut tx_pins = (0..34).filter(|&pin| self.gpio.matrix_pad(pin) && self.gpio.gpio.func_out_sel[pin] & 0x3ff == signal as u32 && self.gpio.gpio.enable & (1 << pin) != 0).fold(0, |mask, pin| mask | (1 << pin));
+        if self.gpio.mux(native.0) >> 12 & 7 == 0 { tx_pins |= 1 << native.0; }
+        let rx_pin = self.gpio.input_pin(signal).or_else(||
+            (self.gpio.mux(native.1) >> 12 & 7 == 0 && self.gpio.input_enabled(native.1)).then_some(native.1 as u8));
+        esp_soc::uart::UartRoute { port, tx_pins, rx_pin,
+            baud: self.uart[port].classic_baud() }
+    }
+    pub fn uart_pin_input(&mut self, input: &esp_soc::uart::UartInput) {
+        for port in 0..3 {
+            let route = self.uart_route(port);
+            if route.rx_pin == Some(input.pin) {
+                if route.matches_baud(input.baud) { self.uart[port].host_input(&input.data); }
+                else { self.uart[port].int_raw |= 1 << 3; }
+            }
         }
     }
     pub fn pwm_output(&self, pin: u32) -> Option<(f64, u32)> {

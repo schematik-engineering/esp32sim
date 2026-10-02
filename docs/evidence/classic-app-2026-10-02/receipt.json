@@ -1,0 +1,36 @@
+{
+  "base": "4d02081aae1b99b17e0dc9792a6bbe65782ff7ad",
+  "toolchain": "1.99.0",
+  "release_tests": 673,
+  "focused_tests": 6,
+  "logs": {
+    "classic-native-clippy-final.log": {
+      "bytes": 733,
+      "sha256": "e7196ca94254af3d5c0b45e0eab20993b046169357a957de26f5a234f173339b"
+    },
+    "classic-wasm-clippy-final.log": {
+      "bytes": 666,
+      "sha256": "0bdfd4078f7e93dd3b2afde90463e3a9e5b8ee6f94018b0294a201b91ea5f6cd"
+    },
+    "classic-workspace-tests-final.log": {
+      "bytes": 63337,
+      "sha256": "3e1325ba7e47b833711699071473319a073d7dae9063a8d32f5077698c1b2f4b"
+    },
+    "classic-wasm-build-final.log": {
+      "bytes": 735,
+      "sha256": "21baa680d671c9f0dabf50aba242b911971996818292e79b50de9a3552e9017d"
+    },
+    "classic-wasm-test-final.log": {
+      "bytes": 969,
+      "sha256": "099addec4d72084e24ef3cf0ae1abf4f640c3b78cdb51c9adc25094182d51c00"
+    },
+    "classic-host-final3.log": {
+      "bytes": 643,
+      "sha256": "832e6e54533a911ad3baa47c621b84e2c0c955c171fc6d4fab1346c347b40edb"
+    }
+  },
+  "wasm": {
+    "bytes": 3368288,
+    "sha256": "3e46ecd565f6575d02921623571097e1a08e9bfe7b97df9d04ecfc3f64283204"
+  }
+}

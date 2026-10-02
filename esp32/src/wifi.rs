@@ -13,6 +13,7 @@ const EVENT_RX: u32 = 1 << 24;
 pub struct WifiMac {
     ram: [RegRam; 3],
     pub log: bool,
+    pub relay: bool,
     pub now_cycles: u64,
     tsf_offset: [u64; 3],
     tsf_latched: [u64; 3],
@@ -44,6 +45,7 @@ impl WifiMac {
         Self {
             ram: std::array::from_fn(|_| RegRam::new()),
             log: false,
+            relay: false,
             now_cycles: 0,
             tsf_offset: [0; 3],
             tsf_latched: [0; 3],
@@ -69,10 +71,12 @@ impl WifiMac {
         let ap = self.ap.take();
         let net = self.net.take();
         let log = self.log;
+        let relay = self.relay;
         *self = Self::new();
         self.ap = ap;
         self.net = net;
         self.log = log;
+        self.relay = relay;
     }
     fn read_reg(&self, off: u32) -> u32 {
         self.ram[(off >> 12) as usize].read(off)
@@ -218,14 +222,16 @@ impl SocBus {
                     .on_station_tx(&frame, now_us)
                     .and_then(|f| wifi::data_to_eth(&f))
                 {
-                    self.periph.wifi.eth_tx.push(eth);
+                    if !self.periph.wifi.relay || (eth.len() <= 1518 && self.periph.wifi.eth_tx.len() < 64) {
+                        self.periph.wifi.eth_tx.push(eth);
+                    }
                 }
             }
         }
         if self.periph.wifi.ap.is_some() {
             self.wifi_air_step(now_us);
         }
-        if let Some(net) = &mut self.periph.wifi.net {
+        if let Some(net) = self.periph.wifi.net.as_mut().filter(|_| !self.periph.wifi.relay) {
             let out = std::mem::take(&mut self.periph.wifi.eth_tx);
             let due = now_us.wrapping_sub(self.periph.wifi.net_polled_us) >= 500;
             if !out.is_empty() || due {

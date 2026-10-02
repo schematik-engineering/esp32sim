@@ -68,6 +68,13 @@ impl Uart {
         let (n, d) = if denominator == 0 { (integer, 1) } else { (integer * denominator + numerator, denominator) };
         Some((source * 16 * d / (n * uart_div)) as u32)
     }
+    /// Classic ESP32 has a 20-bit divider and selects APB or the 1 MHz reference tick.
+    pub fn classic_baud(&self) -> Option<u32> {
+        let div = self.ram.read(0x14);
+        let divisor = u64::from(div & 0xfffff) * 16 + u64::from((div >> 20) & 15);
+        let source = if self.ram.read(0x20) & (1 << 27) != 0 { 80_000_000u64 } else { 1_000_000 };
+        (divisor != 0).then(|| (source * 16 / divisor) as u32)
+    }
     pub fn clock_config(&self) -> u32 { self.ram.read(0x78) }
     pub fn rx_pending(&self) -> usize { self.rx.len() }
     pub fn read(&mut self, off: u32) -> u32 {

@@ -64,6 +64,23 @@ impl Soc for Esp32 {
 }
 
 impl esp_soc::SocBus for SocBus {
+    fn set_ethernet_relay(&mut self, enabled: bool) -> Result<(), String> {
+        let mac = &mut self.periph.wifi;
+        if mac.relay != enabled { mac.eth_tx.clear(); mac.eth_rx.clear(); mac.relay = enabled; }
+        Ok(())
+    }
+    fn take_ethernet_frames(&mut self) -> Vec<Vec<u8>> {
+        if self.periph.wifi.relay { std::mem::take(&mut self.periph.wifi.eth_tx) } else { Vec::new() }
+    }
+    fn receive_ethernet_frame(&mut self, frame: &[u8]) -> Result<(), String> {
+        let mac = &mut self.periph.wifi;
+        if !mac.relay || mac.ap.is_none() { return Err("Ethernet relay requires relay mode and a virtual AP".into()); }
+        if !(14..=1518).contains(&frame.len()) { return Err("Ethernet frame must be 14..=1518 bytes without FCS".into()); }
+        if mac.eth_rx.len() >= 64 { return Err("Ethernet receive queue full".into()); }
+        mac.eth_rx.push(frame.to_vec());
+        Ok(())
+    }
+
     fn enable_ble(&mut self, symbols: &std::collections::HashMap<String, u32>) -> Result<(), String> {
         self.ble.enable(symbols, &<Self as esp_soc::ble::vhci::VhciBus>::abi())
     }
@@ -74,10 +91,11 @@ impl esp_soc::SocBus for SocBus {
         self.cycles
     }
     fn next_deadline(&self) -> Option<u64> {
-        match self.periph.cycles_until_timer() {
+        let timer = match self.periph.cycles_until_timer() {
             u32::MAX => None,
             n => Some(n.max(1) as u64),
-        }
+        };
+        timer.into_iter().chain(self.board.next_deadline().map(|n| n.saturating_sub(self.cycles).max(1))).min()
     }
     fn irq_dirty(&mut self) -> &mut bool {
         &mut self.irq_dirty
@@ -127,11 +145,14 @@ impl esp_soc::SocBus for SocBus {
         }
         self.ble.reset();
         let cause = self.periph.rtc.0.reset_cause;
-        let old = std::mem::replace(&mut self.periph, Peripherals::new(mac));
+        let mut old = std::mem::replace(&mut self.periph, Peripherals::new(mac));
+        for port in 0..2 { self.periph.i2s[port].inner.rx_input = std::mem::take(&mut old.i2s[port].inner.rx_input); }
         self.periph.efuse = old.efuse;
         self.periph.wifi.ap = old.wifi.ap;
         self.periph.wifi.net = old.wifi.net;
         self.periph.wifi.log = old.wifi.log;
+        self.periph.wifi.relay = old.wifi.relay;
+        self.periph.gpio.gpio.restore_external(&old.gpio.gpio);
         self.periph.adc.restore_inputs(old.adc);
         self.periph.misc.log_unknown = old.misc.log_unknown;
         self.periph.gpio.gpio.strap = old.gpio.gpio.strap;
@@ -191,6 +212,20 @@ impl esp_soc::SocBus for SocBus {
     fn analog_set(&mut self, pin: u8, src: esp_periph::AnalogSource) {
         self.periph.adc.analog.set(pin, src);
     }
+    fn adc_set_raw(&mut self, pin: u8, raw: u16) -> bool {
+        crate::adc::valid_pin(pin) && self.periph.adc.analog.set_raw(pin, raw)
+    }
+    fn adc_observation(&self, pin: u8) -> Option<esp_periph::AdcObservation> {
+        crate::adc::valid_pin(pin).then(|| self.periph.adc.analog.observation(pin))
+    }
+    fn gpio_state(&self, pin: u8) -> Option<esp_soc::GpioState> {
+        if pin >= 40 || (20..=24).contains(&pin) && pin != 21 && pin != 22 || (28..=31).contains(&pin) { return None; }
+        let gpio = &self.periph.gpio;
+        let mux = gpio.mux(pin as usize);
+        Some(esp_soc::GpioState { output: gpio.gpio.out & (1 << pin) != 0,
+            output_enable: gpio.gpio.enable & (1 << pin) != 0,
+            pull_up: pin < 34 && mux & (1 << 8) != 0, pull_down: pin < 34 && mux & (1 << 7) != 0 })
+    }
     fn set_touch_input(&mut self, pin: u8, touched: bool) {
         self.periph.adc.set_touch_input(pin, touched);
     }
@@ -212,6 +247,9 @@ impl esp_soc::SocBus for SocBus {
     fn board_ref(&self) -> &dyn BoardModel {
         &*self.board
     }
+    fn pcm_sources(&mut self) -> Option<&mut esp_periph::i2s::PcmSources> { Some(&mut self.pcm_sources) }
+    fn i2s_selected_source(&self, port: usize) -> Option<usize> { self.periph.i2s.get(port).and_then(|i| i.inner.rx_source) }
+    fn i2s_input(&mut self, port: usize) -> Option<&mut esp_periph::i2s::PcmInput> { self.periph.i2s.get_mut(port).map(|i| &mut i.inner.rx_input) }
     fn audio(&self) -> (&[i16], u32) {
         (&[], 44_100)
     }
