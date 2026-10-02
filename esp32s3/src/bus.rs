@@ -863,6 +863,7 @@ impl SocBus {
         // Reads may flush before the periodic backstop. Refresh for either edge
         // of a clocked source, without breaking every block that polls MMIO.
         self.board.advance_to(self.cycles);
+        self.dma_rmt_step();
         self.irq_dirty |= self.periph.tick(cycles as u64);
         for input in self.board.uart_rx() {
             self.periph.uart_pin_input(&input);
@@ -903,8 +904,7 @@ impl SocBus {
         self.deliver_spi2_transfer();
         if !self.periph.rmt.done.is_empty() {
             for (ch, bits) in std::mem::take(&mut self.periph.rmt.done) {
-                let pin = self.periph.gpio.pin_for_signal(RMT_SIG_OUT0 + ch as u32).unwrap_or(u8::MAX);
-                self.board.rmt_frame(pin, &bits);
+                for pin in self.periph.gpio.pins_for_signal(RMT_SIG_OUT0 + ch as u32) { self.board.rmt_frame(pin, &bits); }
             }
             self.irq_dirty = true;
         }

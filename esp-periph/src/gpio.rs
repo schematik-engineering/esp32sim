@@ -74,9 +74,11 @@ impl Gpio {
         }
         irq
     }
-    /// The pin the matrix routes peripheral output signal `sig` to, if any.
-    pub fn pin_for_signal(&self, sig: u32) -> Option<u8> {
-        self.func_out_sel.iter().position(|&s| s & 0x1ff == sig).map(|p| p as u8)
+    /// Enabled, non-inverted routes for a peripheral output signal.
+    pub fn pins_for_signal(&self, sig: u32) -> impl Iterator<Item = u8> + '_ {
+        self.func_out_sel.iter().enumerate().filter_map(move |(pin, &route)| {
+            (route & 0x3ff == sig && self.enable & (1u64 << pin) != 0).then_some(pin as u8)
+        })
     }
     /// Software GPIO drive after IO_MUX selection, matrix inversion and output enable.
     /// `None` means this pin is not driven by the software GPIO signal.
@@ -147,4 +149,22 @@ impl Device for Gpio {
     fn read(&mut self, off: u32) -> u32 { Gpio::read(self, off) }
     fn write(&mut self, off: u32, v: u32) -> WriteEffect { Gpio::write(self, off, v); WriteEffect::NONE }
     fn irq_sources(&self) -> u64 { self.irq() as u64 }
+}
+
+#[cfg(test)]
+mod peripheral_route_tests {
+    use super::*;
+    #[test]
+    fn reused_peripheral_channel_ignores_disabled_output_and_fans_out() {
+        let mut gpio=Gpio::new();
+        gpio.write(0x554+4,81); gpio.write(0x554+8,81);
+        gpio.write(0x24,1<<1);
+        assert_eq!(gpio.pins_for_signal(81).collect::<Vec<_>>(),vec![1]);
+        gpio.write(0x28,1<<1); gpio.write(0x24,1<<2);
+        assert_eq!(gpio.pins_for_signal(81).collect::<Vec<_>>(),vec![2]);
+        gpio.write(0x24,1<<1);
+        assert_eq!(gpio.pins_for_signal(81).collect::<Vec<_>>(),vec![1,2]);
+        gpio.write(0x554+4,81|(1<<9));
+        assert_eq!(gpio.pins_for_signal(81).collect::<Vec<_>>(),vec![2]);
+    }
 }

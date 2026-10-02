@@ -418,6 +418,15 @@ impl SocBus {
 
     /// GPIO edges precede SPI transfers and completed RMT frames.
     fn deliver_board_events(&mut self) {
+        if let Some(frame) = self.periph.parlio.done.take() {
+            let mut pins = Vec::new();
+            for lane in 0..frame.width {
+                for pin in self.periph.gpio.pins_for_signal(47 + u32::from(lane)) { pins.push((pin,lane)); }
+            }
+            self.board.parallel_output(&pins, &frame.samples, frame.clock_hz);
+            self.irq_dirty = true;
+        }
+
         if !self.periph.gpio.changes.is_empty() { self.deliver_gpio_output(); }
         if let Some(transfer) = self.periph.spi2.take_transfer() {
             let rx = if self.board.uses_spi_pins() {
@@ -427,7 +436,7 @@ impl SocBus {
             };
             self.periph.spi2.finish_transfer(transfer, &rx);
         }
-        if !self.periph.rmt.rmt.done.is_empty() { for (ch, bits) in std::mem::take(&mut self.periph.rmt.rmt.done) { let pin = self.periph.gpio.pin_for_signal(RMT_SIG_OUT0 + ch as u32).unwrap_or(u8::MAX); self.board.rmt_frame(pin, &bits); } self.irq_dirty = true; }
+        if !self.periph.rmt.rmt.done.is_empty() { for (ch, bits) in std::mem::take(&mut self.periph.rmt.rmt.done) { for pin in self.periph.gpio.pins_for_signal(RMT_SIG_OUT0 + ch as u32) { self.board.rmt_frame(pin, &bits); } } self.irq_dirty = true; }
     }
 
     /// Execute a pending SPI1 command against the flash image.
@@ -464,11 +473,45 @@ impl SocBus {
         Ok(())
     }
 
+    fn dma_parlio_step(&mut self) {
+        let Some(index) = self.periph.gdma.gdma.out_channel_for(9) else { return; };
+        let mut channel = self.periph.gdma.gdma.out[index];
+        for _ in 0..80 {
+            if !channel.running || self.periph.parlio.fifo.len() >= 64 { break; }
+            let result = (|| -> Result<(), ()> {
+                if channel.desc == 0 || channel.desc & 3 != 0 { return Err(()); }
+                let word = self.read32(channel.desc).map_err(|_| ())?;
+                let size = word & 0xfff;
+                let length = (word >> 12) & 0xfff;
+                let data = self.read32(channel.desc.checked_add(4).ok_or(())?).map_err(|_| ())?;
+                let next = self.read32(channel.desc.checked_add(8).ok_or(())?).map_err(|_| ())?;
+                if length > size || channel.buf_pos > length
+                    || (channel.conf1 & (1 << 12) != 0 && word & (1 << 31) == 0) { return Err(()); }
+                if channel.buf_pos == length {
+                    if channel.conf0 & 4 != 0 { self.write32(channel.desc, word & !(1 << 31)).map_err(|_| ())?; }
+                    channel.int_raw |= 1;
+                    if word & (1 << 30) != 0 { channel.int_raw |= 2; channel.eof_desc = channel.desc; }
+                    channel.desc = next; channel.buf_pos = 0;
+                    if next == 0 { channel.running = false; channel.int_raw |= 8; }
+                } else {
+                    let byte = self.read8(data.checked_add(channel.buf_pos).ok_or(())?).map_err(|_| ())?;
+                    self.periph.parlio.fifo.push_back(byte);
+                    channel.buf_pos += 1;
+                }
+                Ok(())
+            })();
+            if result.is_err() { channel.running = false; channel.int_raw |= 4; break; }
+        }
+        self.irq_dirty |= channel.int_raw != self.periph.gdma.gdma.out[index].int_raw;
+        self.periph.gdma.gdma.out[index] = channel;
+    }
+
     /// Run the SPI1 controller if the guest just kicked it, advance device time, deliver what
     /// the devices produced to the board.
     fn devices(&mut self, cycles: u32) {
         if self.periph.spi_exec { self.run_spi(); }
         self.board.advance_to(self.cycles);
+        self.dma_parlio_step();
         self.periph.tick(cycles as u64);
         for input in self.board.uart_rx() {
             self.periph.uart_pin_input(&input);
@@ -578,4 +621,37 @@ impl Bus for SocBus {
     /// a peripheral write may have moved a line: the core's run stops so the machine re-derives it
     #[inline(always)]
     fn block_break(&self) -> bool { self.irq_dirty }
+}
+
+#[cfg(test)]
+mod parlio_dma_tests {
+    use super::*;
+    use esp_periph::Device;
+    #[test]
+    fn prefill_works_with_tx_clock_disabled_and_hands_back_descriptor() {
+        let mut bus=SocBus::new(1024,[0;6]);
+        let desc=SRAM_LOW+32; let data=SRAM_LOW+64;
+        bus.write32(desc,(1<<31)|(1<<30)|(4<<12)|4).unwrap();
+        bus.write32(desc+4,data).unwrap(); bus.write32(desc+8,0).unwrap();
+        bus.write32(data,0x12345678).unwrap();
+        let c=&mut bus.periph.gdma.gdma.out[0];
+        c.running=true;c.desc=desc;c.peri_sel=9;c.conf0=4;c.conf1=1<<12;
+        bus.periph.parlio.set_clock(0);
+        bus.dma_parlio_step();
+        assert_eq!(bus.periph.parlio.fifo.iter().copied().collect::<Vec<_>>(),vec![0x78,0x56,0x34,0x12]);
+        assert_eq!(bus.periph.parlio.read(0x10),1<<31);
+        assert_eq!(bus.periph.gdma.gdma.out[0].int_raw&15,11);
+        assert!(!bus.periph.gdma.gdma.out[0].running);
+        assert_eq!(bus.read32(desc).unwrap()>>31,0);
+    }
+    #[test]
+    fn rejects_unowned_descriptor_without_output() {
+        let mut bus=SocBus::new(1024,[0;6]); let desc=SRAM_LOW+32;
+        bus.write32(desc,(4<<12)|4).unwrap();bus.write32(desc+4,SRAM_LOW+64).unwrap();bus.write32(desc+8,0).unwrap();
+        let c=&mut bus.periph.gdma.gdma.out[0];c.running=true;c.desc=desc;c.peri_sel=9;c.conf1=1<<12;
+        bus.dma_parlio_step();
+        assert!(bus.periph.parlio.fifo.is_empty());
+        assert_eq!(bus.periph.gdma.gdma.out[0].int_raw,4);
+        assert!(!bus.periph.gdma.gdma.out[0].running);
+    }
 }
