@@ -1,0 +1,449 @@
+{
+  "experiment": "EX211",
+  "extension": "I2C bus time and strict sensor deadlines",
+  "base_revision": "a3f2a9ebabc4acfc0dbdf0c9d2e5a54be5e197b2",
+  "implementation_revision": "d6931c7ab7ea28f3c31c36128cd09111646671b0",
+  "reference_revision": "221080ffccfa829106b398f896653535853c76c8",
+  "environment": {
+    "os": "macOS 26.6.2",
+    "architecture": "arm64",
+    "rust": "1.99.0",
+    "cargo": "1.99.0 (5f94df478 2026-08-27)",
+    "node": "22.23.1",
+    "platformio": "6.1.19",
+    "arduino": "3.3.8",
+    "idf_libraries": "5.5.4+sha.735507283d",
+    "platform": "55.3.38+sha.fbdfc29",
+    "sensirion_scd4x": "1.1.0 at fd169d39a3dd342ba05feef92d69c36fb3a340ee",
+    "sensirion_core": "0.7.3",
+    "dependency_source_hashes": {
+      "Sensirion Core": {
+        "SensirionCore.h": "22fc079f54c48bc026ab6a2105cec95587889434e00997bf27847bbe4c52c15d",
+        "SensirionCoreArduinoLibrary.h": "ddd8dfaabc7d0a8a1bdfb588a9748ceaf19041b9a901741381034d76e86d58ea",
+        "SensirionCrc.cpp": "7390a6a1276295990fa0857633367470d72d9286d4855ecc550918e3d7f6fa3a",
+        "SensirionCrc.h": "df395b8753102712573fafc9e2aecc21408d16450b5386f4e03b6e2594f7c609",
+        "SensirionErrors.cpp": "01e535c67555181cc5e4df3e674b716a36454063d88e5a73efe6b6280110a0a6",
+        "SensirionErrors.h": "715c091e5c5505920b18f0e74986eb747f7b7d2e836f5e0d13a62a8fa6bfc590",
+        "SensirionI2CCommunication.cpp": "6594414cd86d6da7ad7db602efeffa7beb45d5b3c38d6d521a65cabbc2e44eb3",
+        "SensirionI2CCommunication.h": "e819a16059f704bb19c50572455cb2bb5c5ecb5762616ee9dcfeecc3fe9b3dde",
+        "SensirionI2CRxFrame.h": "c1c3d790197097b5a180f3e0569a359e50812551947eed38359cb4624086aebe",
+        "SensirionI2CTxFrame.cpp": "a8569f8cc31e2e3b1c5f7db86f6eb235c9bedf1dced2ba5931f274e646093082",
+        "SensirionI2CTxFrame.h": "353755c8e3f9d6e36a322e808f02088ace38ac1dfb477a338e014c3867678497",
+        "SensirionRxFrame.cpp": "a28fc72445c64fc13a4a214e4f7173795e6bbc6097d9d36041e88f5803d2a43f",
+        "SensirionRxFrame.h": "b76524da88d2db4062e81fdc21bd54a6cad8743ab9c3f097652394d593cc13f1",
+        "SensirionShdlcCommunication.cpp": "ae8b30e009acef35f18995bb81b9e76e865c0d991bb9ced93838ca55012f26ca",
+        "SensirionShdlcCommunication.h": "2adbc710726c04e334f8e99be9f013bf4937ab548c5a2bc1621f84df57050ffd",
+        "SensirionShdlcRxFrame.h": "b183707f08b5cadd3f511ff43d2f1010d05777d8177cde55cf2ece38b68f6deb",
+        "SensirionShdlcTxFrame.cpp": "6bc1afc57a1620b3df750e5252ccb8950eb3869122ea7f77a8dc03cf0e1315aa",
+        "SensirionShdlcTxFrame.h": "b2c7f830f129959435b2708934e6cbbf18d018c62c167c1ab8c97f6c05a07375"
+      },
+      "Sensirion I2C SCD4x": {
+        "SensirionI2cScd4x.cpp": "8f717710c7b4859143867fa6d420e020ac4fc591bfd134b9707a83672b9a3b90",
+        "SensirionI2cScd4x.h": "e4a277d5610f62869c830a6d16eafd26ecd972314fd9afb823a51c037862094d"
+      }
+    }
+  },
+  "checks": {
+    "native_clippy": "pass",
+    "wasm_clippy_jit_tests": "pass",
+    "assets_no_linux": "pass",
+    "release_workspace": {
+      "passed": 618,
+      "failed": 0,
+      "ignored": 0,
+      "external_filtered": 31
+    },
+    "timing_focused_and_external": {
+      "passed": 8,
+      "failed": 0
+    },
+    "address_alias_focused_and_external": {
+      "passed": 13,
+      "failed": 0
+    },
+    "wasm_build": "pass",
+    "wasm_demos": [
+      "hello",
+      "c3-hello",
+      "c6-hello",
+      "c6-energy-scan",
+      "c6-contiki",
+      "c6-contiki-net",
+      "c6-rpl-net",
+      "panel"
+    ],
+    "privacy_and_manual_review": "pass"
+  },
+  "focused_contract": {
+    "apb_hz": 80000000,
+    "configured_scl_hz": 100000,
+    "start_apb_ticks": 800,
+    "byte_with_ack_apb_ticks": 7200,
+    "stop_apb_ticks": 800,
+    "read_one_byte_total_apb_ticks": 16000,
+    "fractional_divider_2_5_byte_ticks": 18000,
+    "rc_fast_byte_ticks": 16458,
+    "c6_pcr_divider_test": 2,
+    "chips": [
+      "S3",
+      "C3",
+      "C6",
+      "classic ESP32"
+    ]
+  },
+  "sensor_scl_hz": 10000,
+  "sensor_firmware": {
+    "s3": {
+      "cycles": 1331000000,
+      "instructions": 19327505,
+      "reboots": 0,
+      "commands": [
+        [
+          16262,
+          4068096
+        ],
+        [
+          8625,
+          125029056
+        ],
+        [
+          58552,
+          1325749056
+        ],
+        [
+          60421,
+          1327631871
+        ]
+      ],
+      "read_cycle_and_deadline": [
+        [
+          1326277440,
+          1325989056
+        ],
+        [
+          1328197440,
+          1327871871
+        ]
+      ],
+      "early_reads": 0,
+      "serial": [
+        "SCD stop 0",
+        "SCD start 0",
+        "SCD ready 0 1",
+        "SCD sample 0 800 25.00 50.00",
+        "TIMING DONE"
+      ]
+    },
+    "c3": {
+      "cycles": 887000058,
+      "instructions": 887000058,
+      "reboots": 0,
+      "commands": [
+        [
+          16262,
+          3508928
+        ],
+        [
+          8625,
+          84036410
+        ],
+        [
+          58552,
+          884356410
+        ],
+        [
+          60421,
+          885451258
+        ]
+      ],
+      "read_cycle_and_deadline": [
+        [
+          884548602,
+          884516410
+        ],
+        [
+          885668602,
+          885611258
+        ]
+      ],
+      "early_reads": 0,
+      "serial": [
+        "SCD stop 0",
+        "SCD start 0",
+        "SCD ready 0 1",
+        "SCD sample 0 800 25.00 50.00",
+        "TIMING DONE"
+      ]
+    },
+    "c6": {
+      "cycles": 888000000,
+      "instructions": 888000000,
+      "reboots": 0,
+      "commands": [
+        [
+          16262,
+          3583232
+        ],
+        [
+          8625,
+          84105406
+        ],
+        [
+          58552,
+          884425406
+        ],
+        [
+          60421,
+          885520318
+        ]
+      ],
+      "read_cycle_and_deadline": [
+        [
+          884617662,
+          884585406
+        ],
+        [
+          885737598,
+          885680318
+        ]
+      ],
+      "early_reads": 0,
+      "serial": [
+        "SCD stop 0",
+        "SCD start 0",
+        "SCD ready 0 1",
+        "SCD sample 0 800 25.00 50.00",
+        "TIMING DONE"
+      ]
+    }
+  },
+  "benchmark": {
+    "samples": [
+      {
+        "run": 0,
+        "mode": "baseline",
+        "warmup": true,
+        "cycles": 47000000,
+        "instructions": 47349764,
+        "wall_seconds": 0.288132834
+      },
+      {
+        "run": 0,
+        "mode": "timed",
+        "warmup": true,
+        "cycles": 518000127,
+        "instructions": 64089970,
+        "wall_seconds": 0.425206
+      },
+      {
+        "run": 1,
+        "mode": "timed",
+        "warmup": false,
+        "cycles": 518000127,
+        "instructions": 64089970,
+        "wall_seconds": 0.412901708
+      },
+      {
+        "run": 1,
+        "mode": "baseline",
+        "warmup": false,
+        "cycles": 47000000,
+        "instructions": 47349764,
+        "wall_seconds": 0.288134917
+      },
+      {
+        "run": 2,
+        "mode": "baseline",
+        "warmup": false,
+        "cycles": 47000000,
+        "instructions": 47349764,
+        "wall_seconds": 0.2850355
+      },
+      {
+        "run": 2,
+        "mode": "timed",
+        "warmup": false,
+        "cycles": 518000127,
+        "instructions": 64089970,
+        "wall_seconds": 0.421094459
+      },
+      {
+        "run": 3,
+        "mode": "timed",
+        "warmup": false,
+        "cycles": 518000127,
+        "instructions": 64089970,
+        "wall_seconds": 0.415464917
+      },
+      {
+        "run": 3,
+        "mode": "baseline",
+        "warmup": false,
+        "cycles": 47000000,
+        "instructions": 47349764,
+        "wall_seconds": 0.302873542
+      },
+      {
+        "run": 4,
+        "mode": "baseline",
+        "warmup": false,
+        "cycles": 47000000,
+        "instructions": 47349764,
+        "wall_seconds": 0.290505916
+      },
+      {
+        "run": 4,
+        "mode": "timed",
+        "warmup": false,
+        "cycles": 518000127,
+        "instructions": 64089970,
+        "wall_seconds": 0.432281542
+      },
+      {
+        "run": 5,
+        "mode": "timed",
+        "warmup": false,
+        "cycles": 518000127,
+        "instructions": 64089970,
+        "wall_seconds": 0.4327905
+      },
+      {
+        "run": 5,
+        "mode": "baseline",
+        "warmup": false,
+        "cycles": 47000000,
+        "instructions": 47349764,
+        "wall_seconds": 0.293248667
+      }
+    ],
+    "median_seconds": {
+      "baseline": 0.290505916,
+      "timed": 0.421094459
+    },
+    "wall_cost_percent": 44.952111405538474,
+    "workload": "S3 Arduino 3.3.8, 100 kHz, 5000 register reads with repeated START",
+    "expected_sum": 825000,
+    "errors": 0,
+    "command_lists": 5000,
+    "clock_hz": 240000000,
+    "method": "One warm-up pair then five serial alternating pairs, existing build/test jobs finished, identical firmware/test harness and compiler; wall Instant encloses boot_rom execution through TIMING DONE checked in 1M-instruction batches. Host load not controlled."
+  },
+  "intentional_panel_goldens": {
+    "panel-sid.console.txt": {
+      "old_file_sha256": "a77aaabb68350611617f518acdf4687b919906b7439ef327d816239c62b683d9",
+      "new_file_sha256": "942ce18d2c00e8738f36be7ce3a1d318b7ab363dd8fa0090dfc8e147fd0f92d2"
+    },
+    "panel-sid.insns": {
+      "old_file_sha256": "634641181b2f474fd01f9f2818518595317a24682101a34c7672852fe115dfb6",
+      "new_file_sha256": "fde5200e6029af4292cd09e0c9f2e8e456fb355fc7a661f17005ead6d0e0a079",
+      "old_value": "396469561",
+      "new_value": "398637173"
+    },
+    "panel-sid.wav.sha256": {
+      "old_file_sha256": "0b1653059250c4457cd95afbc4765250263a5861dd70bfc4e1a5303bad144fb8",
+      "new_file_sha256": "d76a1dbdcc7aef23b0c7283d8439262a4948799fa52316c731dc49e431197ebb",
+      "old_value": "89880538c0dc82e11f74bfdd7a4e98e02cc793cfd806bdb78c08e6c9b1378dfe",
+      "new_value": "37b4961b189338e0977f283e2485080f5f8078380fac956f969283cc20ca2171"
+    }
+  },
+  "panel_audio": {
+    "old": {
+      "frames": 144082,
+      "bytes": 288208,
+      "nonzero_bytes": 54084
+    },
+    "new": {
+      "frames": 135079,
+      "bytes": 270202,
+      "nonzero_bytes": 54470
+    },
+    "sample_rate": 22050,
+    "channels": 1,
+    "console_change": "Timestamp-only; main up 725 to 1147 ms; Commando start 5789 to 5778 ms. Nonzero audio and exact golden repeated."
+  },
+  "negative_results": [
+    {
+      "case": "new busy/deadline test on instantaneous base",
+      "result": "failed: SR.bus_busy was 0, expected 16"
+    },
+    {
+      "case": "initial heavy harness",
+      "result": "firmware sum and error checks passed; harness wrongly expected 10000 command lists instead of 5000 combined repeated-start transfers; corrected count"
+    },
+    {
+      "case": "first strict sensor test model",
+      "result": "incorrectly refused write address during busy and consumed measurement at command receipt; corrected to command-level refusal and consumption after final response byte, matching fork semantics"
+    },
+    {
+      "case": "100 kHz one-shot firmware with corrected command-busy model",
+      "result": "all three sample checks failed; early read address gaps below the 1 ms response deadline; S3 one early read, C3 and C6 two each"
+    },
+    {
+      "case": "100 kHz fork-style retry workflow",
+      "result": "S3 passed; C3/C6 status retries all arrived before the renewed 1 ms deadline. Measurement retry also exposed early consumption in the initial test model. Model corrected; final fixture explicitly uses 10 kHz without weakening deadlines."
+    },
+    {
+      "case": "final 10 kHz pinned firmware on instantaneous base with final test model",
+      "result": "all 3 strict tests failed: S3 returned values but required one early read/retry; C3/C6 sample returned 527 and each rejected eight early reads"
+    },
+    {
+      "case": "first full CI after timing",
+      "result": "C6 GPIO fixture assumed earlier I2C transfers consumed zero time; made timestamps relative to stimulus. Next full run failed panel timestamp golden; regenerated only the three intentional panel goldens per CONTRIBUTING. Final full run passed."
+    }
+  ],
+  "initial_one_shot_hashes": {
+    "docs/evidence/i2c-address-2026-10-02/timing/src/main.cpp": "1e8f47f041273a1c864fb467f4a083183e4f18794fc543a598569784c7433429",
+    "docs/evidence/i2c-address-2026-10-02/timing/.pio/build/s3/firmware.bin": "7421dd911d3f749f9c18be48b59483e1e313b7f2097a164d2b811fea6af91d4d",
+    "docs/evidence/i2c-address-2026-10-02/timing/.pio/build/c3/firmware.bin": "c7b9afa6c6e6b52df9ce9b059f24cb7edce0a6e50247a46d2c59e5b5a950c927",
+    "docs/evidence/i2c-address-2026-10-02/timing/.pio/build/c6/firmware.bin": "629dd4082fa6f3f1262aaf3bfebbd2ab3b31a787c24edcb8782ebbb3f9ebe7ab",
+    "docs/evidence/i2c-address-2026-10-02/timing/.pio/build/heavy/firmware.bin": "d68d2539cd8981f5b20818d6183874260b2d1d9fc52e1adc49b28610b92e019f"
+  },
+  "files_sha256": {
+    "esp-periph/src/i2c.rs": "409a3a1255aa9527446f5c9ae651ed1af5cc9c9259cc6d4bdaddae62610eb695",
+    "esp32/src/i2c.rs": "875b215a0ab4c92be215cdb8bc977570c8eb8f9c9868df3505b1598e22e09358",
+    "esp32/src/bus.rs": "204f9784237abd71d1dc0f762fc1cd648bf5ad2ae708483ce64ccde175aad67c",
+    "esp32c3/src/bus.rs": "e8a2932b7457445a232e817a15728989ba9a443f17b417781828c49035a1c750",
+    "esp32c6/src/bus.rs": "4f8db28527057415966752f0407f93390dd3dd32de4d8b5b93735488026247ce",
+    "esp32c6/src/periph.rs": "2e04adcbde9d046054672103c91a7648e05ede0e7292e0e9157c34fc1b4d99bc",
+    "esp32s3/src/bus.rs": "99f3637824330075c963025d8e69cb462ee462923a7fd5bb01bf87d3748f646d",
+    "cli/tests/i2c_timing.rs": "c12854b7945c2ddffc62c999d05e3a348982300c7a5724edce157dbf993d3ee0",
+    "docs/evidence/i2c-address-2026-10-02/timing/platformio.ini": "3b00f25ce8cddf0c376af2ae87267fb5b227849ee6a87d410058828e4c605cbc",
+    "docs/evidence/i2c-address-2026-10-02/timing/src/main.cpp": "5e12faf4adabfd38f71f5fa7f2aa12835ce0c9bae5485291126910fbaec9bf17",
+    "web/wasm/fw/esp32c6_rev0_rom.elf": "788e1d38724aeb8fd974fa10c4a7b089c02627d35342ce84b9e0b12b239f3551",
+    "web/wasm/fw/esp32s3_rev0_rom.elf": "c0ce0f338d1de1bdc6efbef1591779a2a42c1ab7d759d3c6ae8ae63a7dd34cfd",
+    "web/wasm/fw/esp32c3_rev3_rom.elf": "19ac22e08707df926fb0cf4c54795d4067b983fae8635f396ded173a6d78fc3c",
+    "docs/evidence/i2c-address-2026-10-02/timing/.pio/build/s3/partitions.bin": "1d9cca96de0fe07ad7fc0648b9878ddecd9ce565e38b589ad20fea698ed4c80c",
+    "docs/evidence/i2c-address-2026-10-02/timing/.pio/build/s3/firmware.bin": "ab7cdeee120d71e546a1c63926703cb8310b6db337bf15168498e4c031f438d1",
+    "docs/evidence/i2c-address-2026-10-02/timing/.pio/build/s3/firmware.factory.bin": "06563cd4c23ed48173bfe5379f1a29491e7b5ce59877fba58975dba0b34e6a2f",
+    "docs/evidence/i2c-address-2026-10-02/timing/.pio/build/s3/bootloader.bin": "6f232c4aafe7d21239a1c59404723ca2cfdca063ef73501a21126a8cef39f432",
+    "docs/evidence/i2c-address-2026-10-02/timing/.pio/build/c6/partitions.bin": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1",
+    "docs/evidence/i2c-address-2026-10-02/timing/.pio/build/c6/firmware.bin": "0bbc5918b08e2d260503de2efcd9d5e366456e3bc0be0f01ec259cbdfcc44e9d",
+    "docs/evidence/i2c-address-2026-10-02/timing/.pio/build/c6/firmware.factory.bin": "9edb11f19d4af00ce6dd8e786e9e77b6f34417c09c3187f6d58eec7f7319ec5e",
+    "docs/evidence/i2c-address-2026-10-02/timing/.pio/build/c6/bootloader.bin": "022390206caedbc5f780cd955b31e1dd1219091f374e420cd0531b2f5b5b5037",
+    "docs/evidence/i2c-address-2026-10-02/timing/.pio/build/c3/partitions.bin": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1",
+    "docs/evidence/i2c-address-2026-10-02/timing/.pio/build/c3/firmware.bin": "76b4946ff4248b1a1b6226a5928f79568c69c8c6d0f123be5c0237e6646fe7ed",
+    "docs/evidence/i2c-address-2026-10-02/timing/.pio/build/c3/firmware.factory.bin": "91160ef85c1d5e600fed9d67e97236ef94adfb879ac249f8ec6503c26d90096d",
+    "docs/evidence/i2c-address-2026-10-02/timing/.pio/build/c3/bootloader.bin": "da409642ea1619c16b4ef485219a91c3c2ae873ce3bae37330c24100bd747439",
+    "docs/evidence/i2c-address-2026-10-02/timing/.pio/build/heavy/partitions.bin": "1d9cca96de0fe07ad7fc0648b9878ddecd9ce565e38b589ad20fea698ed4c80c",
+    "docs/evidence/i2c-address-2026-10-02/timing/.pio/build/heavy/firmware.bin": "c68cd89a09c9328ad972cf8440b66627f09e43d9463c263a3f201fe2a98f4cfa",
+    "docs/evidence/i2c-address-2026-10-02/timing/.pio/build/heavy/firmware.factory.bin": "75747e7cce6e8fc688be2b309af47eba39cd10338c399468ec325bedcfff5914",
+    "docs/evidence/i2c-address-2026-10-02/timing/.pio/build/heavy/bootloader.bin": "6f232c4aafe7d21239a1c59404723ca2cfdca063ef73501a21126a8cef39f432",
+    "web/wasm/esp32sim.wasm": "90bcc17fe376e920b65040ff5de2fcd5376a35c0be0448785f78daa565dcf2db",
+    "target/wasm32-unknown-unknown/release/esp32sim_wasm.wasm": "90bcc17fe376e920b65040ff5de2fcd5376a35c0be0448785f78daa565dcf2db",
+    "target/release/deps/i2c_timing-bedee4b98417dca8": "c2008267b35d9c32205f1d24b9911cbfa80947accbe2defa0fc3e89909853214",
+    "target/i2c-timing-baseline-build/release/deps/i2c_timing-bedee4b98417dca8": "d86998a84bd264ed846292700433949f693349eda468d2ca34fa27da54ea1ab7",
+    "web/wasm/fw/public/panel-bootloader.bin": "f804e8ef245d68ee0932650062e8f4d6b14df22d61fb39ba50f5e33977127801",
+    "web/wasm/fw/public/panel-ptable.bin": "fb462bc675bf6928afe8de87977f72c7dfce38491d32aa89a9204b6d4d5b1066",
+    "web/wasm/fw/public/panel-demo.bin": "8094e4be95f8d92c7ce41fe1acbbecbcdb3b31725fc292a1eef63cfcc22cf5a0",
+    "web/wasm/fw/public/panel-sid.txt": "bb6e0b1f1d5945265f0310f2a40b59b03602b257b412f52f649fc2c66823f420",
+    "web/wasm/fw/public/energydata.json": "aa8d5326406a83aa254d953d16f18f644c0112d523ef2e2e66b3ab1add4ff0cb"
+  },
+  "limits": [
+    "Byte/ACK timing, no electrical waveforms, arbitration or clock stretching.",
+    "Callbacks observe the enclosing bus tick; existing scheduler granularity still applies. Direct callers must advance time and honor next_deadline for precise callback timestamps.",
+    "The fixture uses 10 kHz to isolate bus time from Arduino delay(1) returning before a full millisecond; 100 kHz strict sensor reads remain an application timing limitation.",
+    "Test-only SCD4x protocol subset; SEN66 and MLX90393 private device models not run. Classic has MMIO timing coverage, no Arduino sensor firmware.",
+    "Benchmark includes boot and firmware waiting work, one host with uncontrolled ambient load. No pure controller overhead or cross-machine speed claim."
+  ],
+  "privacy": "Only relevant revisions, input/source/artifact hashes, protocol values, numeric timings and software versions retained. Raw build/runtime logs, host identity and dependency/build directory contents omitted; artifacts remain local and ignored. Earlier receipts unchanged."
+}

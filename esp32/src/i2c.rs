@@ -32,5 +32,9 @@ impl Device for I2c {
         WriteEffect::NONE
     }
     fn irq_sources(&self) -> u64 { self.inner.irq() as u64 }
+    fn clock(&self) -> Option<emu_core::ClockDomain> { self.inner.clock() }
+    fn tick(&mut self, ticks: u64) { self.inner.tick(ticks); }
+    fn has_deadline(&self) -> bool { true }
+    fn next_deadline(&self) -> Option<u64> { self.inner.next_deadline() }
     fn debug(&mut self, on: bool) { self.inner.log = on; }
 }

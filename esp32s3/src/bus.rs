@@ -855,6 +855,7 @@ impl SocBus {
     fn tick_impl(&mut self, cycles: u32) -> u32 {
         // Reads may flush before the periodic backstop. Refresh for either edge
         // of a clocked source, without breaking every block that polls MMIO.
+        self.board.advance_to(self.cycles);
         self.irq_dirty |= self.periph.tick(cycles as u64);
         for input in self.board.uart_rx() {
             self.periph.uart_pin_input(&input);

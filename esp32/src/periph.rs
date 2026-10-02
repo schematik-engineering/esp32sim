@@ -883,6 +883,7 @@ mod tests {
         p.write32(BASE + 0x5c, command(1, 2));
         p.write32(BASE + 0x60, command(4, 0));
         p.write32(BASE + 0x04, 1 << 5);
+        p.tick(100_000);
         assert_ne!(p.read32(BASE + 0x20) & INT_END_DETECT, 0);
 
         p.write32(BASE + 0x24, u32::MAX);
@@ -892,6 +893,7 @@ mod tests {
         p.write32(BASE + 0x60, command(2, 1));
         p.write32(BASE + 0x64, command(3, 0));
         p.write32(BASE + 0x04, 1 << 5);
+        p.tick(100_000);
         assert_eq!(p.read32(BASE + 0x1c), 5);
         assert_ne!(p.read32(BASE + 0x20) & INT_TRANS_COMPLETE, 0);
         assert_ne!(p.cpu_lines(0) & (1 << 7), 0);
@@ -904,12 +906,14 @@ mod tests {
         p.write32(BASE + 0x5c, command(1, 1));
         p.write32(BASE + 0x60, command(3, 0));
         p.write32(BASE + 0x04, 1 << 5);
+        p.tick(100_000);
         assert_ne!(p.read32(BASE + 0x20) & INT_NACK, 0);
         assert_ne!(p.read32(BASE + 0x08) & 1, 0);
 
         p.write32(BASE + 0x24, u32::MAX);
         p.gpio.set_input(22, false);
         p.write32(BASE + 0x04, 1 << 5);
+        p.tick(100_000);
         assert_ne!(p.read32(BASE + 0x20) & INT_TIMEOUT, 0);
         assert_ne!(p.read32(BASE + 0x08) & (1 << 2), 0);
         p.write32(BASE + 0x94, command(4, 0));
@@ -931,6 +935,7 @@ mod tests {
         p.write32(BASE + 0x5c, command(1, 1));
         p.write32(BASE + 0x60, command(3, 0));
         p.write32(BASE + 0x04, 1 << 5);
+        p.tick(100_000);
         assert_ne!(p.source_status(0)[SRC_I2C1 / 32] & (1 << (SRC_I2C1 % 32)), 0);
         assert_ne!(p.cpu_lines(0) & (1 << 9), 0);
     }
