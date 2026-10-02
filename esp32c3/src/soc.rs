@@ -32,7 +32,9 @@ impl Soc for C3 {
 impl esp_soc::SocBus for SocBus {
     fn cycles(&self) -> u64 { self.cycles }
     fn next_deadline(&self) -> Option<u64> {
-        match self.periph.cycles_until_timer() { u32::MAX => None, cycles => Some(cycles.max(1) as u64) }
+        let timer = self.periph.cycles_until_timer();
+        let cycles = if self.periph.i2s0.rx_running() { timer.min(256) } else { timer };
+        match cycles { u32::MAX => None, cycles => Some(cycles.max(1) as u64) }
     }
     fn irq_dirty(&mut self) -> &mut bool { &mut self.irq_dirty }
     fn refresh_irq(&mut self) -> bool { self.periph.refresh_lines(); true }
@@ -85,6 +87,7 @@ impl esp_soc::SocBus for SocBus {
         let old = std::mem::replace(&mut self.periph, periph::Peripherals::new(mac));
         let p = &mut self.periph;
         p.efuse = old.efuse;
+        p.i2s0.rx_input = old.i2s0.rx_input;
         p.misc.log_unknown = old.misc.log_unknown;
         p.usb.connected = old.usb.connected;
         p.rtc.reset_cause = cause;
@@ -138,6 +141,7 @@ impl esp_soc::SocBus for SocBus {
     fn gpio_input(&self) -> u64 { self.periph.gpio.input }
     fn board(&mut self) -> &mut dyn BoardModel { &mut *self.board }
     fn board_ref(&self) -> &dyn BoardModel { &*self.board }
+    fn i2s_input(&mut self, port: usize) -> Option<&mut esp_periph::i2s::PcmInput> { if port == 0 { Some(&mut self.periph.i2s0.rx_input) } else { None } }
     fn audio(&self) -> (&[i16], u32) { (&[], 44100) }
     fn irq_sources_of(&self, _core: usize, line: u32) -> Vec<usize> { (0..src::COUNT).filter(|&s| self.periph.intc.map[s] == line).collect() }
 }

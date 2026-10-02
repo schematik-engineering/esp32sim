@@ -1,0 +1,26 @@
+[
+  {
+    "check": "PlatformIO package lock",
+    "error": "PermissionError: [Errno 1] Operation not permitted: '/Users/alice/.platformio/platforms.lock'",
+    "original_artifact_sha256": {
+      "i2s-pio-s3.log": "aeb92933033f26af4aea133881b560d21e3b517660082dd4c68d2fc94a5a2df0"
+    },
+    "resolution": "Retried pio run with sandbox escalation; all four environments built successfully."
+  },
+  {
+    "check": "C6 default flash size",
+    "error": "spi_flash: Detected size(4096k) smaller than the size in the binary image header(8192k). Probe failed.",
+    "original_artifact_sha256": {
+      "i2s-arduino-initial.json": "e3a8d267adaeef7fa8311f8a7eae146ce962bebf0dd0e5b235e61043a9a2614b"
+    },
+    "resolution": "Added --flash-mb 8 for C6; both sources and reset passed."
+  },
+  {
+    "check": "S3 retry used incorrect flash size",
+    "error": "assert failed: __esp_system_init_fn_init_flash startup_funcs.c:118 (flash_ret == ESP_OK)",
+    "original_artifact_sha256": {
+      "i2s-arduino-flash-retry.json": "9db331fdb80326b0c91ddef2445b10413a23ac0cec1dc727eed2a0921281040d"
+    },
+    "resolution": "Restricted --flash-mb 4 to C3; S3 and S3 PDM then passed with 8 MiB."
+  }
+]

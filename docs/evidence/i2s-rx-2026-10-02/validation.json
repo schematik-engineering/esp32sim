@@ -1,0 +1,63 @@
+[
+  {
+    "command": "cargo build --release",
+    "exit": 0,
+    "raw_log_sha256": "8ee599619d62b8cc099d3ea0d688bf7dbaff9b7cf098e2a82b8005c21fa60b41",
+    "result": "Finished `release` profile [optimized + debuginfo] target(s) in 15.95s"
+  },
+  {
+    "command": "cargo test --workspace",
+    "exit": 0,
+    "raw_log_sha256": "8f0b271b1941770a3276dace9317c606a1d20767790a2ae9161201f19709954d",
+    "passed": 465,
+    "failed": 0,
+    "ignored": 22
+  },
+  {
+    "command": "tools/wasm-build.sh",
+    "exit": 0,
+    "raw_log_sha256": "fa2f84825ee0625143afb3129472fd5ac3dfe62cc3ead0e9abec782dd4584e87",
+    "result": "Finished `release` profile [optimized] target(s) in 12.13s"
+  },
+  {
+    "command": "cargo test -p esp32sim --test i2s_rx",
+    "exit": 0,
+    "raw_log_sha256": "8d2877f03b51aed676beb7e5b18f8617fd1d428028015d0281e54ccd51f8d17b",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "command": "PlatformIO build, see README",
+    "exit": 0,
+    "environments": [
+      "s3",
+      "c3",
+      "c6",
+      "s3-pdm"
+    ],
+    "durations_seconds": [
+      7.413,
+      5.894,
+      6.026,
+      6.474
+    ]
+  },
+  {
+    "command": "python3 check.py, arguments in README",
+    "exit": 0,
+    "passed": 8,
+    "failed": 0
+  },
+  {
+    "command": "git diff --check",
+    "exit": 0
+  },
+  {
+    "command": "node tools/check-evidence-privacy.mjs",
+    "exit": 0,
+    "result": "PASS: 1480 tracked evidence files checked (15 gzip files); no configured privacy patterns found. Manual review is still required.",
+    "raw_log_sha256": "20a9cc2005d2dbe20f09e41281e0b02323ad7e274dcb175af3970034d4674939",
+    "manual_review": "Reviewed new source, firmware sketch, JSON, scripts, and documentation; no raw profiles or private originals added."
+  }
+]

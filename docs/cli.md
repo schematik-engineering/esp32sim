@@ -38,6 +38,7 @@ PSRAM and register presets.
 | --- | --- |
 | `--max-seconds S` | stop after this much emulated time, including all reboots; also applies to `--cooja` |
 | `--max-insns N` | cap scheduler work across all reboots (details below); unavailable with `--cooja`, which uses `--max-seconds` |
+| `--i2s-tone PORT:HZ:AMPLITUDE` | continuous RX sine on I2S controller 0 or 1; amplitude 0..1, for example `0:1000:0.5`; repeat for multiple controllers |
 | `--script F` | host actions at emulated times (below) |
 | `--console usb\|uart0\|both\|all\|none`, `--console-prefix` | which consoles to print |
 | `--realtime` | pace to wall time without the UI |
@@ -102,3 +103,24 @@ One action per line, `<seconds> <cmd> [args]`; buttons/encoder are active low.
 `hw/wsdrive.py [port] [seconds]` drives the same inputs over the UI's WebSocket and reports
 real-time keep-up (push gaps, lag, audio delivered); `hw/wsaudio.py [port] [seconds]` listens to the
 UI's audio stream and reports sample counts/peak (how to check sound without listening).
+
+## I2S microphone input
+
+Standard I2S RX supports 16/24/32-bit mono or stereo on S3 controllers 0/1 and
+C3/C6 controller 0. S3 controller 0 also accepts PDM-to-PCM RX at 16 bits.
+`--i2s-tone 0:1000:0.5` supplies a continuous 1 kHz sine at half full scale;
+omit it for silence. The source survives software resets.
+
+Rust hosts use `SocBus::i2s_input(port)` to access `PcmInput`. `push(&[[left, right]])`
+queues signed 16-bit stereo frames at the firmware's programmed sample rate.
+For mono input, duplicate each sample into both lanes. `push` returns the number
+accepted, up to a queue limit of 65,536 frames; retry the remaining frames later.
+`clear()` removes queued data and disables the tone. Empty queues read as zero.
+Queued input pauses while RX or its DMA channel is stopped, including during reboot.
+24/32-bit guest buffers receive signed samples shifted left by 16 in 32-bit words.
+
+Input attaches to a controller at the PCM/DMA boundary. It does not simulate GPIO
+wiring, serial bit timing, or PDM filter response. Raw PDM, external slave clocks,
+more than two slots, companding, and reversed bit/byte order are unsupported.
+C3/C6 and S3 controller 1 have no hardware PDM-to-PCM converter, so their raw PDM
+mode does not consume this PCM source. Existing I2S TX capture is unchanged.
