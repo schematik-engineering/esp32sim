@@ -9,9 +9,9 @@ use std::collections::VecDeque;
 pub trait I2cDevice {
     /// Current 7-bit address, sampled after each data write. Defaults to the attached address.
     fn address(&self, configured: u8) -> u8 { configured }
-    /// Select this device, optionally accepting write-only general calls at address zero.
+    /// Match the main address, enabled aliases, or write-only general calls at address zero.
     fn matches_address(&self, configured: u8, address: u8, _read: bool) -> bool { self.address(configured) == address }
-    /// Address-aware start hook for devices that also accept general calls.
+    /// Start at the actual bus address. Return false to reject this transaction.
     fn start_address(&mut self, _address: u8, read: bool) -> bool { self.start(read) }
     /// Optional physical (SDA, SCL) attachment. None keeps controller-only addressing.
     fn pins(&self) -> Option<(u8, u8)> { None }
@@ -132,9 +132,8 @@ impl I2c {
                             let addr = b >> 1; let rd = b & 1 != 0;
                             self.cur.clear();
                             for (k, (configured, device)) in self.devices.iter_mut().enumerate() {
-                                if device.matches_address(*configured, addr, rd) && (device.pins().is_none() || device.pins() == self.pins) {
-                                    if device.start_address(addr, rd) { self.cur.push(k); }
-                                    if addr != 0 || rd { break; }
+                                if device.matches_address(*configured, addr, rd) && (device.pins().is_none() || device.pins() == self.pins) && device.start_address(addr, rd) {
+                                    self.cur.push(k);
                                 }
                             }
                             if self.log { eprintln!("[i2c] start addr {:#04x} {}{}", addr, if rd { "R" } else { "W" }, if self.cur.is_empty() { " (no device)" } else { "" }); }
@@ -158,7 +157,8 @@ impl I2c {
                 }
                 3 => {                                                                   // READ n bytes
                     for _ in 0..n {
-                        let b = match self.cur.first() { Some(&k) => self.devices[k].1.read(), None => 0xff };
+                        let mut b = 0xff;
+                        for &k in &self.cur { b &= self.devices[k].1.read(); }
                         if self.log { eprintln!("[i2c]   read  {:#04x}", b); }
                         if self.rx.len() < 32 { self.rx.push_back(b); }
                     }
