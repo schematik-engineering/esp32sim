@@ -334,6 +334,7 @@ pub struct Peripherals {
     pub ledc: Ledc,
     pub mcpwm: Mcpwm,
     pub io_mux: esp_periph::RegRam,
+    pub i2c: esp_periph::i2c::I2c,
     pub efuse: Efuse,
     pub spi0: SpiMemC6,
     pub spi1: SpiMemC6,
@@ -367,6 +368,7 @@ pub struct Peripherals {
 
 // Every peripheral, where it sits (4 KB block number from 0x60000000), and its interrupt sources.
 device_set! { Peripherals; clock: (clock) CPU_HZ, [(ClockDomain::Systimer, 10), (ClockDomain::Apb, 2), (ClockDomain::RtcSlow, 1067), (ClockDomain::Cpu, 1)];
+    0x04 "I2C0" (i2c) => [src::I2C_EXT0];
     0x90 "IO_MUX" (io_mux) => [];
     0x00 "UART0" (uart[0]) => [src::UART0];
     0x01 "UART1" (uart[1]) => [src::UART1];
@@ -419,7 +421,7 @@ impl Peripherals {
     pub fn new(mac: [u8; 6]) -> Self {
         Peripherals {
             uart: [Uart::new(UartLayout::C6), Uart::new(UartLayout::C6)], usb: UsbSerialJtag::new(CPU_HZ), systimer: Systimer::new(),
-            timg: [TimerGroup::new(), TimerGroup::new()], gpio: Gpio::new(), ledc: Ledc::new(LedcLayout::C6), mcpwm: Mcpwm::new(87), io_mux: esp_periph::RegRam::new(),
+            timg: [TimerGroup::new(), TimerGroup::new()], gpio: Gpio::new(), ledc: Ledc::new(LedcLayout::C6), mcpwm: Mcpwm::new(87), io_mux: esp_periph::RegRam::new(), i2c: esp_periph::i2c::I2c::new(),
             efuse: efuse_c6(mac, 0, 1, 1, 0, 3),
             spi0: SpiMemC6({ let mut s = SpiMem::new(false); s.has_psram = false; s }),
             spi1: SpiMemC6({ let mut s = SpiMem::new(true); s.has_psram = false; s }),   // no PSRAM on the C6
@@ -466,9 +468,25 @@ impl Peripherals {
 
     pub fn read32(&mut self, addr: u32) -> u32 { mmio::read32(self, addr) }
 
+    fn i2c_pin(&self, signal: usize) -> Option<u8> {
+        let sel = self.gpio.func_in_sel[signal];
+        let pin = (sel & 63) as usize;
+        if pin >= 31 { return None; }
+        let mux = self.misc.generic.get(&0x90).map_or(0, |r| r.read(4 + 4 * pin as u32));
+        let out = self.gpio.func_out_sel[pin];
+        (sel & 0xc0 == 0x80
+            && mux & (7 << 12 | 1 << 9) == (1 << 12 | 1 << 9)
+            && out & (0xff | 1 << 8 | 1 << 10) == signal as u32
+            && (out & (1 << 9) == 0 || self.gpio.enable & (1 << pin) != 0))
+            .then_some(pin as u8)
+    }
+
     pub fn write32(&mut self, addr: u32, v: u32) {
         if addr == PERIPH_BASE + 0x96034 && v & 2 != 0 { self.ledc = Ledc::new(LedcLayout::C6); }
         if addr == PERIPH_BASE + 0x9609c && v & 2 != 0 { self.mcpwm = Mcpwm::new(87); }
+        if addr == 0x6000_4004 && v & (1 << 5) != 0 && self.i2c.has_pinned_devices() {
+            self.i2c.set_pins(self.i2c_pin(46).zip(self.i2c_pin(45)));
+        }
         if mmio::write32(self, addr, v).contains(WriteEffect::SPI_EXEC) { self.spi_exec = true; }
         if addr == PERIPH_BASE + 0x96034 || addr == PERIPH_BASE + 0x96038 {
             let conf = self.pcr.read(0x34); let clock = self.pcr.read(0x38);

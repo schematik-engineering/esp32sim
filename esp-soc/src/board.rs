@@ -29,7 +29,7 @@ pub trait BoardModel {
     fn gpio_changes(&mut self, _changes: &[(u8, bool)]) {}
     /// Output changes at the SoC bus cycle. The drive masks also expose output-enable
     /// transitions (including releasing a low pin), needed by open-drain pulse protocols.
-    /// S3 and C3 call this immediately after a GPIO output/enable write; other chips may use
+    /// S3, C3 and C6 call this immediately after a GPIO output/enable write; other chips may use
     /// `gpio_changes` until they implement timestamped output.
     fn gpio_output_at(&mut self, _cycle: VirtualCycle, changes: &[(u8, bool)], _enabled: u64, _output: u64) {
         if !changes.is_empty() { self.gpio_changes(changes); }

@@ -50,6 +50,18 @@ pub struct SocBus {
 }
 
 impl SocBus {
+    /// Attach controller devices and restore inputs driven by the persistent board.
+    pub fn attach_board_devices(&mut self) {
+        for (bus, address, device) in self.board.i2c_devices() {
+            if bus == 0 { self.periph.i2c.attach(address, device); }
+        }
+        for (pin, level) in self.board.input_levels() {
+            let old = self.periph.gpio.input;
+            self.periph.gpio.set_input(pin, level);
+            self.irq_dirty |= old != self.periph.gpio.input;
+        }
+    }
+
     pub fn new(flash_size: usize, mac: [u8; 6]) -> Self {
         SocBus {
             ble: Default::default(),
@@ -126,9 +138,13 @@ impl SocBus {
             }
         }
         let v = if size == 4 { v } else { merge(self.periph.read32(a)) };
+        let old_drive = (self.periph.gpio.enable, self.periph.gpio.out);
         self.periph.write32(a, v);
         if let Some(port) = match a { 0x60000000 => Some(0), 0x60001000 => Some(1), _ => None } {
             self.board.uart_tx(self.periph.uart_route(port), v as u8);
+        }
+        if old_drive != (self.periph.gpio.enable, self.periph.gpio.out) {
+            self.deliver_gpio_output();
         }
         // A SPI flash command must complete before the guest reads its result (see the C3 notes:
         // running it at the quantum boundary loses the race and reads back zeros).
@@ -373,14 +389,15 @@ impl SocBus {
         self.irq_dirty = true;
     }
 
-    /// Pin-level events to the board, in order: GPIO edges first, then what went out on the
-    /// SPI, then completed RMT frames.
+    fn deliver_gpio_output(&mut self) {
+        let ch = std::mem::take(&mut self.periph.gpio.changes);
+        if let Some(ev) = &mut self.gpio_events { for &(pin, level) in &ch { ev.push((self.cycles, pin, level)); } }
+        self.board.gpio_output_at(self.cycles, &ch, self.periph.gpio.enable, self.periph.gpio.out);
+    }
+
+    /// GPIO edges precede SPI transfers and completed RMT frames.
     fn deliver_board_events(&mut self) {
-        if !self.periph.gpio.changes.is_empty() {
-            let ch = std::mem::take(&mut self.periph.gpio.changes);
-            if let Some(ev) = &mut self.gpio_events { for &(pin, level) in &ch { ev.push((self.cycles, pin, level)); } }
-            self.board.gpio_changes(&ch);
-        }
+        if !self.periph.gpio.changes.is_empty() { self.deliver_gpio_output(); }
         if let Some(transfer) = self.periph.spi2.take_transfer() {
             let rx = self.board.spi_transfer(2, &transfer.tx, transfer.rx_len);
             self.periph.spi2.finish_transfer(transfer, &rx);
@@ -430,6 +447,14 @@ impl SocBus {
         for input in self.board.uart_rx() {
             self.periph.uart_pin_input(&input);
             self.irq_dirty = true;
+        }
+        self.periph.gpio.input_changes.clear();
+        self.board.advance_to(self.cycles);
+        for edge in self.board.take_edges() {
+            if let Some(events) = &mut self.gpio_events { events.push((edge.cycle, edge.pin, edge.level)); }
+            let old = self.periph.gpio.input;
+            self.periph.gpio.set_input(edge.pin, edge.level);
+            self.irq_dirty |= old != self.periph.gpio.input;
         }
         if self.periph.radio.rx_write.is_some() { self.radio_rx_store(); }
         if self.periph.spi2.dma_tx_pending.is_some() { self.spi2_dma_tx(); }
