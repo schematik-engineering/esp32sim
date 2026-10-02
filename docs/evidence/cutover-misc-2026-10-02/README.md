@@ -129,3 +129,39 @@ This limits independent reproduction to holders of the private acceptance inputs
 it does not change measured values. Raw local results remain under
 `/private/tmp/esp32sim-fix-misc-results`, and the requested standalone report is
 `/tmp/esp32sim-fix-misc-report.md`.
+
+## C3/C6 reset follow-up
+
+Base `8859951ee128f9dc832b1b14110d00fec5dba8c2`. The follow-up acceptance
+reported the same lost external HIGH on C3 and C6 after the add-on's GPIO pull
+snapshot fixes. Added one `p.gpio.restore_external(&old.gpio)` call to each
+peripheral reset, beside the existing strapping-pin restoration. The shared
+EX214 resolver is unchanged: only externally driven pins survive as external
+drivers; released inputs and guest pulls are not copied across reset.
+
+The private add-on was cloned again, pinned to
+`f0caca33f475ab335ac7eb04f3c50bb61f1b1c72`, and built with the same seven local
+Cargo patches and unchanged asset builder under Rust 1.99.0. The original
+add-on was read-only. This extends the original receipt's add-on scope; all
+earlier observations and artifact hashes remain above and in `receipt.json`.
+
+The unchanged GPIO verifier passes on S3, C3 and C6, including pulls, output
+readback, external overrides, CHANGE IRQs and HIGH across guest reboot:
+
+```sh
+node tests/fixtures/esp32sim/gpio/verify.mjs ../replays/gpio ../raw-f0caca3 /private/tmp/esp32sim-fix-misc-assets-f0caca3/roms esp32s3 esp32c3 esp32c6
+```
+
+Run from `/private/tmp/esp32sim-fix-misc-replay/app`. The new add-on clone is
+`/private/tmp/esp32sim-fix-misc-addon-f0caca3`; raw WASM and JIT support files
+are in the replay's `raw-f0caca3` folder. Follow-up logs are retained under
+`/private/tmp/esp32sim-fix-misc-results/followup`. The receipt adds all three
+GPIO firmware hashes and the new WASM hash. The reported pre-fix C3/C6 failure
+is supplied acceptance evidence, not a new pre-fix measurement in this turn.
+
+Follow-up quality gate: both Rust 1.99.0 strict Clippy commands pass; assets
+fetched with `--no-linux`; 648 release workspace tests pass, zero failed or
+ignored, 51 external tests filtered. The existing released-pad/pull/interrupt
+regression passes. WASM build and all eight named scenarios plus JIT handoff
+pass. No failed gate or reproduction attempt occurred in this follow-up.
+Privacy and whitespace checks pass before the local commit. No push.

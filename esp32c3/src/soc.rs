@@ -123,6 +123,7 @@ impl esp_soc::SocBus for SocBus {
         p.spi0.jedec = old.spi0.jedec;
         p.spi1.jedec = old.spi1.jedec;
         p.gpio.strap = old.gpio.strap;      // strapping pins are board wiring, not chip state
+        p.gpio.restore_external(&old.gpio);
         // Publish the cause where the ROM reads it, so the boot banner says RTC_SW_CPU_RST like
         // real silicon rather than POWERON.
         p.rtc.ram.write(0x38, cause | (cause << 6));
