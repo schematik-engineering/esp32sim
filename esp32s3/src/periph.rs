@@ -221,16 +221,17 @@ impl Pcnt {
 }
 
 // ------------------------------------------------------------------ LCD_CAM (camera side)
-/// The camera engine of LCD_CAM: once started it pulls one frame per sensor period through the GDMA
-/// channel bound to trigger 5 (CAM). Only the register semantics the DVP driver needs are modelled.
+/// LCD_CAM captures sensor frames through GDMA trigger 5 while CAM_START is set.
+/// The sensor frame clock and VSYNC continue while capture is stopped.
 pub struct LcdCam { pub ram: RegRam, pub cam_ctrl: u32, pub cam_ctrl1: u32, pub int_raw: u32, pub int_ena: u32, pub running: bool,
+                    pub cam_frame: Option<std::sync::Arc<Vec<u8>>>, pub cam_pos: usize, pub cam_byte_acc: u64, pub cam_blank: u64,
                     pub frame_cycles: u64, pub acc: u64, pub frames: u64, pub dropped: u64,
                     // LCD side (RGB / DPI mode): the panel is refreshed from a GDMA out-channel on trigger 5
                     pub lcd_clock: u32, pub lcd_user: u32, pub lcd_ctrl: u32, pub lcd_ctrl1: u32, pub lcd_acc: u64, pub lcd_frames: u64, pub lcd_line: Vec<u8>, pub lcd_fifo: std::collections::VecDeque<u8>, pub lcd_log: bool }
 impl Default for LcdCam { fn default() -> Self { Self::new() } }
 
 impl LcdCam {
-    pub fn new() -> Self { LcdCam { ram: RegRam::new(), cam_ctrl: 0, cam_ctrl1: 0, int_raw: 0, int_ena: 0, running: false, frame_cycles: CPU_HZ / 10, acc: 0, frames: 0, dropped: 0,
+    pub fn new() -> Self { LcdCam { ram: RegRam::new(), cam_ctrl: 0, cam_ctrl1: 0, int_raw: 0, int_ena: 0, running: false, cam_frame: None, cam_pos: 0, cam_byte_acc: 0, cam_blank: 0, frame_cycles: CPU_HZ / 10, acc: 0, frames: 0, dropped: 0,
                                     lcd_clock: 0, lcd_user: 0, lcd_ctrl: 0, lcd_ctrl1: 0, lcd_acc: 0, lcd_frames: 0, lcd_line: Vec::new(), lcd_fifo: std::collections::VecDeque::new(), lcd_log: false } }
     pub fn irq(&self) -> bool { self.int_raw & self.int_ena != 0 }
     /// LCD RGB mode running: LCD_START (USER bit 27) with LCD_RGB_MODE_EN (CTRL bit 31).
@@ -264,13 +265,13 @@ impl LcdCam {
             0x18 => { if v & (1 << 27) != 0 { self.lcd_fifo.clear(); if self.lcd_log { eprintln!("[lcd] AFIFO reset"); } } self.ram.write(off, v); }   // LCD_MISC.AFIFO_RESET
             0x1c => self.lcd_ctrl = v, 0x20 => self.lcd_ctrl1 = v,
             0x04 => { self.cam_ctrl = v & !(1 << 4); }                                                                          // CAM_UPDATE (self-clearing)
-            0x08 => { self.cam_ctrl1 = v & !(3 << 30); self.running = v & (1 << 29) != 0; if v & (1 << 30) != 0 { self.acc = 0; } }   // CAM_START / CAM_RESET
+            0x08 => { self.cam_ctrl1 = v & !(3 << 30); self.running = v & (1 << 29) != 0; }   // CAM_START / CAM_RESET
             0x64 => self.int_ena = v, 0x70 => self.int_raw &= !v,
             _ => self.ram.write(off, v),
         }
     }
-    /// True when a new frame is due (advances the frame clock while streaming).
-    pub fn frame_due(&mut self, cycles: u64) -> bool { if !self.running { self.acc = 0; return false; } self.acc += cycles; if self.acc >= self.frame_cycles { self.acc -= self.frame_cycles; true } else { false } }
+    /// Advance the sensor clock independently of CAM_START and CAM_RESET.
+    pub fn frame_due(&mut self, cycles: u64) -> bool { self.acc = self.acc.saturating_add(cycles); if self.acc >= self.frame_cycles.max(1) { self.acc %= self.frame_cycles.max(1); true } else { false } }
 }
 
 // ------------------------------------------------------------------ EXTMEM (cache controller; MMU table lives in the bus)

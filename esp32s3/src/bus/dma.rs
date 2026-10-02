@@ -526,18 +526,46 @@ impl SocBus {
         }
     }
 
-    /// Camera engine: when a sensor frame is due, push it through the GDMA IN channel bound to CAM (trigger 5).
+    /// Sensor VSYNC precedes capture, allowing the driver to arm GDMA during blanking.
     pub(super) fn dma_cam_step(&mut self, cycles: u64) {
-        if !self.periph.lcd_cam.frame_due(cycles) { return; }
-        let Some(ch) = self.periph.gdma.in_channel_for(5) else { self.periph.lcd_cam.dropped += 1; return };
-        let Some((_w, _h, frame)) = self.board.camera_frame() else { self.periph.lcd_cam.dropped += 1; return };
-        if self.scatter_dma_in(ch, &frame).is_err() {
-            self.fail_dma_in(ch);
-            self.periph.lcd_cam.dropped += 1;
+        if self.periph.lcd_cam.frame_due(cycles) {
+            let cam = &mut self.periph.lcd_cam;
+            cam.cam_frame = self.board.camera_frame().map(|(_, _, frame)| frame);
+            cam.cam_pos = 0;
+            cam.cam_byte_acc = 0;
+            // ponytail: approximate DVP blanking and active time; use sensor timing if needed.
+            cam.cam_blank = cam.frame_cycles / 20;
+            if cam.cam_frame.is_some() {
+                cam.int_raw |= 1 << 2; // CAM_VSYNC_INT, independent of CAM_START and GDMA
+                cam.frames += 1;
+                self.irq_dirty = true;
+            }
             return;
         }
-        self.periph.lcd_cam.int_raw |= 1 << 2;                                                  // CAM_VSYNC_INT
-        self.periph.lcd_cam.frames += 1;
+        let cam = &mut self.periph.lcd_cam;
+        let blank = cycles.min(cam.cam_blank);
+        cam.cam_blank -= blank;
+        let cycles = cycles - blank;
+        let Some(frame) = cam.cam_frame.clone() else { return };
+        cam.cam_byte_acc += cycles * frame.len() as u64 * 2;
+        let n = (cam.cam_byte_acc / cam.frame_cycles.max(1)) as usize;
+        cam.cam_byte_acc %= cam.frame_cycles.max(1);
+        let start = cam.cam_pos;
+        let end = (start + n).min(frame.len());
+        cam.cam_pos = end;
+        if start == end || !cam.running || cam.cam_ctrl1 & ((1 << 24) | (1 << 28)) != 0 { return; }
+        let Some(ch) = self.periph.gdma.in_channel_for(5) else { cam.dropped += 1; return };
+        let eof = if cam.cam_ctrl & (1 << 8) != 0 { frame.len() as u32 } else { (cam.cam_ctrl1 & 0xffff) + 1 };
+        let reversed;
+        let bytes = if cam.cam_ctrl & (1 << 6) != 0 {
+            reversed = frame[start..end].iter().map(|b| b.reverse_bits()).collect::<Vec<_>>();
+            &reversed[..]
+        } else { &frame[start..end] };
+        let mut channel = self.periph.gdma.inp[ch];
+        let mut eof_pos = self.periph.gdma.rx_eof_pos[ch];
+        channel.receive(self, bytes, eof, &mut eof_pos);
+        self.periph.gdma.inp[ch] = channel;
+        self.periph.gdma.rx_eof_pos[ch] = eof_pos;
         self.irq_dirty = true;
     }
 
