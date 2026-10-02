@@ -90,6 +90,7 @@ impl SocBus {
     fn is_periph(addr: u32) -> bool { (PERIPH_BASE..PERIPH_END).contains(&addr) }
 
     fn periph_read(&mut self, addr: u32, size: u32) -> u32 {
+        if matches!(addr & !3, 0x6000_403c | 0x6000_4040) { self.deliver_board_inputs(); }
         if (MMU_TABLE..MMU_TABLE + (MMU_ENTRIES as u32) * 4).contains(&addr) {
             return self.mmu[((addr - MMU_TABLE) >> 2) as usize];
         }
@@ -133,6 +134,15 @@ impl SocBus {
         }
         for (pin, level) in self.board.input_levels() { self.periph.gpio.set_input(pin, level); }
         self.irq_dirty = true;
+    }
+
+    fn deliver_board_inputs(&mut self) {
+        self.board.advance_to(self.cycles);
+        for edge in self.board.take_edges() {
+            self.periph.gpio.set_input(edge.pin, edge.level);
+            if let Some(events) = &mut self.gpio_events { events.push((edge.cycle, edge.pin, edge.level)); }
+            self.irq_dirty = true;
+        }
     }
 
     fn deliver_gpio_output(&mut self) {
@@ -355,12 +365,7 @@ impl SocBus {
             self.board.rmt_frame(pin, &bits);
             self.irq_dirty = true;
         }
-        self.board.advance_to(self.cycles);
-        for edge in self.board.take_edges() {
-            self.periph.gpio.set_input(edge.pin, edge.level);
-            if let Some(events) = &mut self.gpio_events { events.push((edge.cycle, edge.pin, edge.level)); }
-            self.irq_dirty = true;
-        }
+        self.deliver_board_inputs();
         self.periph.gpio.input_changes.clear();
         if let Some(ch) = self.periph.gdma.in_channel_for(3) {
             let bytes = self.periph.i2s0.rx_data(cycles as u64, false);

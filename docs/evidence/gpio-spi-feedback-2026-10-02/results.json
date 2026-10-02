@@ -1,0 +1,182 @@
+{
+  "experiment": "EX210",
+  "base_revision": "8cc5d233611d32586bfbb4c4885f6570aa8a64ba",
+  "reference_revision": "221080ffccfa829106b398f896653535853c76c8",
+  "environment": {
+    "host": "Darwin arm64",
+    "rust": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "platform": "pioarduino 55.03.38-1",
+    "arduino": "3.3.8",
+    "arduino_libraries": "5.5.4+sha.735507283d",
+    "measurement": "native correctness checks; uncontrolled host load; no speed claim"
+  },
+  "checks": {
+    "fetch_demo_assets_no_linux": "pass",
+    "clippy_workspace_all_targets": "pass",
+    "clippy_release_wasm_jit_tests": "pass",
+    "release_workspace_include_ignored_skip_external": {
+      "passed": 614,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered_out": 24
+    },
+    "focused": {
+      "passed": 22,
+      "failed": 0,
+      "ignored": 6,
+      "measured": 0,
+      "filtered_out": 0
+    },
+    "privacy": "pass; staged evidence checked before commit",
+    "diff_check": "pass",
+    "wasm_workloads": [
+      "ok   wasm JIT handoff: shared-memory block committed at a scheduler boundary",
+      "ok   hello: board none, 4.3 M insns in 0.3 s wall (15.7 Minsn/s), 129 console lines, 0 binary frames",
+      "ok   c3-hello: board none, 480.0 M insns in 0.8 s wall (597.8 Minsn/s), 125 console lines, 0 binary frames",
+      "ok   c6-hello: board none, 480.0 M insns in 1.0 s wall (503.1 Minsn/s), 121 console lines, 0 binary frames",
+      "ok   c6-energy-scan: board waveshare-c6-lcd147, 480.0 M insns in 4.5 s wall (107.0 Minsn/s), 149 console lines, 141 binary frames",
+      "ok   c6-contiki: board waveshare-c6-lcd147, 1920.0 M insns in 5.0 s wall (386.1 Minsn/s), 181 console lines, 17 binary frames",
+      "ok   c6-contiki-net: 2 nodes, n0 tx 5/rx 5, n1 tx 5/rx 5, 30 s simulated in 5.5 s wall (5x real time)",
+      "ok   c6-rpl-net: 2 nodes, n0 tx 27/rx 27, n1 tx 27/rx 27, 90 s simulated in 15.4 s wall (6x real time)",
+      "ok   panel: board waveshare-lcd4b, 142.5 M insns in 8.4 s wall (16.9 Minsn/s), 193 console lines, 254 binary frames"
+    ]
+  },
+  "arduino": {
+    "s3": {
+      "result": "pass",
+      "stop": "Halted",
+      "cycles": 240000000,
+      "instructions": 7002548,
+      "console": [
+        "SOFT=8123a55a",
+        "SPI right=a5 wrong=ff released=ff"
+      ],
+      "routes": [
+        "SPI route=SpiPins { sclk: 64, mosi: 128, miso: Some(2), cs: 1024 }",
+        "SPI route=SpiPins { sclk: 64, mosi: 128, miso: Some(2), cs: 8 }",
+        "SPI route=SpiPins { sclk: 64, mosi: 128, miso: Some(2), cs: 0 }"
+      ]
+    },
+    "c3": {
+      "result": "pass",
+      "stop": "Halted",
+      "cycles": 160000000,
+      "instructions": 160000000,
+      "console": [
+        "SOFT=8123a55a",
+        "SPI right=a5 wrong=ff released=ff"
+      ],
+      "routes": [
+        "SPI route=SpiPins { sclk: 64, mosi: 128, miso: Some(2), cs: 1024 }",
+        "SPI route=SpiPins { sclk: 64, mosi: 128, miso: Some(2), cs: 8 }",
+        "SPI route=SpiPins { sclk: 64, mosi: 128, miso: Some(2), cs: 0 }"
+      ]
+    },
+    "c6": {
+      "result": "pass",
+      "stop": "Halted",
+      "cycles": 160000000,
+      "instructions": 160000000,
+      "console": [
+        "SOFT=8123a55a",
+        "SPI right=a5 wrong=ff released=ff"
+      ],
+      "routes": [
+        "SPI route=SpiPins { sclk: 64, mosi: 128, miso: Some(2), cs: 1024 }",
+        "SPI route=SpiPins { sclk: 64, mosi: 128, miso: Some(2), cs: 8 }",
+        "SPI route=SpiPins { sclk: 64, mosi: 128, miso: Some(2), cs: 0 }"
+      ]
+    }
+  },
+  "inputs": {
+    "s3_factory": {
+      "sha256": "ccfe4682c60db50b91024ec373c68a106f029d814d95b3eacaa27b2603900cbf",
+      "bytes": 396976
+    },
+    "s3_elf": {
+      "sha256": "c4e93c9e4228312678fcc9fa152a943686cd21919fe270392733b2150e8e38c7",
+      "bytes": 6879548
+    },
+    "s3_rom": {
+      "sha256": "c0ce0f338d1de1bdc6efbef1591779a2a42c1ab7d759d3c6ae8ae63a7dd34cfd",
+      "bytes": 949552
+    },
+    "c3_factory": {
+      "sha256": "e545fe1f108e19a5a93abeb267a6366156ca0ff06c142990c711416b53f44a7c",
+      "bytes": 383856
+    },
+    "c3_elf": {
+      "sha256": "84c4f504b549681c91851a5afbdd0cbc6addf14891af05a8bd26f31662814069",
+      "bytes": 6646232
+    },
+    "c3_rom": {
+      "sha256": "19ac22e08707df926fb0cf4c54795d4067b983fae8635f396ded173a6d78fc3c",
+      "bytes": 556332
+    },
+    "c6_factory": {
+      "sha256": "35e7d33bb777a2b381fcf05cf74783cd434bb0a3d806342d080f7cd8fae969b8",
+      "bytes": 360368
+    },
+    "c6_elf": {
+      "sha256": "063ccae22434b7d10d1d59ed45b51b291cca10fd10fdc103feec888be1661faf",
+      "bytes": 6617560
+    },
+    "c6_rom": {
+      "sha256": "788e1d38724aeb8fd974fa10c4a7b089c02627d35342ce84b9e0b12b239f3551",
+      "bytes": 489768
+    },
+    "wasm": {
+      "sha256": "84a567258fc00e23b365ce20697237decec7ec878103cb07d31658de19e14abf",
+      "bytes": 3190053
+    }
+  },
+  "source_sha256": {
+    "esp-soc/src/board.rs": "aef708ee072d38faf3d0e43ae498f74f17449beece482fbd980b8e909b53e49f",
+    "esp32s3/src/bus.rs": "da05f3ab1617849ba273ce0cff57d2ee37f75b744881ae28ddb8dcfad7f4bfcc",
+    "esp32c3/src/bus.rs": "1f7c10752246df1bc5a67e5679fb0814153bd755c639e13aac1092f7fffe9752",
+    "esp32c6/src/bus.rs": "b0cb1e5bb21bebef0facd599f71cecb9d97e82bfc3afcedccdc8e65adceb88c3",
+    "esp32c6/src/bus/pins.rs": "0ca3b7cf60ff1bd25c0a8414f93321d97657f227f0aecfef834f392e77563966",
+    "esp32c6/src/periph.rs": "0ba5fed06a8e10b6e8ec9befd1b66a618da1b3b99a5a482f28dfc2ee21e3dbbf",
+    "tests/gpio_feedback.rs": "fa54dc540bfc754341f18b79cf850d68507099161189cf84deac22834703010b",
+    "esp32s3/tests/gpio_feedback.rs": "d937758d39a4f2f5f596c5e0cdd686ba2910f26e7b83efb9dc7c70f61f441002",
+    "esp32c3/tests/gpio_feedback.rs": "5b01413d65271e18920e770f704664fc95bbd09d3fc6861a4427b9cb49ac5d1a",
+    "esp32c6/tests/gpio_feedback.rs": "badc2d8e43f3bf3593482213a4c97283632f57d13390dfac9bf3e30805458422",
+    "esp32c6/tests/spi_routes.rs": "763b3de83cbee39f726cc4d3cc59e781ed012b96a020dc90a918bdee50689671",
+    "docs/evidence/gpio-spi-feedback-2026-10-02/main.cpp": "8d91dcbe8ad44e8b0476cea3227d8a4023c612b5fc1186a9f7b53cca3dc42fa0",
+    "docs/evidence/gpio-spi-feedback-2026-10-02/platformio.ini": "9ea1e9a2afb46477fd869727602d55d86bef940510e5e328d6bfdb902354792e"
+  },
+  "negative_results": [
+    {
+      "check": "read-hook ablation",
+      "result": "first same-cycle GPIO read returned 32 rather than 0 on S3, C3 and C6"
+    },
+    {
+      "check": "C6 route-dispatch ablation",
+      "result": "both physical route tests failed; legacy callback passed"
+    },
+    {
+      "check": "initial shared subword test",
+      "result": "S3 byte read returned Prohibited; test limited subword accesses to C3/C6"
+    },
+    {
+      "check": "initial C6 Arduino hardware SPI",
+      "software": "8123a55a",
+      "hardware": [
+        "ff",
+        "ff",
+        "ff"
+      ],
+      "registers": {
+        "software_cs_selector": "0x180",
+        "gpio_enable": "0x4c8",
+        "cs_io_mux": "0x1202"
+      },
+      "fix": "C6 selector reset 128 instead of inherited S3 reset 256; same firmware bytes passed on retry"
+    }
+  ],
+  "privacy": {
+    "omitted": "raw build/test logs, local account paths and compiler inventories",
+    "effect": "none on source/input hashes, correctness assertions or execution counts; no raw profiles collected"
+  }
+}

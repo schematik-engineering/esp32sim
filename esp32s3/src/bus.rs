@@ -435,6 +435,7 @@ impl SocBus {
         }
         self.vq_backstop(addr);
         self.flush_ticks();                                         // registers must show exact time
+        if matches!(addr & !3, 0x6000_403c | 0x6000_4040) { self.deliver_board_inputs(); }
         self.periph.read32(addr)
     }
     /// EX133: every device-register access must have been deferred out of a multi-quantum run.
@@ -836,14 +837,7 @@ impl SocBus {
         self.refresh_tick_budget();
     }
 
-    fn tick_impl(&mut self, cycles: u32) -> u32 {
-        // Reads may flush before the periodic backstop. Refresh for either edge
-        // of a clocked source, without breaking every block that polls MMIO.
-        self.irq_dirty |= self.periph.tick(cycles as u64);
-        for input in self.board.uart_rx() {
-            self.periph.uart_pin_input(&input);
-            self.irq_dirty = true;
-        }
+    fn deliver_board_inputs(&mut self) {
         self.board.advance_to(self.cycles);
         for edge in self.board.take_edges() {
             if let Some(events) = &mut self.gpio_events { events.push((edge.cycle, edge.pin, edge.level)); }
@@ -853,6 +847,17 @@ impl SocBus {
             // when the input changes, so both polarities require a refresh too.
             self.irq_dirty |= old_input != self.periph.gpio.input;
         }
+    }
+
+    fn tick_impl(&mut self, cycles: u32) -> u32 {
+        // Reads may flush before the periodic backstop. Refresh for either edge
+        // of a clocked source, without breaking every block that polls MMIO.
+        self.irq_dirty |= self.periph.tick(cycles as u64);
+        for input in self.board.uart_rx() {
+            self.periph.uart_pin_input(&input);
+            self.irq_dirty = true;
+        }
+        self.deliver_board_inputs();
         self.complete_spi2_dma();
         self.deliver_spi2_transfer();
         self.dma_i2s_step(cycles as u64);

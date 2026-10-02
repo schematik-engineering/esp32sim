@@ -9,6 +9,8 @@ use crate::periph::{Peripherals, CPU_SUB_BASE, CPU_SUB_END, PERIPH_BASE, PERIPH_
 use esp_periph::read_desc;
 use riscv_rv32::bus::{Bus, Fault};
 
+mod pins;
+
 /// GPIO matrix output signal of RMT TX channel 0 (soc/gpio_sig_map.h); channel n is this + n.
 pub const RMT_SIG_OUT0: u32 = 71;
 pub const ROM_LOW: u32 = 0x4000_0000;
@@ -102,6 +104,7 @@ impl SocBus {
     fn is_periph(addr: u32) -> bool { (PERIPH_BASE..PERIPH_END).contains(&addr) || (CPU_SUB_BASE..CPU_SUB_END).contains(&addr) }
 
     fn periph_read(&mut self, addr: u32, size: u32) -> u32 {
+        if matches!(addr & !3, 0x6009_103c | 0x6009_1040) { self.deliver_board_inputs(); }
         let w = if (CPU_SUB_BASE..CPU_SUB_END).contains(&addr) {
             self.periph.cpu_sub_read(addr - CPU_SUB_BASE)
         } else if (addr & !0xfff) == PERIPH_BASE + 0x2000 && matches!(addr & 0xfff, SPI_MMU_ITEM_CONTENT | SPI_MMU_ITEM_INDEX | SPI_MMU_POWER_CTRL) {
@@ -389,6 +392,16 @@ impl SocBus {
         self.irq_dirty = true;
     }
 
+    fn deliver_board_inputs(&mut self) {
+        self.board.advance_to(self.cycles);
+        for edge in self.board.take_edges() {
+            if let Some(events) = &mut self.gpio_events { events.push((edge.cycle, edge.pin, edge.level)); }
+            let old = self.periph.gpio.input;
+            self.periph.gpio.set_input(edge.pin, edge.level);
+            self.irq_dirty |= old != self.periph.gpio.input;
+        }
+    }
+
     fn deliver_gpio_output(&mut self) {
         let ch = std::mem::take(&mut self.periph.gpio.changes);
         if let Some(ev) = &mut self.gpio_events { for &(pin, level) in &ch { ev.push((self.cycles, pin, level)); } }
@@ -399,7 +412,11 @@ impl SocBus {
     fn deliver_board_events(&mut self) {
         if !self.periph.gpio.changes.is_empty() { self.deliver_gpio_output(); }
         if let Some(transfer) = self.periph.spi2.take_transfer() {
-            let rx = self.board.spi_transfer(2, &transfer.tx, transfer.rx_len);
+            let rx = if self.board.uses_spi_pins() {
+                self.board.spi_transfer_pins(2, self.periph.spi2_pins(), &transfer.tx, transfer.rx_len)
+            } else {
+                self.board.spi_transfer(2, &transfer.tx, transfer.rx_len)
+            };
             self.periph.spi2.finish_transfer(transfer, &rx);
         }
         if !self.periph.rmt.rmt.done.is_empty() { for (ch, bits) in std::mem::take(&mut self.periph.rmt.rmt.done) { let pin = self.periph.gpio.pin_for_signal(RMT_SIG_OUT0 + ch as u32).unwrap_or(u8::MAX); self.board.rmt_frame(pin, &bits); } self.irq_dirty = true; }
@@ -449,13 +466,7 @@ impl SocBus {
             self.irq_dirty = true;
         }
         self.periph.gpio.input_changes.clear();
-        self.board.advance_to(self.cycles);
-        for edge in self.board.take_edges() {
-            if let Some(events) = &mut self.gpio_events { events.push((edge.cycle, edge.pin, edge.level)); }
-            let old = self.periph.gpio.input;
-            self.periph.gpio.set_input(edge.pin, edge.level);
-            self.irq_dirty |= old != self.periph.gpio.input;
-        }
+        self.deliver_board_inputs();
         self.periph.i2s0.rx_pcr_clock(self.periph.pcr.read(0x78), self.periph.pcr.read(0x7c));
         if let Some(ch) = self.periph.gdma.gdma.in_channel_for(3) {
             let bytes = self.periph.i2s0.rx_data(cycles as u64, false);
