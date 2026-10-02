@@ -44,12 +44,15 @@ impl AnalogInputs {
     pub fn observation(&self, pin: u8) -> AdcObservation { self.observed.get(&pin).copied().unwrap_or_default() }
     /// Complete one sample. Reading or replacing a source never advances its generation.
     pub(crate) fn convert(&mut self, pin: u8, now: u64, code: impl FnOnce(f32) -> u32) -> u32 {
-        let raw = self.raw.get(&pin).copied().unwrap_or_else(|| code(self.volts(pin, now)) as u16);
+        let raw = self.raw.get(&pin).copied().unwrap_or_else(|| match self.pins.get(&pin) {
+            Some(AnalogSource::Stream(stream)) => stream.convert(now, code),
+            _ => code(self.volts(pin, now)) as u16,
+        });
         let sample = self.observed.entry(pin).or_default();
         sample.generation = sample.generation.wrapping_add(1); sample.raw = raw;
         u32::from(raw)
     }
-    /// Volts on `pin` at `now_cycles` (0 V for a pin nobody drives).
+    /// Volts on `pin` at `now_cycles` (0 V for undriven pads or raw-count sources).
     pub fn volts(&self, pin: u8, now_cycles: u64) -> f32 {
         match self.pins.get(&pin) {
             None => 0.0,

@@ -1,0 +1,185 @@
+{
+  "experiment": "EX216",
+  "revision": "raw-count follow-up",
+  "base": "cc19744104e38297d39ea4e46eecfea1e14a3e2d",
+  "implementation": "b918fce102e951f1b05dd8c3c42a07db2847c54d",
+  "environment": {
+    "rust": "1.99.0 (b940084d7 2026-09-28)",
+    "os": "Darwin",
+    "architecture": "arm64",
+    "node": "v22.23.1",
+    "arduino": "3.3.8",
+    "idf": "5.5.4",
+    "platform": "55.03.38-1 / fbdfc29"
+  },
+  "checks": {
+    "native_clippy": "pass",
+    "wasm_clippy_jit_tests": "pass",
+    "workspace_release": {
+      "passed": 642,
+      "failed": 0,
+      "ignored": 0,
+      "skip": "external_"
+    },
+    "source_tests": 3,
+    "register_tests": 2,
+    "firmware_tests": 3,
+    "firmware_captures": 15,
+    "firmware_samples": 15360,
+    "wasm_build": "pass",
+    "wasm_scenarios": [
+      "hello",
+      "c3-hello",
+      "c6-hello",
+      "c6-energy-scan",
+      "c6-contiki",
+      "c6-contiki-net",
+      "c6-rpl-net",
+      "panel"
+    ],
+    "privacy": "pass",
+    "diff_check": "pass",
+    "golden_changes": false
+  },
+  "logs": {
+    "ex216-raw-unit.log": {
+      "sha256": "a601a754fb28b8c25be48a4f581fa6bb194fb53c6a8276834f3d0f1683f5c5b3",
+      "bytes": 1188
+    },
+    "ex216-raw-register.log": {
+      "sha256": "2cde2488694eaf87ba4a290dccdd95481b1efbdfe788f5dd87f443aec4bf76aa",
+      "bytes": 801
+    },
+    "ex216-raw-clippy.log": {
+      "sha256": "6f2e6e108151e2511f988306b3eed50a668dd3534cca2e22807d4df603197991",
+      "bytes": 724
+    },
+    "ex216-raw-wasm-clippy.log": {
+      "sha256": "a00a7fe05959f100b603b993dbbcee8ed7d68a32913ff9182aa7ba715de08066",
+      "bytes": 658
+    },
+    "ex216-raw-fetch.log": {
+      "sha256": "f42c7236f4ffdb0c346e8dd99fc0e41fba9a1e21396161eee651f430ead99de3",
+      "bytes": 470
+    },
+    "ex216-raw-workspace.log": {
+      "sha256": "0c20510563007c1a451daa709f9ec05189c94c0cbacf811e012d60eab46e8de8",
+      "bytes": 60142
+    },
+    "ex216-raw-arduino.log": {
+      "sha256": "9e2ebf43517b7ae9d46e7de0414a9bc131b8c7ebe46991da0756986f1f14d934",
+      "bytes": 2585
+    },
+    "ex216-raw-wasm-build.log": {
+      "sha256": "391a6887fe23b3c3295a5bee232ff6d188bdadaeb217459076b332f456535f28",
+      "bytes": 781
+    },
+    "ex216-raw-wasm-test.log": {
+      "sha256": "99406e7f60a1ad7e06c2233e7338ed74b1a16fcb5d3b45bd4aa592ca0755ee05",
+      "bytes": 969
+    },
+    "ex216-raw-privacy.log": {
+      "sha256": "4ccb68ebf0cc91992f5cbf3ac5396f106d3e9687216a3475fc186429a0b6d026",
+      "bytes": 130
+    }
+  },
+  "artifacts": {
+    "esp-periph/src/analog.rs": {
+      "sha256": "182e3c015f0cbb688b80300652ed15f490716b9f7726d941d00e67b439fe396d",
+      "bytes": 4184
+    },
+    "esp-periph/src/analog/stream.rs": {
+      "sha256": "887898101ab846be03a3472ea39e9cebde658d73831be4b4d3999f0ddeb31083",
+      "bytes": 8598
+    },
+    "cli/tests/adc_stream.rs": {
+      "sha256": "95b6c1f5964e6cbc89698134c924a0f4437f560f8306076324c15a802d6ee65c",
+      "bytes": 10245
+    },
+    "web/wasm/esp32sim.wasm": {
+      "sha256": "e80ec99b1876740f6c56a1167eaf4de95dbdd9b3cd63c6e33598b2d027d01524",
+      "bytes": 3246487
+    },
+    "docs/evidence/adc-pcm-2026-10-02/main.cpp": {
+      "sha256": "1b80a385efd81e64c423d986b5898c2f0f5411e57ca41c3407a9f9d654eaa00a",
+      "bytes": 775
+    },
+    "docs/evidence/adc-pcm-2026-10-02/platformio.ini": {
+      "sha256": "9d019210b8cf28ebb6269d16eb9c0fae828276fa51d968b1442561066288a09a",
+      "bytes": 253
+    },
+    "firmware/s3/bootloader.bin": {
+      "sha256": "6f232c4aafe7d21239a1c59404723ca2cfdca063ef73501a21126a8cef39f432",
+      "bytes": 19984
+    },
+    "firmware/s3/partitions.bin": {
+      "sha256": "1d9cca96de0fe07ad7fc0648b9878ddecd9ce565e38b589ad20fea698ed4c80c",
+      "bytes": 3072
+    },
+    "firmware/s3/firmware.bin": {
+      "sha256": "84be3be0c077187cc42bce6b8f60056e06b75c7f103ca69f21522880eb8eb56d",
+      "bytes": 309248
+    },
+    "web/wasm/fw/esp32s3_rev0_rom.elf": {
+      "sha256": "c0ce0f338d1de1bdc6efbef1591779a2a42c1ab7d759d3c6ae8ae63a7dd34cfd",
+      "bytes": 949552
+    },
+    "firmware/c3/bootloader.bin": {
+      "sha256": "da409642ea1619c16b4ef485219a91c3c2ae873ce3bae37330c24100bd747439",
+      "bytes": 19520
+    },
+    "firmware/c3/partitions.bin": {
+      "sha256": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1",
+      "bytes": 3072
+    },
+    "firmware/c3/firmware.bin": {
+      "sha256": "0a2442089fa4f066870b698167e18c5a36f7ccf4839b35b86c0845dbe9d02b19",
+      "bytes": 300032
+    },
+    "web/wasm/fw/esp32c3_rev3_rom.elf": {
+      "sha256": "19ac22e08707df926fb0cf4c54795d4067b983fae8635f396ded173a6d78fc3c",
+      "bytes": 556332
+    },
+    "firmware/c6/bootloader.bin": {
+      "sha256": "022390206caedbc5f780cd955b31e1dd1219091f374e420cd0531b2f5b5b5037",
+      "bytes": 20976
+    },
+    "firmware/c6/partitions.bin": {
+      "sha256": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1",
+      "bytes": 3072
+    },
+    "firmware/c6/firmware.bin": {
+      "sha256": "6e15fee4ba98fe105bf399b9f434fd735657605fd320efad7aedad4d209de19e",
+      "bytes": 278864
+    },
+    "web/wasm/fw/esp32c6_rev0_rom.elf": {
+      "sha256": "788e1d38724aeb8fd974fa10c4a7b089c02627d35342ce84b9e0b12b239f3551",
+      "bytes": 489768
+    }
+  },
+  "measurements": [
+    "c3 tone=false samples=1024 rate_hz=8000.000 dominant_hz=3999 amplitude_mv=0.000 mean_mv=1000.000 pushed=0 stopped_queue=32000 insns=27908506 cycles=27908506",
+    "c3 tone=true samples=1024 rate_hz=8000.000 dominant_hz=440 amplitude_mv=200.341 mean_mv=1000.338 pushed=2892 stopped_queue=32000 insns=52816090 cycles=52816090",
+    "c3 raw_mode=bias exact_counts=[777] samples=1024 cycles=76723674",
+    "c3 raw_mode=counts exact_counts=[0, 1, 1024, 2048, 3071, 4094, 4095] samples=1024 cycles=100531226",
+    "c3 raw_mode=pcm exact_counts=[0, 1024, 2047, 2048, 3071, 4095] samples=1024 cycles=124438810",
+    "c6 tone=false samples=1024 rate_hz=8000.000 dominant_hz=3999 amplitude_mv=0.000 mean_mv=1000.000 pushed=0 stopped_queue=32000 insns=28108570 cycles=28108570",
+    "c6 tone=true samples=1024 rate_hz=8000.000 dominant_hz=440 amplitude_mv=200.463 mean_mv=1000.428 pushed=2902 stopped_queue=32000 insns=53116186 cycles=53116186",
+    "c6 raw_mode=bias exact_counts=[777] samples=1024 cycles=77023770",
+    "c6 raw_mode=counts exact_counts=[0, 1, 1024, 2048, 3071, 4094, 4095] samples=1024 cycles=101031386",
+    "c6 raw_mode=pcm exact_counts=[0, 1024, 2047, 2048, 3071, 4095] samples=1024 cycles=125039002",
+    "s3 tone=false samples=1024 rate_hz=8000.063 dominant_hz=3999 amplitude_mv=0.000 mean_mv=1000.000 pushed=0 stopped_queue=32000 insns=39356522 cycles=39512219",
+    "s3 tone=true samples=1024 rate_hz=8000.063 dominant_hz=440 amplitude_mv=200.053 mean_mv=999.995 pushed=2839 stopped_queue=32000 insns=74569208 cycles=75523387",
+    "s3 raw_mode=bias exact_counts=[777] samples=1024 cycles=110434523",
+    "s3 raw_mode=counts exact_counts=[0, 1, 1024, 2048, 3071, 4094, 4095] samples=1024 cycles=145545691",
+    "s3 raw_mode=pcm exact_counts=[0, 1024, 2047, 2048, 3071, 4095] samples=1024 cycles=180556859"
+  ],
+  "failures": [],
+  "limitations": [
+    "one-shot only; ADC continuous/DMA remains unsupported",
+    "classic ESP32 raw streams not implemented",
+    "private add-on fixtures not rerun",
+    "functional checks only; no hardware calibration or speed claim"
+  ],
+  "redactions": "Selected numeric firmware output retained; raw logs with local paths and boot output are outside Git. No private captures or compressed profiles. Original receipt remains unchanged."
+}
