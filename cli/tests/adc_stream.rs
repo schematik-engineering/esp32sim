@@ -115,6 +115,55 @@ fn firmware<S: Soc>(mut m: esp_soc::Machine<S>, chip: &str, pin: u8) {
         assert_eq!(stream.queued_samples(m.bus.cycles()), 32000);
         println!("{chip} tone={tone} samples={} rate_hz={rate:.3} dominant_hz={frequency} amplitude_mv={peak:.3} mean_mv={mean:.3} pushed={pushed} stopped_queue=32000 insns={} cycles={}", samples.len(), m.insns(), m.bus.cycles());
     }
+    for mode in ["bias", "counts", "pcm"] {
+        let now = m.bus.cycles();
+        let stream = AnalogStream::new_raw(16000, S::CPU_HZ, 777, now).unwrap();
+        let expected = match mode {
+            "counts" => {
+                let values = vec![0, 1, 1024, 2048, 3071, 4094, 4095];
+                let samples: Vec<_> = values
+                    .iter()
+                    .flat_map(|&v| std::iter::repeat_n(v, 256))
+                    .collect();
+                stream.push_raw(&samples, now).unwrap();
+                values
+            }
+            "pcm" => {
+                let samples: Vec<_> = [i16::MIN, -16384, -1, 0, 16384, i16::MAX]
+                    .into_iter()
+                    .flat_map(|v| std::iter::repeat_n(v, 256))
+                    .collect();
+                stream.push(&samples, now);
+                vec![0, 1024, 2047, 2048, 3071, 4095]
+            }
+            _ => vec![777],
+        };
+        m.bus.analog_set(pin, AnalogSource::Stream(stream));
+        m.console.uart0.clear();
+        m.bus.uart_input(0, b"R");
+        for _ in 0..2000 {
+            m.run(100_000);
+            if String::from_utf8_lossy(&m.console.uart0).contains("ADC DONE") {
+                break;
+            }
+        }
+        let output = String::from_utf8_lossy(&m.console.uart0);
+        assert!(output.contains("ADC DONE"));
+        let mut counts: Vec<u16> = output
+            .lines()
+            .filter_map(|line| {
+                line.strip_prefix("SAMPLE ")
+                    .map(|s| s.split_whitespace().nth(1).unwrap().parse().unwrap())
+            })
+            .collect();
+        assert_eq!(counts.len(), 1024);
+        counts.dedup();
+        assert_eq!(counts, expected, "{chip} raw mode={mode}");
+        println!(
+            "{chip} raw_mode={mode} exact_counts={counts:?} samples=1024 cycles={}",
+            m.bus.cycles()
+        );
+    }
 }
 
 #[test]
@@ -173,5 +222,61 @@ fn stream_conversions_follow_time_across_reset() {
         0x6000e020,
         1 << 31,
         1 << 29,
+    );
+}
+
+fn raw_conversions<S: Soc>(
+    mut m: esp_soc::Machine<S>,
+    pin: u8,
+    control: u32,
+    select: u32,
+    start: u32,
+    attenuation: Option<u32>,
+) {
+    for atten in 0..4 {
+        let now = m.bus.cycles();
+        let stream = AnalogStream::new_raw(8000, S::CPU_HZ, 777, now).unwrap();
+        stream.push_raw(&[0, 1, 1024, 2048, 4095], now).unwrap();
+        m.bus.analog_set(pin, AnalogSource::Stream(stream));
+        let select = if let Some(register) = attenuation {
+            m.bus.write32(register, atten).unwrap();
+            select
+        } else {
+            select | (atten << 23)
+        };
+        for expected in [777, 0, 1, 1024, 2048, 4095, 4095] {
+            m.bus.write32(control, select).unwrap();
+            m.bus.write32(control, select | start).unwrap();
+            assert_eq!(m.bus.adc_observation(pin).unwrap().raw, expected);
+            m.bus.tick((S::CPU_HZ / 8000) as u32);
+        }
+    }
+}
+
+#[test]
+fn raw_stream_bypasses_attenuation_on_three_chips() {
+    raw_conversions(
+        esp32s3::machine([0; 6]),
+        1,
+        0x6000880c,
+        1 << 19,
+        1 << 17,
+        Some(0x60008814),
+    );
+    raw_conversions(
+        esp32c3::machine([0; 6], 4 << 20),
+        0,
+        0x60040020,
+        1 << 31,
+        1 << 29,
+        None,
+    );
+    raw_conversions(
+        esp32c6::machine([0; 6], 8 << 20),
+        0,
+        0x6000e020,
+        1 << 31,
+        1 << 29,
+        None,
     );
 }
