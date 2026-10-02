@@ -124,6 +124,7 @@ impl esp_soc::SocBus for SocBus {
         self.periph.rtc.0.ram.write(0x38, cause | cause << 6);
         self.periph.rtc.0.ram.write(0x98, 0);
         self.periph.rtc.0.reset_cause = cause;
+        self.attach_board_devices();
         cause
     }
     fn sw_reset(&self) -> bool {

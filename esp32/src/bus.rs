@@ -26,6 +26,7 @@ const MMU_INVALID: u32 = 1 << 8;
 const PAGE: usize = 0x1_0000;
 const WDEV_RND: u32 = 0x6003_5144;
 const UART_FIFO_AHB: [u32; 3] = [0x6000_0000, 0x6001_0000, 0x6002_e000];
+const I2C_FIFO_AHB: [u32; 2] = [0x6001_301c, 0x6002_701c];
 
 pub struct SocBus {
     pub dram: Vec<u8>,
@@ -156,6 +157,7 @@ impl SocBus {
             || (0x6000_e000..0x6000_f000).contains(&addr)
             || (addr & !3) == WDEV_RND
             || UART_FIFO_AHB.contains(&(addr & !3))
+            || I2C_FIFO_AHB.contains(&(addr & !3))
     }
     fn mmu_slot(addr: u32) -> Option<(usize, usize)> {
         for (cpu, base) in [(0, MMU_PRO), (1, MMU_APP)] {
@@ -175,6 +177,8 @@ impl SocBus {
             self.rng.read(0)
         } else if let Some(n) = UART_FIFO_AHB.iter().position(|&fifo| fifo == a) {
             self.periph.uart[n].read(0)
+        } else if let Some(n) = I2C_FIFO_AHB.iter().position(|&fifo| fifo == a) {
+            self.periph.i2c[n].read(0x1c)
         } else if (0x6000_e000..0x6000_f000).contains(&a) {
             self.ana.read(a - 0x6000_e000)
         } else {
@@ -199,6 +203,11 @@ impl SocBus {
         if let Some(n) = UART_FIFO_AHB.iter().position(|&fifo| fifo == a) {
             self.periph.uart[n].write(0, value);
             self.board.uart_tx(self.periph.uart_route(n), value as u8);
+            self.irq_dirty = true;
+            return;
+        }
+        if let Some(n) = I2C_FIFO_AHB.iter().position(|&fifo| fifo == a) {
+            self.periph.i2c[n].write(0x1c, value);
             self.irq_dirty = true;
             return;
         }
@@ -267,6 +276,13 @@ impl SocBus {
         self.periph.spi_exec = false;
         self.periph.spi1.0.execute(&mut self.flash, &mut []);
         for (_, off, len) in std::mem::take(&mut self.periph.spi1.0.dirty) { self.flash_written(off, len); }
+    }
+    pub fn attach_board_devices(&mut self) {
+        for (bus, address, device) in self.board.i2c_devices() {
+            if let Some(i2c) = self.periph.i2c.get_mut(bus as usize) {
+                i2c.attach(address, device);
+            }
+        }
     }
     pub fn write_flash(&mut self, offset: usize, data: &[u8]) -> Result<(), String> {
         let target = self
@@ -422,6 +438,15 @@ impl Bus for SocBus {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    struct I2cBoard;
+    impl esp_soc::BoardModel for I2cBoard {
+        fn name(&self) -> &'static str { "i2c-test" }
+        fn i2c_devices(&mut self) -> Vec<(u8, u8, Box<dyn esp_periph::i2c::I2cDevice>)> {
+            vec![(1, 0x6b, Box::new(esp_periph::i2c::Reg8Device::new("qmi8658", &[(0, 5)])))]
+        }
+    }
+
     #[test]
     fn pro_mmu_maps_classic_drom_and_irom() {
         let mut b = SocBus::new(4 << 20, [0; 6]);
@@ -494,4 +519,16 @@ mod tests {
         assert_eq!(b.page_versions()[rom], 0);
     }
 
+    #[test]
+    fn i2c_ahb_alias_and_board_devices_reach_both_controllers() {
+        let mut b = SocBus::new(4 << 20, [0; 6]);
+        b.board = Box::new(I2cBoard);
+        b.attach_board_devices();
+        assert!(b.periph.i2c[1].has_device(0x6b));
+        b.write32(I2C_FIFO_AHB[0], 0xd6).unwrap();
+        assert_eq!(b.read32(0x3ff5_3008).unwrap() >> 18 & 0x3f, 1);
+
+        <SocBus as esp_soc::SocBus>::reboot(&mut b, [0; 6]);
+        assert!(b.periph.i2c[1].has_device(0x6b));
+    }
 }
