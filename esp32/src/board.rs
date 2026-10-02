@@ -1,6 +1,6 @@
 //! Boards wired for the classic ESP32, independent of S3 pin assignments.
 pub fn make_board(name: &str) -> Option<esp_soc::Board> {
-    match name { "none" | "bare" | "esp32dev" => Some(Box::new(esp_soc::NoBoard)), _ => None }
+    match name { "none" | "bare" | "esp32dev" => Some(Box::new(esp_soc::NoBoard)), _ => crate::spi::make_board(name) }
 }
 
 #[cfg(test)]
