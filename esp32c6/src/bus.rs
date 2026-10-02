@@ -145,6 +145,7 @@ impl SocBus {
         }
         let v = if size == 4 { v } else { merge(self.periph.read32(a)) };
         let old_drive = (self.periph.gpio.enable, self.periph.gpio.out);
+        if a >> 12 == 0x6000e { self.periph.adc.now_cycles = self.cycles; }
         self.periph.write32(a, v);
         if (0x6009_0000..0x6009_2000).contains(&a) {
             self.board.gpio_waveform_at(self.execution.now.max(self.cycles), &self.periph.gpio, &self.periph.io_mux, 128);

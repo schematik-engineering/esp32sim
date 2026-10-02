@@ -1,0 +1,281 @@
+{
+  "experiment": "EX216",
+  "base": "796f64a4c334ea57d1bb9be69e2e1bcbaca726d7",
+  "implementation": "72f123dce1d5b7d17aa50fc4826e2c93f3a7b79d",
+  "environment": {
+    "os": "Darwin",
+    "architecture": "arm64",
+    "rust": "1.99.0 (b940084d7 2026-09-28)",
+    "node": "v22.23.1",
+    "arduino": "3.3.8",
+    "idf": "5.5.4",
+    "platform": "55.03.38-1 / fbdfc29",
+    "measurement": "single functional run per case; concurrent builds; no speed claim"
+  },
+  "local_logs": {
+    "ex216-focused.log": {
+      "sha256": "ece149b7aa9e48a3826e7e9b4513f993a9a8961ffca4d27e5c25cead58151b91",
+      "bytes": 1181
+    },
+    "ex216-register.log": {
+      "sha256": "70d6789661578179cf9882ae86534dd87909d0beb2a3a38a94fd5fa65aeafde9",
+      "bytes": 3126
+    },
+    "ex216-register-retry.log": {
+      "sha256": "eff66e68bc016fa3eea4a2898a94c38de27cb5e91656ffa5ed2981dd1b8fd339",
+      "bytes": 742
+    },
+    "ex216-register-final.log": {
+      "sha256": "7814b1ce32a3415d21177c364a7bfe9c032b4dd477a8160e4fe635e0e4f11f70",
+      "bytes": 603
+    },
+    "ex216-clippy.log": {
+      "sha256": "3e4aa43fbbfc477a47013cc2f4c6864d8ef44a6e591d038366b37ceb39b22097",
+      "bytes": 1752
+    },
+    "ex216-clippy-final.log": {
+      "sha256": "13965bc966ab9f380e3205443e9519335b1b57450ec6ff7d2be7ec681ce7dcda",
+      "bytes": 509
+    },
+    "ex216-wasm-clippy-final.log": {
+      "sha256": "44b89dcd5530734f81e466e95c0d4ac86e9fe08d046d6ee2e5690b31793d89d9",
+      "bytes": 443
+    },
+    "ex216-workspace-final.log": {
+      "sha256": "5a142f73ec4a00c7c7bbcb7a4dacb10ba01e77dec1ded099e8b5d27b16f2ef02",
+      "bytes": 59787
+    },
+    "ex216-arduino.log": {
+      "sha256": "1be601e3a316203ca7a515d4994cfe51ea40ffa1d2c82ed95723b01ca12ca04f",
+      "bytes": 1632
+    },
+    "ex216-arduino-retry.log": {
+      "sha256": "a193163946ef65e6664e37280a30f3e78b93ca05bb0b5e31fcdd613b27f5542d",
+      "bytes": 1439
+    },
+    "ex216-arduino-final.log": {
+      "sha256": "570fe16667b1e36395858f05196a229f309f7eaf9f944d09f091773060363255",
+      "bytes": 1598
+    },
+    "ex216-pio.log": {
+      "sha256": "dddd4f9e895e08bbec585a8f3a0eefa7c80d8f9e6e91fb3c0e3ec98bdfc6da44",
+      "bytes": 24691
+    },
+    "ex216-fetch.log": {
+      "sha256": "a6aef4d028b4f0466bad6132c525ae154f74e234ac85d1e1c5ffec586c0f4b6d",
+      "bytes": 470
+    },
+    "ex216-wasm-build-final.log": {
+      "sha256": "15c403cfb5df5623acf65191be73554bbde512748a94c95e8dcaa0e94f797a64",
+      "bytes": 566
+    },
+    "ex216-wasm-test-final.log": {
+      "sha256": "4524f916557ddaeb402d676088d8a2dcd69ebddaa22b331378ab432d5dc2bba4",
+      "bytes": 969
+    },
+    "ex216-privacy.log": {
+      "sha256": "776e0052b1c4a4d587cb0c070962b393845c46a76ef2c62ebb8c02d5afe8fa26",
+      "bytes": 130
+    }
+  },
+  "artifacts": {
+    "docs/evidence/adc-pcm-2026-10-02/main.cpp": {
+      "sha256": "1b80a385efd81e64c423d986b5898c2f0f5411e57ca41c3407a9f9d654eaa00a",
+      "bytes": 775
+    },
+    "docs/evidence/adc-pcm-2026-10-02/platformio.ini": {
+      "sha256": "9d019210b8cf28ebb6269d16eb9c0fae828276fa51d968b1442561066288a09a",
+      "bytes": 253
+    },
+    "web/wasm/esp32sim.wasm": {
+      "sha256": "8433014c80ae9c0dabedb73fb893b40b4d8c67c174247300e9476413644e9bbb",
+      "bytes": 3243797
+    },
+    "esp-periph/src/analog/stream.rs": {
+      "sha256": "49e052036e485a5d7af7da3c265c8634437ce1565e5cc96f696c7ee93d06514c",
+      "bytes": 5185
+    },
+    "cli/tests/adc_stream.rs": {
+      "sha256": "56a32c120748bb6613c9c952a5fa1b35f2fa1f49f4a3a66b008c887167b3c11e",
+      "bytes": 6891
+    },
+    "firmware/s3/bootloader.bin": {
+      "sha256": "6f232c4aafe7d21239a1c59404723ca2cfdca063ef73501a21126a8cef39f432",
+      "bytes": 19984
+    },
+    "firmware/s3/partitions.bin": {
+      "sha256": "1d9cca96de0fe07ad7fc0648b9878ddecd9ce565e38b589ad20fea698ed4c80c",
+      "bytes": 3072
+    },
+    "firmware/s3/firmware.bin": {
+      "sha256": "84be3be0c077187cc42bce6b8f60056e06b75c7f103ca69f21522880eb8eb56d",
+      "bytes": 309248
+    },
+    "web/wasm/fw/esp32s3_rev0_rom.elf": {
+      "sha256": "c0ce0f338d1de1bdc6efbef1591779a2a42c1ab7d759d3c6ae8ae63a7dd34cfd",
+      "bytes": 949552
+    },
+    "firmware/c3/bootloader.bin": {
+      "sha256": "da409642ea1619c16b4ef485219a91c3c2ae873ce3bae37330c24100bd747439",
+      "bytes": 19520
+    },
+    "firmware/c3/partitions.bin": {
+      "sha256": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1",
+      "bytes": 3072
+    },
+    "firmware/c3/firmware.bin": {
+      "sha256": "0a2442089fa4f066870b698167e18c5a36f7ccf4839b35b86c0845dbe9d02b19",
+      "bytes": 300032
+    },
+    "web/wasm/fw/esp32c3_rev3_rom.elf": {
+      "sha256": "19ac22e08707df926fb0cf4c54795d4067b983fae8635f396ded173a6d78fc3c",
+      "bytes": 556332
+    },
+    "firmware/c6/bootloader.bin": {
+      "sha256": "022390206caedbc5f780cd955b31e1dd1219091f374e420cd0531b2f5b5b5037",
+      "bytes": 20976
+    },
+    "firmware/c6/partitions.bin": {
+      "sha256": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1",
+      "bytes": 3072
+    },
+    "firmware/c6/firmware.bin": {
+      "sha256": "6e15fee4ba98fe105bf399b9f434fd735657605fd320efad7aedad4d209de19e",
+      "bytes": 278864
+    },
+    "web/wasm/fw/esp32c6_rev0_rom.elf": {
+      "sha256": "788e1d38724aeb8fd974fa10c4a7b089c02627d35342ce84b9e0b12b239f3551",
+      "bytes": 489768
+    }
+  },
+  "arduino": [
+    {
+      "chip": "c3",
+      "tone": "false",
+      "samples": 1024,
+      "rate_hz": 8000.0,
+      "dominant_hz": null,
+      "amplitude_mv": 0.0,
+      "mean_mv": 1000.0,
+      "pushed": 0,
+      "stopped_queue": 32000,
+      "insns": 27908506,
+      "cycles": 27908506
+    },
+    {
+      "chip": "c3",
+      "tone": "true",
+      "samples": 1024,
+      "rate_hz": 8000.0,
+      "dominant_hz": 440,
+      "amplitude_mv": 200.341,
+      "mean_mv": 1000.338,
+      "pushed": 2892,
+      "stopped_queue": 32000,
+      "insns": 52816090,
+      "cycles": 52816090
+    },
+    {
+      "chip": "c6",
+      "tone": "false",
+      "samples": 1024,
+      "rate_hz": 8000.0,
+      "dominant_hz": null,
+      "amplitude_mv": 0.0,
+      "mean_mv": 1000.0,
+      "pushed": 0,
+      "stopped_queue": 32000,
+      "insns": 28108570,
+      "cycles": 28108570
+    },
+    {
+      "chip": "c6",
+      "tone": "true",
+      "samples": 1024,
+      "rate_hz": 8000.0,
+      "dominant_hz": 440,
+      "amplitude_mv": 200.463,
+      "mean_mv": 1000.428,
+      "pushed": 2902,
+      "stopped_queue": 32000,
+      "insns": 53116186,
+      "cycles": 53116186
+    },
+    {
+      "chip": "s3",
+      "tone": "false",
+      "samples": 1024,
+      "rate_hz": 8000.063,
+      "dominant_hz": null,
+      "amplitude_mv": 0.0,
+      "mean_mv": 1000.0,
+      "pushed": 0,
+      "stopped_queue": 32000,
+      "insns": 39356522,
+      "cycles": 39512219
+    },
+    {
+      "chip": "s3",
+      "tone": "true",
+      "samples": 1024,
+      "rate_hz": 8000.063,
+      "dominant_hz": 440,
+      "amplitude_mv": 200.053,
+      "mean_mv": 999.995,
+      "pushed": 2839,
+      "stopped_queue": 32000,
+      "insns": 74569208,
+      "cycles": 75523387
+    }
+  ],
+  "checks": {
+    "native_clippy": "pass",
+    "wasm_clippy_jit_tests": "pass",
+    "workspace_release": {
+      "passed": 640,
+      "failed": 0,
+      "ignored": 0,
+      "skip": "external_"
+    },
+    "stream_unit_tests": 2,
+    "three_chip_reset_register_test": "pass",
+    "arduino_external_tests": 3,
+    "wasm_build": "pass",
+    "wasm_scenarios": [
+      "hello",
+      "c3-hello",
+      "c6-hello",
+      "c6-energy-scan",
+      "c6-contiki",
+      "c6-contiki-net",
+      "c6-rpl-net",
+      "panel"
+    ],
+    "privacy": "pass",
+    "diff_check": "pass"
+  },
+  "failures": [
+    {
+      "stage": "initial harness compilation",
+      "reason": "uart_input passed a byte instead of a slice; unused Bus import",
+      "resolved": true
+    },
+    {
+      "stage": "register compilation",
+      "reason": "Bus trait needed by new register check",
+      "resolved": true
+    },
+    {
+      "stage": "register reset test",
+      "observed_raw": [
+        2824,
+        930,
+        930,
+        930
+      ],
+      "reason": "reset peripheral clock disagreed with monotonic bus clock",
+      "resolution": "stamp conversion writes from bus time on S3/C3/C6"
+    }
+  ],
+  "redactions": "Only selected numeric output retained; silence peak search index omitted as meaningless. Raw personal paths, boot logs and session identifiers omitted. Log hashes identify originals outside Git."
+}
