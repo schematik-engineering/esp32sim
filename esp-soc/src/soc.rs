@@ -129,6 +129,8 @@ pub trait SocBus: Bus {
     /// Bytes from the host into UART `n`'s receive FIFO (a terminal on the chip's UART0 pins).
     fn uart_input(&mut self, n: usize, data: &[u8]);
     fn gpio_set_input(&mut self, pin: u8, level: bool);
+    /// Release an external drive. Buses without pad resolution may leave this unsupported.
+    fn gpio_release_input(&mut self, _pin: u8) {}
     /// Drive an analog pad (script `adc` / `adcwave`); chips without an ADC model ignore it.
     fn analog_set(&mut self, _pin: u8, _src: esp_periph::AnalogSource) {}
     /// Touch or release a capacitive GPIO pad, separate from the board's touch panel.
@@ -143,7 +145,7 @@ pub trait SocBus: Bus {
     /// Averaged PWM at a GPIO-matrix output: frequency in Hz and high-time fraction scaled to 0..65535.
     fn pwm_output(&self, _pin: u32) -> Option<(f64, u32)> { None }
     /// GPIO latch, enable and IO_MUX pulls. None for an unavailable pin or unsupported chip.
-    /// Pulls describe the programmed bits; they do not change the input level.
+    /// Pulls describe the programmed bits; externally driven inputs override them.
     fn gpio_state(&self, _pin: u8) -> Option<GpioState> { None }
     /// Start/stop recording GPIO edges (outputs as they reach the board, inputs as they are set).
     fn observe_gpio(&mut self, on: bool);

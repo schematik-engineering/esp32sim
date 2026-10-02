@@ -536,6 +536,9 @@ impl Peripherals {
     }
 
     pub fn write32(&mut self, addr: u32, v: u32) {
+        if (0x60009004..=0x600090c4).contains(&addr) {
+            self.gpio.set_pulls(((addr - 0x60009004) / 4) as u8, v & (1 << 8) != 0, v & (1 << 7) != 0);
+        }
         if addr == PERIPH_BASE + 0xc0020 && v & (1 << 11) != 0 { self.ledc = Ledc::new(LedcLayout::S3); }
         if addr == PERIPH_BASE + 0xc0020 {
             for (group, bit) in [17, 20].iter().enumerate() { if v & (1 << bit) != 0 { self.mcpwm[group] = Mcpwm::new(160 + group as u32 * 6); } }

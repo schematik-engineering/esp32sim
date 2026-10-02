@@ -63,6 +63,7 @@ impl SocBus {
             self.periph.gpio.set_input(pin, level);
             self.irq_dirty |= old != self.periph.gpio.input;
         }
+        for pin in self.board.released_inputs() { esp_soc::SocBus::gpio_release_input(self, pin); }
     }
 
     pub fn new(flash_size: usize, mac: [u8; 6]) -> Self {
@@ -401,6 +402,7 @@ impl SocBus {
             self.periph.gpio.set_input(edge.pin, edge.level);
             self.irq_dirty |= old != self.periph.gpio.input;
         }
+        for pin in self.board.released_inputs() { esp_soc::SocBus::gpio_release_input(self, pin); }
     }
 
     fn deliver_gpio_output(&mut self) {

@@ -184,6 +184,15 @@ impl esp_soc::SocBus for SocBus {
     fn adc_observation(&self, pin: u8) -> Option<esp_periph::AdcObservation> {
         ((1..=20).contains(&pin)).then(|| self.periph.rtc.analog.observation(pin))
     }
+    fn gpio_release_input(&mut self, pin: u8) {
+        let before = self.periph.gpio.input;
+        self.periph.gpio.release_input(pin);
+        self.refresh_tick_budget();
+        self.irq_dirty |= before != self.periph.gpio.input;
+        if before != self.periph.gpio.input {
+            if let Some(events) = &mut self.gpio_events { events.push((self.cycles, pin, self.periph.gpio.level(pin))); }
+        }
+    }
     fn gpio_set_input(&mut self, pin: u8, level: bool) {
         let old_input = self.periph.gpio.input;
         self.periph.gpio.set_input(pin, level);

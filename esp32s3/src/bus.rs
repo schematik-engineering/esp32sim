@@ -286,6 +286,7 @@ impl SocBus {
         }
         // Restored input edges and the board's own deadline can activate device work.
         self.refresh_tick_budget();
+        for pin in self.board.released_inputs() { esp_soc::SocBus::gpio_release_input(self, pin); }
     }
 
     /// Time until deferred device work must run. The bounded fallback covers devices without
@@ -503,8 +504,8 @@ impl SocBus {
         }
         self.complete_spi2_dma();
         self.deliver_spi2_transfer();
-        // GPIO output writes usually only drive the board, but an enabled level
-        // interrupt also observes output levels. Inspect only changed output pins.
+        // Output changes can also raise GPIO input interrupts on undriven pads.
+        // Inspect only changed output pins.
         if spi {
             self.irq_dirty |= before != sources(&self.periph);
         } else if !(0x6000_4004..=0x6000_4018).contains(&a) {
@@ -515,7 +516,7 @@ impl SocBus {
                 let pin = changed.trailing_zeros() as usize;
                 changed &= changed - 1;
                 let config = self.periph.gpio.pin[pin];
-                if config & (1 << 13) != 0 && matches!((config >> 7) & 7, 4 | 5) {
+                if config & (1 << 13) != 0 && matches!((config >> 7) & 7, 1..=5) {
                     self.irq_dirty = true;
                     break;
                 }
@@ -848,6 +849,7 @@ impl SocBus {
             // when the input changes, so both polarities require a refresh too.
             self.irq_dirty |= old_input != self.periph.gpio.input;
         }
+        for pin in self.board.released_inputs() { esp_soc::SocBus::gpio_release_input(self, pin); }
     }
 
     fn tick_impl(&mut self, cycles: u32) -> u32 {

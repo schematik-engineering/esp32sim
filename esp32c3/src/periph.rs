@@ -274,6 +274,9 @@ impl Peripherals {
     }
 
     pub fn write32(&mut self, addr: u32, v: u32) {
+        if (0x60009004..=0x60009058).contains(&addr) {
+            self.gpio.set_pulls(((addr - 0x60009004) / 4) as u8, v & (1 << 8) != 0, v & (1 << 7) != 0);
+        }
         if addr == PERIPH_BASE + 0xc0018 && v & (1 << 11) != 0 { self.ledc = Ledc::new(LedcLayout::C3); }
         if addr == 0x6001_3004 && v & (1 << 5) != 0 && self.i2c.has_pinned_devices() {
             let pins = self.i2c_pin(54).zip(self.i2c_pin(53));
