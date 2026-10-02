@@ -1,0 +1,328 @@
+{
+  "base": "8cc5d233611d32586bfbb4c4885f6570aa8a64ba",
+  "reference": "221080ffccfa829106b398f896653535853c76c8",
+  "rustc": "1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "1.99.0 (5f94df478 2026-08-27)",
+  "host": {
+    "target": "aarch64-apple-darwin",
+    "macOS": "26.6.2",
+    "cpu_model": "not available through sandbox sysctl"
+  },
+  "hashes": {
+    "firmware/platformio.ini": "044a019e91fcd489a399f548b6827ba7f95fbb89a9843f862d624b57027f68d8",
+    "firmware/src/main.cpp": "14f1d49e40eec8695fb60df81472d81d833f4a1486f767d28e24659b969d176f",
+    "initial.patch": "45ff8ae35d20064e588e48abe8f01be6f69c2f59f8a3ed8453a0b5f9b9f665b9",
+    "bench.py": "da83c52c3d686ac2f9f971bb59decb87a781d3cb7dc3ba7875e15ec2a24dda06",
+    "bench-wasm.py": "3b583e6ce1b2c0886435e4c65317705d82e7b1dff209f26af2ca828cb081df07",
+    "web/wasm/fw/panel.json": "cfc51b851a7a666f66860e5ba6e35ea6abc01c1160eca75b6b90a19f8dd0fb75",
+    "web/wasm/fw/esp32s3_rev0_rom.elf": "c0ce0f338d1de1bdc6efbef1591779a2a42c1ab7d759d3c6ae8ae63a7dd34cfd",
+    "web/wasm/fw/public/panel-bootloader.bin": "f804e8ef245d68ee0932650062e8f4d6b14df22d61fb39ba50f5e33977127801",
+    "web/wasm/fw/public/panel-ptable.bin": "fb462bc675bf6928afe8de87977f72c7dfce38491d32aa89a9204b6d4d5b1066",
+    "web/wasm/fw/public/panel-demo.bin": "8094e4be95f8d92c7ce41fe1acbbecbcdb3b31725fc292a1eef63cfcc22cf5a0",
+    "web/wasm/fw/public/energydata.json": "aa8d5326406a83aa254d953d16f18f644c0112d523ef2e2e66b3ab1add4ff0cb",
+    "web/wasm/fw/hello.json": "effb7f5d7fb33dcbabbe8ef8310c2b32ae875594553c056cde09c3fa762e5412",
+    "web/wasm/fw/public/hello-bootloader.bin": "7efecb4df4463ece11ab286068a505ecd174f66fd4aacc53d887fcb9c18f0579",
+    "web/wasm/fw/public/hello-ptable.bin": "7f00b6c042a89b15b0cac534f82ed988caf29278ff5700b0c511eb1b5bb7c820",
+    "web/wasm/fw/public/hello_world.bin": "d9142e72453e8b71f6903f4dd869a4ee09c34d94cfafcb4f4309f8d2bf9040c9",
+    "web/wasm/fw/c3-hello.json": "87dfa2297c18be37992657f35e0c62e1d0314fe3827cc8b30ca640965d93cb22",
+    "web/wasm/fw/esp32c3_rev3_rom.elf": "19ac22e08707df926fb0cf4c54795d4067b983fae8635f396ded173a6d78fc3c",
+    "web/wasm/fw/public/c3-hello-bootloader.bin": "3eaeaa5fb91d462a6ce6dbd8f8d488c8dc059216bc5841e50b784aea8348eb7b",
+    "web/wasm/fw/public/c3-hello-ptable.bin": "7f00b6c042a89b15b0cac534f82ed988caf29278ff5700b0c511eb1b5bb7c820",
+    "web/wasm/fw/public/c3-hello_world.bin": "3fd8606fd2fb10d2387ed4d238e16e7f80cd4832f380da02f0128f7bf4e0e8be",
+    "web/wasm/fw/c6-hello.json": "e27476ddb020e09a57d02b05f274b1aa7f02e9e5c5b9f21aa38688da6c5f27e8",
+    "web/wasm/fw/esp32c6_rev0_rom.elf": "788e1d38724aeb8fd974fa10c4a7b089c02627d35342ce84b9e0b12b239f3551",
+    "web/wasm/fw/public/c6-hello-bootloader.bin": "88fd358b406ebc874cda1f4d14c1fd50d37cd064a1826192ee275ce67741ff75",
+    "web/wasm/fw/public/c6-hello-ptable.bin": "7f00b6c042a89b15b0cac534f82ed988caf29278ff5700b0c511eb1b5bb7c820",
+    "web/wasm/fw/public/c6-hello_world.bin": "e302a3769d3122759ea85ed6caff857da36f558f83f9bf0eb652276657de0131",
+    "initial.patch.gz": "9730024ef36bf4b649f97366c95ed79b205f6225a93b82efbe2b7e9d5dca1de6",
+    "store-only.patch": "30f32f15cf493425135fc3879be9a81c7010a75d60c4a14e32a2b67e98d3b414",
+    "store-only.patch.gz": "f121ebb740a0d3a3166bf086fdef645c20abe24c8e28a883f6d9b5fcd26c2b28"
+  },
+  "firmware": {
+    "s3": {
+      "factory_sha256": "10e7b8b8005b32da14fa82c923246a47e6dfafae4a3e248401352d5084769977",
+      "elf_sha256": "3379ad3c5c4cbc0140f42b6166e4564f771691f3e5c25c7ec4e0068c6fd082df",
+      "framework": "Arduino-ESP32 3.3.8",
+      "platform": "pioarduino 55.03.38-1",
+      "gpio": 4,
+      "colours": [
+        [
+          7,
+          11,
+          13
+        ],
+        [
+          17,
+          19,
+          23
+        ],
+        [
+          29,
+          31,
+          37
+        ]
+      ]
+    },
+    "c3": {
+      "factory_sha256": "97ae0401934a73b032a8b6d4676be4c5afe3cce9dd5fd8e134bc40b8e02678c3",
+      "elf_sha256": "1e9ccf6b06de399e7c38a8a5123acbb2cacf9625609781def707e6b7cce1d261",
+      "framework": "Arduino-ESP32 3.3.8",
+      "platform": "pioarduino 55.03.38-1",
+      "gpio": 4,
+      "colours": [
+        [
+          7,
+          11,
+          13
+        ],
+        [
+          17,
+          19,
+          23
+        ],
+        [
+          29,
+          31,
+          37
+        ]
+      ]
+    },
+    "c6": {
+      "factory_sha256": "5969ff0d83f34a71f9c700d825d0ac70ff438bd58a72856b4af8014adbab32a7",
+      "elf_sha256": "056957425a670f06e1f5c020bea27b19f6b7eab169396c92a4fc284e976ad485",
+      "framework": "Arduino-ESP32 3.3.8",
+      "platform": "pioarduino 55.03.38-1",
+      "gpio": 4,
+      "colours": [
+        [
+          7,
+          11,
+          13
+        ],
+        [
+          17,
+          19,
+          23
+        ],
+        [
+          29,
+          31,
+          37
+        ]
+      ]
+    },
+    "c3-neopixel": {
+      "factory_sha256": "928686f1067db3dd5de271018a7fb1a293f73ac30fc999f975411f73d95d669c",
+      "source_sha256": "a46e49816c6b16d7ee014f85410ed613e3ea1d911a1ab693d269687d6d5844ab",
+      "library": "https://github.com/Makuna/NeoPixelBus.git#882b804205f537b12788978c1abb7cd50fefffd4",
+      "compiler_sha256": "e5c3a93651fc10025147ffce6d6b81bc043824111a1c6feee0a3adea5488d87a",
+      "packages": [
+        {
+          "name": "espressif32",
+          "version": "55.03.38",
+          "sha256": "bef202180776a871d7c3d083d6a65260c344d557efa75180216d4770c023a8f9"
+        },
+        {
+          "name": "framework-arduinoespressif32",
+          "version": "3.3.8",
+          "sha256": "fba3ee1bdfa56013cad484f6de34c4b1d20c0751dff30a0a01afebfd41fc1363"
+        },
+        {
+          "name": "framework-arduinoespressif32-libs",
+          "version": "5.5.4+sha.735507283d",
+          "sha256": "9492ee54778abe8687723ab3a66f342b4b3cc0f74f839ae7ff70e09ee33770e6"
+        },
+        {
+          "name": "framework-espidf",
+          "version": "3.50504.0",
+          "sha256": "b140a22728d866707b3deac19db25cad3bb72ebe31fc4630f83e100087466127"
+        },
+        {
+          "name": "toolchain-riscv32-esp",
+          "version": "14.2.0+20260121",
+          "sha256": "ee251bc6d6a2066c714d657d1357fa89672fc5f199af65dec6e6c272b41d3468"
+        }
+      ],
+      "gpios": [
+        0,
+        1
+      ],
+      "colours_A": [
+        [
+          255,
+          0,
+          0
+        ],
+        [
+          0,
+          255,
+          0
+        ],
+        [
+          0,
+          0,
+          255
+        ]
+      ],
+      "colours_E": [
+        [
+          7,
+          11,
+          13
+        ],
+        [
+          17,
+          19,
+          23
+        ],
+        [
+          29,
+          31,
+          37
+        ]
+      ]
+    },
+    "c6-neopixel": {
+      "factory_sha256": "ec39d3bc3a70ad71205685e9557bb59a747c0fbf3c441602658966e8ce02b8b1",
+      "source_sha256": "f5b03e4a86b2a526fe584c836a44311787aa7430594cac9935d6b56df81b414c",
+      "library": "https://github.com/Makuna/NeoPixelBus.git#882b804205f537b12788978c1abb7cd50fefffd4",
+      "compiler_sha256": "e5c3a93651fc10025147ffce6d6b81bc043824111a1c6feee0a3adea5488d87a",
+      "packages": [
+        {
+          "name": "espressif32",
+          "version": "55.03.38",
+          "sha256": "bef202180776a871d7c3d083d6a65260c344d557efa75180216d4770c023a8f9"
+        },
+        {
+          "name": "framework-arduinoespressif32",
+          "version": "3.3.8",
+          "sha256": "fba3ee1bdfa56013cad484f6de34c4b1d20c0751dff30a0a01afebfd41fc1363"
+        },
+        {
+          "name": "framework-arduinoespressif32-libs",
+          "version": "5.5.4+sha.735507283d",
+          "sha256": "9492ee54778abe8687723ab3a66f342b4b3cc0f74f839ae7ff70e09ee33770e6"
+        },
+        {
+          "name": "framework-espidf",
+          "version": "3.50504.0",
+          "sha256": "b140a22728d866707b3deac19db25cad3bb72ebe31fc4630f83e100087466127"
+        },
+        {
+          "name": "toolchain-riscv32-esp",
+          "version": "14.2.0+20260121",
+          "sha256": "ee251bc6d6a2066c714d657d1357fa89672fc5f199af65dec6e6c272b41d3468"
+        }
+      ],
+      "gpios": [
+        0,
+        1
+      ],
+      "colours_A": [
+        [
+          255,
+          0,
+          0
+        ],
+        [
+          0,
+          255,
+          0
+        ],
+        [
+          0,
+          0,
+          255
+        ]
+      ],
+      "colours_E": [
+        [
+          7,
+          11,
+          13
+        ],
+        [
+          17,
+          19,
+          23
+        ],
+        [
+          29,
+          31,
+          37
+        ]
+      ]
+    }
+  },
+  "node": "22.23.1",
+  "local_firmware_packages": [
+    {
+      "name": "framework-arduinoespressif32",
+      "version": "3.3.8",
+      "package_json_sha256": "fba3ee1bdfa56013cad484f6de34c4b1d20c0751dff30a0a01afebfd41fc1363"
+    },
+    {
+      "name": "framework-arduinoespressif32-libs",
+      "version": "5.5.4+sha.735507283d",
+      "package_json_sha256": "9492ee54778abe8687723ab3a66f342b4b3cc0f74f839ae7ff70e09ee33770e6"
+    },
+    {
+      "name": "toolchain-riscv32-esp",
+      "version": "14.2.0+20260121",
+      "package_json_sha256": "ee251bc6d6a2066c714d657d1357fa89672fc5f199af65dec6e6c272b41d3468"
+    },
+    {
+      "name": "toolchain-xtensa-esp-elf",
+      "version": "14.2.0+20260121",
+      "package_json_sha256": "c48c1b9576e07b786e4ae1cf17b9ee500317b7218c20d76a0238649f3424bb63"
+    }
+  ],
+  "implementation": "The commit containing this receipt; exact source file hashes below.",
+  "source_files": {
+    "cli/tests/gpio_waveform.rs": "c58a4ecb8306cfd268c59c5c107c3e5b19a707950d04d634a7bf993b5af26af9",
+    "emu-core/src/bus.rs": "9cb3f3ca8a895d140a34b3995431699246b5209846f81c41c74fced367457c8b",
+    "esp-periph/src/gpio.rs": "748d9c6f94513ea15315715fbfff827203cb14a009baeb454187e039eab0f2b9",
+    "esp-soc/src/board.rs": "7a1e273463b6f1b50e3959ab9090ff49118b8532a2d2b2c567a5cf5d236ac2e8",
+    "esp-soc/src/devices/ws2812.rs": "78c17965015498d8e854dedb95bce21a943d18803336d8d0270c8440dbc22107",
+    "esp-soc/src/machine.rs": "94784e3a691a04d0ae49967ab70f9e2623b6899edb2aad31d156922bd962228e",
+    "esp-soc/src/machine/modeled.rs": "3e75805de7b707ec066a9d13ac0d17d3d789d14f6195bceb7fe81ae9c8bfd14f",
+    "esp32c3/src/bus.rs": "48225b5bfc12d621c2840af3a43655526f9410367f73c7ad074ccbd0547383e1",
+    "esp32c6/src/bus.rs": "7772adfb1cf14b1fa2d9e60e6f2564644af523a0422592fcd3a65259c86d6699",
+    "esp32c6/src/periph.rs": "0ba5fed06a8e10b6e8ec9befd1b66a618da1b3b99a5a482f28dfc2ee21e3dbbf",
+    "esp32s3/src/bus.rs": "259aa36bf633c5ded95f6ec887e5f8401e00dd0c9e39578837aca7fbea668111",
+    "riscv-rv32/src/exec.rs": "c10477946abf10b6b2670afa57b41631187d8a72d6d27f8e2927ee1f2f228c54",
+    "xtensa-lx7/src/block.rs": "4928fa7a7618da20a74f7f54c9de628a07f5e7bd53f9144a482c23771058b8db",
+    "xtensa-lx7/src/exec.rs": "6e1c83b23d81977eca21db2ef0d4d6c9e620d2c88b3fcd2b3b50e32713ddc01e",
+    "xtensa-lx7/src/jit/mod.rs": "422d3d955ad4c410a9d53a7f29a987849c7600da625a14b79756af0c197200f7",
+    "xtensa-lx7/src/jit/wasm.rs": "73bd3dc90cab4b4a2cee68039c9a143bd33605a7c5c532ab2f51548e1c6dc08a",
+    "xtensa-lx7/src/jit/wasm_emit.rs": "9c6e5b01ae7451d0e8a5b72275028952d83f1c601176f3df5945727d7038c757",
+    "xtensa-lx7/src/jit/wasm_tests.rs": "11d4b703d51038a46bc6a8026bd69fe7aa9b4f41870277a0be525ce9b0f27a43",
+    "xtensa-lx7/src/jit/wasm_tests/control.rs": "651250b333ba18a244cfccd355346c04387c85c3f6f90738d08379bd087ea18d",
+    "xtensa-lx7/src/jit/wasm_tests/memory.rs": "7244560def68e2ce31ec4eb7db98ca1f03b0728bc8838591f478a4a4baa15fbd",
+    "xtensa-lx7/src/jit/wasm_tests/pie_accx.rs": "86e085a91984eea22096a039313f7eaa3602f05b4913fa434fb2704016d0eaf6",
+    "xtensa-lx7/src/jit/wasm_tests/regions.rs": "249539f93848d0dba442ffee471b940c0656ce139fa30aeea7b5e00e28e1bd06"
+  },
+  "store_screen_source_files": {
+    "emu-core/src/bus.rs": "054be5a284ff8eb8ddcfe29632b15089763acf89f8ad6bf0062e1a81bbf9ce93",
+    "esp-periph/src/gpio.rs": "748d9c6f94513ea15315715fbfff827203cb14a009baeb454187e039eab0f2b9",
+    "esp-soc/src/board.rs": "61cb89b123fec991e9984c922706359c15d89fc0aa97262abd25d8779327e95d",
+    "esp-soc/src/devices/ws2812.rs": "78c17965015498d8e854dedb95bce21a943d18803336d8d0270c8440dbc22107",
+    "esp-soc/src/machine.rs": "94784e3a691a04d0ae49967ab70f9e2623b6899edb2aad31d156922bd962228e",
+    "esp-soc/src/machine/modeled.rs": "3e75805de7b707ec066a9d13ac0d17d3d789d14f6195bceb7fe81ae9c8bfd14f",
+    "esp32c3/src/bus.rs": "48225b5bfc12d621c2840af3a43655526f9410367f73c7ad074ccbd0547383e1",
+    "esp32c6/src/bus.rs": "7772adfb1cf14b1fa2d9e60e6f2564644af523a0422592fcd3a65259c86d6699",
+    "esp32c6/src/periph.rs": "0ba5fed06a8e10b6e8ec9befd1b66a618da1b3b99a5a482f28dfc2ee21e3dbbf",
+    "esp32s3/src/bus.rs": "259aa36bf633c5ded95f6ec887e5f8401e00dd0c9e39578837aca7fbea668111",
+    "riscv-rv32/src/exec.rs": "c10477946abf10b6b2670afa57b41631187d8a72d6d27f8e2927ee1f2f228c54",
+    "xtensa-lx7/src/block.rs": "f7cb7d57f92615fbfe539c714d898978112312421aac63272e1335ee6ea51d58",
+    "xtensa-lx7/src/exec.rs": "d6fa3923044c289a8c35cf949562a6415bdf0b56b0cac93dfe4bac06aa7ca936",
+    "xtensa-lx7/src/jit/mod.rs": "e94baee8038c9276e43f0684791b17b95e13dbe46036c773adcf65cdff055817",
+    "xtensa-lx7/src/jit/wasm.rs": "4c7eac6367b1561bcebc00561e39b3695acd1f508967b0579abf2ff208370fa4",
+    "xtensa-lx7/src/jit/wasm_emit.rs": "9c6e5b01ae7451d0e8a5b72275028952d83f1c601176f3df5945727d7038c757",
+    "xtensa-lx7/src/jit/wasm_tests.rs": "11d4b703d51038a46bc6a8026bd69fe7aa9b4f41870277a0be525ce9b0f27a43",
+    "xtensa-lx7/src/jit/wasm_tests/control.rs": "651250b333ba18a244cfccd355346c04387c85c3f6f90738d08379bd087ea18d",
+    "xtensa-lx7/src/jit/wasm_tests/memory.rs": "6e1fa79d93dcc433838ff8138521d02b91a2e6e05d930ec7297370ae6355a382",
+    "xtensa-lx7/src/jit/wasm_tests/pie_accx.rs": "86e085a91984eea22096a039313f7eaa3602f05b4913fa434fb2704016d0eaf6",
+    "xtensa-lx7/src/jit/wasm_tests/regions.rs": "249539f93848d0dba442ffee471b940c0656ce139fa30aeea7b5e00e28e1bd06"
+  }
+}

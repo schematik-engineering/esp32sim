@@ -260,7 +260,7 @@ fn step_outcome_inner<B: Bus>(cpu: &mut Cpu, bus: &mut B) -> StepOutcome {
     if cpu.price_control && cpu.icache_fill != 0 {
         cpu.touch_fetch_lines(pc, pc.wrapping_add(i.len.max(1) as u32 - 1));
     }
-    let r = exec_insn(cpu, bus, &i);
+    let r = exec_insn(cpu, bus, &i, 0);
     if cpu.price_control && r.is_ok() {
         let taken = control_taken(cpu, &i);
         cpu.timing_extra += control_price(i.op, taken) + extra
@@ -307,8 +307,8 @@ macro_rules! ld {
     };
 }
 macro_rules! st {
-    ($cpu:expr, $bus:expr, $f:ident, $addr:expr, $v:expr) => {
-        if $bus.$f($addr, $v).is_err() { return Err($cpu.raise_mem(exc::STORE_PROHIBITED, $addr)); }
+    ($cpu:expr, $bus:expr, $instruction:expr, $f:ident, $addr:expr, $v:expr) => {
+        if $bus.$f($addr, $v, $cpu.insn_count + u64::from($instruction)).is_err() { return Err($cpu.raise_mem(exc::STORE_PROHIBITED, $addr)); }
     };
 }
 
@@ -487,7 +487,7 @@ pub(crate) fn control_price(op: Op, taken: bool) -> u32 {
     }
 }
 
-pub(crate) fn exec_insn<B: Bus>(cpu: &mut Cpu, bus: &mut B, i: &Insn) -> Result<(), Trap> {
+pub(crate) fn exec_insn<B: Bus>(cpu: &mut Cpu, bus: &mut B, i: &Insn, instruction: u32) -> Result<(), Trap> {
     use Op::*;
     let pc = cpu.pc;
     let next = pc.wrapping_add(i.len as u32);
@@ -574,8 +574,8 @@ pub(crate) fn exec_insn<B: Bus>(cpu: &mut Cpu, bus: &mut B, i: &Insn) -> Result<
         }
         Rotw => cpu.rotate(imm),
         L32e => { let a = ar!(s).wrapping_add(immu); set!(t, ld!(cpu, bus, read32, a)); }
-        S32e => { let a = ar!(s).wrapping_add(immu); st!(cpu, bus, write32, a, ar!(t)); }
-        S32nb => { let a = ar!(s).wrapping_add(immu); st!(cpu, bus, write32, a, ar!(t)); }
+        S32e => { let a = ar!(s).wrapping_add(immu); st!(cpu, bus, instruction, write32_at, a, ar!(t)); }
+        S32nb => { let a = ar!(s).wrapping_add(immu); st!(cpu, bus, instruction, write32_at, a, ar!(t)); }
 
         // ------------------------------------------------------------ branches
         Beqz | BeqzN => br!(ar!(s) == 0),
@@ -621,13 +621,13 @@ pub(crate) fn exec_insn<B: Bus>(cpu: &mut Cpu, bus: &mut B, i: &Insn) -> Result<
         L16si => { let a = ar!(s).wrapping_add(immu); set!(t, ld!(cpu, bus, read16, a) as u16 as i16 as i32 as u32); }
         L32i | L32iN | L32ai => { let a = ar!(s).wrapping_add(immu); set!(t, ld!(cpu, bus, read32, a)); }
         L32r => { set!(t, ld!(cpu, bus, read32, immu)); }
-        S8i => { let a = ar!(s).wrapping_add(immu); st!(cpu, bus, write8, a, ar!(t) as u8); }
-        S16i => { let a = ar!(s).wrapping_add(immu); st!(cpu, bus, write16, a, ar!(t) as u16); }
-        S32i | S32iN | S32ri => { let a = ar!(s).wrapping_add(immu); st!(cpu, bus, write32, a, ar!(t)); }
+        S8i => { let a = ar!(s).wrapping_add(immu); st!(cpu, bus, instruction, write8_at, a, ar!(t) as u8); }
+        S16i => { let a = ar!(s).wrapping_add(immu); st!(cpu, bus, instruction, write16_at, a, ar!(t) as u16); }
+        S32i | S32iN | S32ri => { let a = ar!(s).wrapping_add(immu); st!(cpu, bus, instruction, write32_at, a, ar!(t)); }
         S32c1i => {
             let a = ar!(s).wrapping_add(immu);
             let old = ld!(cpu, bus, read32, a);
-            if old == cpu.scompare1 { st!(cpu, bus, write32, a, ar!(t)); }
+            if old == cpu.scompare1 { st!(cpu, bus, instruction, write32_at, a, ar!(t)); }
             set!(t, old);
         }
         Dpfr | Dpfw | Dpfro | Dpfwo | Dhwb | Dhwbi | Dhi | Dii | Ipf | Ihi | Iii | Ipfl | Ihu | Iiu | Dpfl | Dhu | Diu => {}
@@ -727,9 +727,9 @@ pub(crate) fn exec_insn<B: Bus>(cpu: &mut Cpu, bus: &mut B, i: &Insn) -> Result<
 
         // ------------------------------------------------------------ FPU (coprocessor 0)
         Lsi | Lsip => { cp0!(); let a = ar!(s).wrapping_add(immu); let v = ld!(cpu, bus, read32, a); cpu.fr[t as usize] = v; if i.op == Lsip { set!(s, a); } }
-        Ssi | Ssip => { cp0!(); let a = ar!(s).wrapping_add(immu); st!(cpu, bus, write32, a, cpu.fr[t as usize]); if i.op == Ssip { set!(s, a); } }
+        Ssi | Ssip => { cp0!(); let a = ar!(s).wrapping_add(immu); st!(cpu, bus, instruction, write32_at, a, cpu.fr[t as usize]); if i.op == Ssip { set!(s, a); } }
         Lsx | Lsxp => { cp0!(); let a = ar!(s).wrapping_add(ar!(t)); let v = ld!(cpu, bus, read32, a); cpu.fr[r as usize] = v; if i.op == Lsxp { set!(s, a); } }
-        Ssx | Ssxp => { cp0!(); let a = ar!(s).wrapping_add(ar!(t)); st!(cpu, bus, write32, a, cpu.fr[r as usize]); if i.op == Ssxp { set!(s, a); } }
+        Ssx | Ssxp => { cp0!(); let a = ar!(s).wrapping_add(ar!(t)); st!(cpu, bus, instruction, write32_at, a, cpu.fr[r as usize]); if i.op == Ssxp { set!(s, a); } }
         AddS => { cp0!(); setf!(r, fr!(s) + fr!(t)); }
         SubS => { cp0!(); setf!(r, fr!(s) - fr!(t)); }
         MulS => { cp0!(); setf!(r, fr!(s) * fr!(t)); }
@@ -773,7 +773,7 @@ pub(crate) fn exec_insn<B: Bus>(cpu: &mut Cpu, bus: &mut B, i: &Insn) -> Result<
         Mac16 => exec_mac16(cpu, bus, i)?,
 
         // ------------------------------------------------------------ PIE: not implemented yet
-        Pie => { crate::pie::exec(cpu, bus, i)?; }
+        Pie => { bus.note_instruction(cpu.insn_count + u64::from(instruction)); crate::pie::exec(cpu, bus, i)?; }
     }
 
     // zero-overhead loop back-edge (straight-line only, like hardware fetch semantics)

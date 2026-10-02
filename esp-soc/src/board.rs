@@ -27,13 +27,18 @@ pub trait BoardModel {
     fn name(&self) -> &'static str;
     /// GPIO output level changes, in order.
     fn gpio_changes(&mut self, _changes: &[(u8, bool)]) {}
-    /// Output changes at the SoC bus cycle. The drive masks also expose output-enable
+    /// Output changes in shared CPU-cycle time. The drive masks also expose output-enable
     /// transitions (including releasing a low pin), needed by open-drain pulse protocols.
     /// S3, C3 and C6 call this immediately after a GPIO output/enable write; other chips may use
     /// `gpio_changes` until they implement timestamped output.
     fn gpio_output_at(&mut self, _cycle: VirtualCycle, changes: &[(u8, bool)], _enabled: u64, _output: u64) {
         if !changes.is_empty() { self.gpio_changes(changes); }
     }
+    /// Instruction-position GPIO observation, including matrix and IO_MUX configuration writes.
+    /// `signal` is the chip's software GPIO output signal (256 on S3, 128 on C3/C6).
+    /// Fixed boards can keep using `gpio_output_at`; physical boards can resolve individual pins
+    /// with `Gpio::software_output` without scanning every pin on every write.
+    fn gpio_waveform_at(&mut self, _cycle: VirtualCycle, _gpio: &esp_periph::gpio::Gpio, _mux: &esp_periph::RegRam, _signal: u32) {}
     /// A completed RMT transmission, decoded to bits by the peripheral model, with the pin the
     /// GPIO matrix has that channel routed to. Drivers that take a fresh channel per refresh
     /// (the Arduino NeoPixel one does) make the channel meaningless; the pin names the strip.

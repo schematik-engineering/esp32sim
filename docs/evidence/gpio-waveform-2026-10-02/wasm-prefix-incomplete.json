@@ -1,0 +1,96 @@
+{
+  "binaries": {
+    "base": "2bc83f611d490eb197f9c2508827d184595176e29511578f7c40c742a2e166cd",
+    "candidate": "c7fe85d631b4534cd62ca49b4141c8c10003f7deab0c097b24b79e69d2d794c7"
+  },
+  "runs": [
+    {
+      "label": "base",
+      "seconds": 7.9930884999921545,
+      "checks": [
+        "ok   wasm JIT handoff: shared-memory block committed at a scheduler boundary",
+        "ok   hello: board none, 4.3 M insns, 129 console lines, 0 binary frames",
+        "ok   c3-hello: board none, 480.0 M insns, 125 console lines, 0 binary frames",
+        "ok   c6-hello: board none, 480.0 M insns, 121 console lines, 0 binary frames",
+        "ok   panel: board waveshare-lcd4b, 142.5 M insns, 193 console lines, 254 binary frames"
+      ]
+    },
+    {
+      "label": "candidate",
+      "seconds": 8.246792332967743,
+      "checks": [
+        "ok   wasm JIT handoff: shared-memory block committed at a scheduler boundary",
+        "ok   hello: board none, 4.3 M insns, 129 console lines, 0 binary frames",
+        "ok   c3-hello: board none, 480.0 M insns, 125 console lines, 0 binary frames",
+        "ok   c6-hello: board none, 480.0 M insns, 121 console lines, 0 binary frames",
+        "ok   panel: board waveshare-lcd4b, 142.5 M insns, 193 console lines, 254 binary frames"
+      ]
+    },
+    {
+      "label": "candidate",
+      "seconds": 8.259583750041202,
+      "checks": [
+        "ok   wasm JIT handoff: shared-memory block committed at a scheduler boundary",
+        "ok   hello: board none, 4.3 M insns, 129 console lines, 0 binary frames",
+        "ok   c3-hello: board none, 480.0 M insns, 125 console lines, 0 binary frames",
+        "ok   c6-hello: board none, 480.0 M insns, 121 console lines, 0 binary frames",
+        "ok   panel: board waveshare-lcd4b, 142.5 M insns, 193 console lines, 254 binary frames"
+      ]
+    },
+    {
+      "label": "base",
+      "seconds": 9.002390666049905,
+      "checks": [
+        "ok   wasm JIT handoff: shared-memory block committed at a scheduler boundary",
+        "ok   hello: board none, 4.3 M insns, 129 console lines, 0 binary frames",
+        "ok   c3-hello: board none, 480.0 M insns, 125 console lines, 0 binary frames",
+        "ok   c6-hello: board none, 480.0 M insns, 121 console lines, 0 binary frames",
+        "ok   panel: board waveshare-lcd4b, 142.5 M insns, 193 console lines, 254 binary frames"
+      ]
+    },
+    {
+      "label": "base",
+      "seconds": 10.749926917022094,
+      "checks": [
+        "ok   wasm JIT handoff: shared-memory block committed at a scheduler boundary",
+        "ok   hello: board none, 4.3 M insns, 129 console lines, 0 binary frames",
+        "ok   c3-hello: board none, 480.0 M insns, 125 console lines, 0 binary frames",
+        "ok   c6-hello: board none, 480.0 M insns, 121 console lines, 0 binary frames",
+        "ok   panel: board waveshare-lcd4b, 142.5 M insns, 193 console lines, 254 binary frames"
+      ]
+    },
+    {
+      "label": "candidate",
+      "seconds": 10.160417167004198,
+      "checks": [
+        "ok   wasm JIT handoff: shared-memory block committed at a scheduler boundary",
+        "ok   hello: board none, 4.3 M insns, 129 console lines, 0 binary frames",
+        "ok   c3-hello: board none, 480.0 M insns, 125 console lines, 0 binary frames",
+        "ok   c6-hello: board none, 480.0 M insns, 121 console lines, 0 binary frames",
+        "ok   panel: board waveshare-lcd4b, 142.5 M insns, 193 console lines, 254 binary frames"
+      ]
+    },
+    {
+      "label": "candidate",
+      "seconds": 8.664361500064842,
+      "checks": [
+        "ok   wasm JIT handoff: shared-memory block committed at a scheduler boundary",
+        "ok   hello: board none, 4.3 M insns, 129 console lines, 0 binary frames",
+        "ok   c3-hello: board none, 480.0 M insns, 125 console lines, 0 binary frames",
+        "ok   c6-hello: board none, 480.0 M insns, 121 console lines, 0 binary frames",
+        "ok   panel: board waveshare-lcd4b, 142.5 M insns, 193 console lines, 254 binary frames"
+      ]
+    },
+    {
+      "label": "base",
+      "seconds": 8.203776625101455,
+      "checks": [
+        "ok   wasm JIT handoff: shared-memory block committed at a scheduler boundary",
+        "ok   hello: board none, 4.3 M insns, 129 console lines, 0 binary frames",
+        "ok   c3-hello: board none, 480.0 M insns, 125 console lines, 0 binary frames",
+        "ok   c6-hello: board none, 480.0 M insns, 121 console lines, 0 binary frames",
+        "ok   panel: board waveshare-lcd4b, 142.5 M insns, 193 console lines, 254 binary frames"
+      ]
+    }
+  ]
+}

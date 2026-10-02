@@ -44,6 +44,14 @@ impl Gpio {
     pub fn pin_for_signal(&self, sig: u32) -> Option<u8> {
         self.func_out_sel.iter().position(|&s| s & 0x1ff == sig).map(|p| p as u8)
     }
+    /// Software GPIO drive after IO_MUX selection, matrix inversion and output enable.
+    /// `None` means this pin is not driven by the software GPIO signal.
+    pub fn software_output(&self, pin: u8, mux: &RegRam, signal: u32) -> Option<bool> {
+        let route = *self.func_out_sel.get(usize::from(pin))?;
+        if (mux.read(4 + u32::from(pin) * 4) >> 12) & 7 != 1 || route & (signal * 2 - 1) != signal { return None; }
+        let enabled = (self.enable & (1u64 << pin) != 0) ^ (route & (signal * 8) != 0);
+        enabled.then(|| (self.out & (1u64 << pin) != 0) ^ (route & (signal * 2) != 0))
+    }
     pub fn level(&self, pin: u8) -> bool {
         if pin as usize >= self.pin.len() { return false; }
         if self.enable & (1u64 << pin) != 0 { self.out & (1u64 << pin) != 0 } else { self.input & (1u64 << pin) != 0 }

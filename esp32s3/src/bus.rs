@@ -54,6 +54,7 @@ pub struct SocBus {
     pub periph: Peripherals,
     pub board: Board,
     pub cycles: u64,
+    execution: emu_core::bus::ExecutionClock,
     pub last_fault: Option<(u32, bool)>,
     pub spi2_dma_fault: Option<DmaDescriptorFault>,
     /// Experimental register-derived SPI2 wire timing; disabled for baseline runs.
@@ -146,7 +147,7 @@ impl SocBus {
             ble: Default::default(),
             sram: vec![0; SRAM_SIZE], irom: vec![0; (IROM_MASK_HIGH - IROM_MASK_LOW) as usize], drom: vec![0; (DROM_MASK_HIGH - DROM_MASK_LOW) as usize],
             rtc_fast: vec![0; 8192], rtc_slow: vec![0; 8192], flash: vec![0xff; flash_size], psram: vec![0; psram_size],
-            mmu: [MMU_INVALID; MMU_ENTRIES], periph: Peripherals::new(mac), board: Box::new(crate::board::Atech14::new()), cycles: 0, last_fault: None, spi2_dma_fault: None, irq_dirty: false, gpio_events: None, debug: Default::default(),
+            mmu: [MMU_INVALID; MMU_ENTRIES], periph: Peripherals::new(mac), board: Box::new(crate::board::Atech14::new()), cycles: 0, execution: Default::default(), last_fault: None, spi2_dma_fault: None, irq_dirty: false, gpio_events: None, debug: Default::default(),
             spi2_timing: false, spi2_scheduled: None, spi2_pins: None,
             tlb: vec![TlbEntry::EMPTY; TLB_SIZE], page_ver: Vec::new(), ver_base: [0; 7], flash_epoch: BUS_EPOCHS.fetch_add(1, std::sync::atomic::Ordering::Relaxed) << 32, code_blk: Vec::new(), tick_pending: 0, tick_budget: 0, defer_mmio: false, mmio_deferred: false, vq_violations: 0,
             approximate_cache: None, approximate_cache_pending: 0, approximate_cache_fast_internal: false, approximate_cache_inline: false,
@@ -489,12 +490,15 @@ impl SocBus {
             self.spi2_pins = self.board.uses_spi_pins().then(|| self.periph.spi2_pins());
         }
         self.periph.write32(a, v);
+        if (0x6000_4000..0x6000_5000).contains(&a) || (0x6000_9000..0x6000_a000).contains(&a) {
+            self.board.gpio_waveform_at(self.execution.now.max(self.cycles), &self.periph.gpio, &self.periph.io_mux, 256);
+        }
         if old_gpio_out != self.periph.gpio.out || old_gpio_enable != self.periph.gpio.enable {
             let changes = std::mem::take(&mut self.periph.gpio.changes);
             if let Some(events) = &mut self.gpio_events {
                 for &(pin, level) in &changes { events.push((self.cycles, pin, level)); }
             }
-            self.board.gpio_output_at(self.cycles, &changes, self.periph.gpio.enable, self.periph.gpio.out);
+            self.board.gpio_output_at(self.execution.now.max(self.cycles), &changes, self.periph.gpio.enable, self.periph.gpio.out);
         }
         if let Some(port) = match a { 0x60000000 => Some(0), 0x60010000 => Some(1), 0x6002e000 => Some(2), _ => None } {
             self.board.uart_tx(self.periph.uart_route(port), v as u8);
@@ -739,6 +743,8 @@ impl Bus for SocBus {
     fn stable_pages(&self) -> (u32, u32, u64) { (self.ver_base[SRC_IROM as usize] + 1, self.ver_base[SRC_PSRAM as usize].saturating_sub(1), self.flash_epoch) }
     fn note_code_page(&mut self, vidx: u32) { self.watch_code_page(vidx); }
     #[inline(always)]
+    fn begin_execution(&mut self, cycle: u64, instruction: u64) { self.execution.begin(cycle, instruction); }
+    fn note_instruction(&mut self, instruction: u64) { self.execution.note(instruction); }
     fn note_pc(&mut self, pc: u32) { self.periph.misc.cur_pc = pc; }
     fn fast_mem(&mut self) -> Option<FastMem> { if self.approximate_cache.is_some() && !self.approximate_cache_fast_internal { None } else { Some(FastMem { tlb: self.tlb.as_ptr(), page_ver: self.page_ver.as_mut_ptr() }) } }
     fn read_bulk(&mut self, addr: u32, out: &mut [u8]) -> bool {
@@ -882,7 +888,7 @@ impl SocBus {
         if !self.periph.gpio.changes.is_empty() {
             let ch = std::mem::take(&mut self.periph.gpio.changes);
             if let Some(ev) = &mut self.gpio_events { for &(pin, level) in &ch { ev.push((self.cycles, pin, level)); } }
-            self.board.gpio_output_at(self.cycles, &ch, self.periph.gpio.enable, self.periph.gpio.out);
+            self.board.gpio_output_at(self.execution.now.max(self.cycles), &ch, self.periph.gpio.enable, self.periph.gpio.out);
         }
         self.deliver_spi2_transfer();
         if !self.periph.rmt.done.is_empty() {

@@ -1,0 +1,201 @@
+{
+  "native": {
+    "initial": {
+      "panel": {
+        "base_median_seconds": 1.1838600000482984,
+        "candidate_median_seconds": 1.2140054374467582,
+        "change_percent": 2.546368438601676,
+        "base_range": [
+          1.173595792031847,
+          1.1934437910094857
+        ],
+        "candidate_range": [
+          1.2037046250188723,
+          1.225627791020088
+        ],
+        "pairs": 4
+      },
+      "c3-hello": {
+        "base_median_seconds": 4.497707145521417,
+        "candidate_median_seconds": 4.831526416528504,
+        "change_percent": 7.421987697431276,
+        "base_range": [
+          3.856602792046033,
+          4.80287145904731
+        ],
+        "candidate_range": [
+          4.473606250016019,
+          4.96702366694808
+        ],
+        "pairs": 4
+      },
+      "c6-hello": {
+        "base_median_seconds": 4.085996479494497,
+        "candidate_median_seconds": 3.897202771040611,
+        "change_percent": -4.620505901102567,
+        "base_range": [
+          3.8953634159406647,
+          4.444110166979954
+        ],
+        "candidate_range": [
+          3.8658862919546664,
+          3.9770796250086278
+        ],
+        "pairs": 4
+      }
+    },
+    "store": {
+      "panel": {
+        "base_median_seconds": 1.1521817289758474,
+        "candidate_median_seconds": 1.167786083475221,
+        "change_percent": 1.3543310145391674,
+        "base_range": [
+          1.1424015000229701,
+          1.155996417044662
+        ],
+        "candidate_range": [
+          1.1628786250948906,
+          1.4964001249754801
+        ],
+        "pairs": 4
+      },
+      "c3-hello": {
+        "base_median_seconds": 3.3768317500362173,
+        "candidate_median_seconds": 3.2852126245270483,
+        "change_percent": -2.7131682088746722,
+        "base_range": [
+          3.271202667034231,
+          3.4079254580428824
+        ],
+        "candidate_range": [
+          3.2509142078924924,
+          3.319838250055909
+        ],
+        "pairs": 4
+      },
+      "c6-hello": {
+        "base_median_seconds": 3.766386708477512,
+        "candidate_median_seconds": 3.7477670624502935,
+        "change_percent": -0.4943636293455733,
+        "base_range": [
+          3.690841708914377,
+          3.7706814169650897
+        ],
+        "candidate_range": [
+          3.7206175420433283,
+          3.8523807909805328
+        ],
+        "pairs": 4
+      }
+    },
+    "final": {
+      "panel": {
+        "base_median_seconds": 1.1701840625028126,
+        "candidate_median_seconds": 1.1631342084729113,
+        "change_percent": -0.6024568489527149,
+        "base_range": [
+          1.1629112500231713,
+          1.171244916971773
+        ],
+        "candidate_range": [
+          1.1591426669619977,
+          1.4999431250616908
+        ],
+        "pairs": 4
+      },
+      "c3-hello": {
+        "base_median_seconds": 3.4237615624442697,
+        "candidate_median_seconds": 3.3435826870263554,
+        "change_percent": -2.3418358421161023,
+        "base_range": [
+          3.252354708034545,
+          3.4636936670867726
+        ],
+        "candidate_range": [
+          3.3227174578933045,
+          3.4129148749634624
+        ],
+        "pairs": 4
+      },
+      "c6-hello": {
+        "base_median_seconds": 5.245874874992296,
+        "candidate_median_seconds": 4.465595020970795,
+        "change_percent": -14.87416060457688,
+        "base_range": [
+          3.78268866694998,
+          5.7369597079232335
+        ],
+        "candidate_range": [
+          3.732185832923278,
+          5.328312000026926
+        ],
+        "pairs": 4
+      }
+    }
+  },
+  "wasm": {
+    "base_median_seconds": 7.85267687443411,
+    "candidate_median_seconds": 7.877724666963331,
+    "change_percent": 0.3189713893713142,
+    "base_range": [
+      7.747419583029114,
+      7.904298458015546
+    ],
+    "candidate_range": [
+      7.550372166908346,
+      8.741910374956205
+    ],
+    "pairs": 4
+  },
+  "checks": {
+    "workspace": {
+      "passed": 611,
+      "failed": 0,
+      "ignored": 0,
+      "filtered_external": 23,
+      "exit": 0
+    },
+    "waveform": {
+      "passed": 4,
+      "synthetic_configurations": 24,
+      "arduino_chips": [
+        "s3",
+        "c3",
+        "c6"
+      ],
+      "original_neopixel_runs": [
+        "c3 GPIO0 A",
+        "c3 GPIO1 E",
+        "c6 GPIO0 A",
+        "c6 GPIO1 E"
+      ]
+    },
+    "native_clippy": "pass",
+    "wasm_clippy_jit_tests": "pass",
+    "wasm_release_build": "pass",
+    "wasm_smoke": {
+      "exit": 0,
+      "scenarios": [
+        "hello",
+        "c3-hello",
+        "c6-hello",
+        "c6-energy-scan",
+        "c6-contiki",
+        "c6-contiki-net",
+        "c6-rpl-net",
+        "panel"
+      ]
+    },
+    "wasm_jit": {
+      "exit": 0,
+      "cases": 111132,
+      "compiled_modules_released": 99685
+    },
+    "privacy": "pass; staged text and gzip evidence plus manual review"
+  },
+  "limitations": [
+    "Uncontrolled host load; no process inventory retained.",
+    "No calibrated silicon timing or formal performance equivalence claim.",
+    "Node WASM is not a browser benchmark."
+  ]
+}

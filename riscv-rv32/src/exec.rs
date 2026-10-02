@@ -17,7 +17,7 @@ macro_rules! ld {
 }
 macro_rules! st {
     ($cpu:expr, $bus:expr, $f:ident, $addr:expr, $v:expr, $pc:expr) => {
-        if $bus.$f($addr, $v).is_err() {
+        if $bus.$f($addr, $v, $cpu.insn_count.saturating_sub(1)).is_err() {
             $cpu.trap(exc::STORE_ACCESS_FAULT, $addr, $pc);
             return Err(Trap::Exception(exc::STORE_ACCESS_FAULT));
         }
@@ -99,9 +99,9 @@ pub fn exec_insn<B: Bus>(cpu: &mut Cpu, bus: &mut B, i: &Insn, pc: u32) -> Resul
         Lw => { let ad = a.wrapping_add(immu); let v = ld!(cpu, bus, read32, ad, pc); cpu.set(i.rd, v); }
         Lbu => { let ad = a.wrapping_add(immu); let v = ld!(cpu, bus, read8, ad, pc); cpu.set(i.rd, v as u32); }
         Lhu => { let ad = a.wrapping_add(immu); let v = ld!(cpu, bus, read16, ad, pc); cpu.set(i.rd, v as u32); }
-        Sb => { let ad = a.wrapping_add(immu); st!(cpu, bus, write8, ad, b as u8, pc); }
-        Sh => { let ad = a.wrapping_add(immu); st!(cpu, bus, write16, ad, b as u16, pc); }
-        Sw => { let ad = a.wrapping_add(immu); st!(cpu, bus, write32, ad, b, pc); }
+        Sb => { let ad = a.wrapping_add(immu); st!(cpu, bus, write8_at, ad, b as u8, pc); }
+        Sh => { let ad = a.wrapping_add(immu); st!(cpu, bus, write16_at, ad, b as u16, pc); }
+        Sw => { let ad = a.wrapping_add(immu); st!(cpu, bus, write32_at, ad, b, pc); }
 
         Addi => cpu.set(i.rd, a.wrapping_add(immu)),
         Slti => cpu.set(i.rd, ((a as i32) < imm) as u32),
@@ -139,7 +139,7 @@ pub fn exec_insn<B: Bus>(cpu: &mut Cpu, bus: &mut B, i: &Insn, pc: u32) -> Resul
         // RV32A. One core, so a reservation is only ever lost to our own SC or a trap in between.
         LrW => { let v = ld!(cpu, bus, read32, a, pc); cpu.reservation = Some(a); cpu.set(i.rd, v); }
         ScW => {
-            if cpu.reservation == Some(a) { st!(cpu, bus, write32, a, b, pc); cpu.set(i.rd, 0); } else { cpu.set(i.rd, 1); }
+            if cpu.reservation == Some(a) { st!(cpu, bus, write32_at, a, b, pc); cpu.set(i.rd, 0); } else { cpu.set(i.rd, 1); }
             cpu.reservation = None;
         }
         AmoSwapW | AmoAddW | AmoXorW | AmoAndW | AmoOrW | AmoMinW | AmoMaxW | AmoMinuW | AmoMaxuW => {
@@ -150,7 +150,7 @@ pub fn exec_insn<B: Bus>(cpu: &mut Cpu, bus: &mut B, i: &Insn, pc: u32) -> Resul
                 AmoMaxW => if (old as i32) > (b as i32) { old } else { b },
                 AmoMinuW => old.min(b), _ => old.max(b),
             };
-            st!(cpu, bus, write32, a, new, pc);
+            st!(cpu, bus, write32_at, a, new, pc);
             cpu.set(i.rd, old);
         }
 
