@@ -2,6 +2,8 @@
 use crate::device::{Device, WriteEffect};
 use crate::regram::RegRam;
 mod rx;
+mod sources;
+pub use sources::{PcmPins, PcmSource, PcmSources, RxSignals};
 pub use rx::PcmInput;
 
 
@@ -23,9 +25,11 @@ pub struct I2s {
     cpu_hz: u64,
     pub rx_input: PcmInput,
     rx_acc: u64,
+    /// Source routed to the last active RX DMA tick; None for legacy input or unwired RX.
+    pub rx_source: Option<usize>,
 }
 impl I2s {
-    pub fn new(cpu_hz: u64) -> Self { I2s { cpu_hz, rx_input: PcmInput::default(), rx_acc: 0, rx_conf: 0, tx_conf: 0, int_raw: 0, int_ena: 0, ram: RegRam::new(), tx_conf1: 0, tx_clkm_conf: 0, tx_clkm_div_conf: 0, tx_tdm_ctrl: 0xffff, sample_rate: 44100, bytes_per_frame: 1, acc: 0, pcm: Vec::new(), frames_out: 0, tx_started_log: false } }
+    pub fn new(cpu_hz: u64) -> Self { I2s { cpu_hz, rx_source: None, rx_input: PcmInput::default(), rx_acc: 0, rx_conf: 0, tx_conf: 0, int_raw: 0, int_ena: 0, ram: RegRam::new(), tx_conf1: 0, tx_clkm_conf: 0, tx_clkm_div_conf: 0, tx_tdm_ctrl: 0xffff, sample_rate: 44100, bytes_per_frame: 1, acc: 0, pcm: Vec::new(), frames_out: 0, tx_started_log: false } }
     pub fn tx_running(&self) -> bool { self.tx_conf & (1 << 2) != 0 }
     /// Packed DMA sample width, independent of padding in the wire's time slots.
     pub fn sample_bytes(&self) -> usize { (((self.tx_conf1 >> 13) & 0x1f) + 1).div_ceil(8) as usize }

@@ -77,6 +77,21 @@ impl I2s {
     /// Supports standard 16/24/32-bit mono/stereo and S3 I2S0 converted PDM16.
     /// Raw PDM, TDM >2 slots, slave clocks, endian/bit-order/companding modes do not advance.
     pub fn rx_data(&mut self, cycles: u64, pdm2pcm: bool) -> Vec<u8> {
+        self.rx_data_from(cycles, pdm2pcm, None)
+    }
+    /// Route host sources by GPIO before packing samples for DMA.
+    pub fn rx_routed_data(&mut self, cycles: u64, pdm2pcm: bool, gpio: &crate::gpio::Gpio,
+        signals: super::RxSignals, sources: &mut super::PcmSources) -> Vec<u8> {
+        let selected = sources.select(gpio, signals, self.rx_conf & (1 << 20) != 0);
+        if sources.active() {
+            self.rx_data_from(cycles, pdm2pcm, Some((sources, selected)))
+        } else {
+            self.rx_data(cycles, pdm2pcm)
+        }
+    }
+    fn rx_data_from(&mut self, cycles: u64, pdm2pcm: bool,
+        mut sources: Option<(&mut super::PcmSources, Option<usize>)>) -> Vec<u8> {
+        self.rx_source = None;
         let bits = ((self.ram.read(0x28) >> 13) & 31) + 1;
         let tdm = self.ram.read(0x50);
         let mask = tdm & 0xffff;
@@ -95,12 +110,17 @@ impl I2s {
             self.rx_acc = 0;
             return Vec::new();
         };
+        self.rx_source = sources.as_ref().and_then(|(_, id)| *id);
+        let previous = self.rx_acc;
         self.rx_acc += cycles * u64::from(rate);
         let frames = self.rx_acc / self.cpu_hz;
         self.rx_acc %= self.cpu_hz;
         let mut bytes = Vec::new();
-        for _ in 0..frames {
-            let frame = self.rx_input.next(rate);
+        for n in 1..=frames {
+            let frame = if let Some((sources, id)) = &mut sources {
+                let offset = (n * self.cpu_hz - previous).div_ceil(u64::from(rate));
+                id.map_or([0; 2], |id| sources.sample(id, offset, self.cpu_hz))
+            } else { self.rx_input.next(rate) };
             for (lane, sample) in frame.into_iter().enumerate() {
                 if mask & (1 << lane) == 0 {
                     continue;

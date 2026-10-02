@@ -1,0 +1,493 @@
+{
+  "experiment": "EX213",
+  "base": "8cc5d233611d32586bfbb4c4885f6570aa8a64ba",
+  "candidate": "Commit containing this receipt; exact Rust source bytes identified below",
+  "reference": "221080ffccfa829106b398f896653535853c76c8",
+  "environment": {
+    "rustc": "1.99.0 (b940084d7 2026-09-28)",
+    "cargo": "1.99.0 (5f94df478 2026-08-27)",
+    "host_target": "aarch64-apple-darwin",
+    "wasm_target": "wasm32-unknown-unknown",
+    "node": "v22.23.1",
+    "arduino": "3.3.8",
+    "platform": "pioarduino 55.03.38-1",
+    "conditions": "Concurrent compilation and test activity; correctness checks only"
+  },
+  "source_sha256": {
+    "cli/tests/pcm_sources.rs": "72683cd92ea932019b464dc1805363403de3ad9ab59cf0ec348a34d6286e157a",
+    "cli/tests/pcm_sources_arduino.rs": "9b13ea3fd28463f964a0f07a2e5b5b6f4be5d849bfea2875060b69eb0c414984",
+    "esp-periph/src/i2s.rs": "45a3207fd78d35a36bcbabf17cb037863685ad12192976a278f2a110d60c425c",
+    "esp-periph/src/i2s/rx.rs": "33a78b92bcd4993822e648b4dea181372e1dcabc687dcdeb40a134295485e8f4",
+    "esp-periph/src/i2s/sources.rs": "05e236d0655292392ef1cf5ca6d3ac9348686d84c729d9a5f20fc1dc42622eec",
+    "esp-soc/src/soc.rs": "f7b7138b3854ca402721d1dc5e3f122ad0af56405619dddae2ae7c9e5f073260",
+    "esp32c3/src/bus.rs": "2b9f3efb52b53665df34a9a7253f85641da278bb060e73acc232a7f166f349f2",
+    "esp32c3/src/soc.rs": "b9b26c12e722d9b2a8c04e6f2b7bb82d37ad30aaa86df2df102d83ed9ffd1a20",
+    "esp32c6/src/bus.rs": "e992b5933a50cd420ab16de3ca2ad7b8042e32f9936a408444c992189f91c624",
+    "esp32c6/src/soc.rs": "25b5189cf870bc934e2b9cf64ae4d831f2bbc2ba69f31b2696c754498682d775",
+    "esp32s3/src/bus.rs": "87834a8c6d9314d8ecf314b346e0ac2378b532a69a6ee1b8a87f903c2dc62f2c",
+    "esp32s3/src/bus/dma.rs": "4d561422d92d450d19fcd025726221486edda780ebff67c3d42816f665fe23a0",
+    "esp32s3/src/soc.rs": "9b51cb91c7008a2a5eecf590e3502c1a1c30a39b6dd29c7ef1f0ddc9ecb9f57b"
+  },
+  "sketch_sha256": "9e3b7b9bb53d22fbeed4d5d3a5a81b18d0a9629022b0ac2f3eb0aca1dd0d9589",
+  "platformio_ini_sha256": "17e3ec84fe595717fdf278e58956236c56847a447e06b3bebe6bb426615312d0",
+  "firmware_sha256": {
+    "s3": {
+      "firmware.elf": "4ccf4cfd7c1372e41c4a19db56adc4990bd569d47edb2683f2b362435e189710",
+      "firmware.bin": "f35cf5359614d840b2e6e693d55c5916b0dfffd3cd759bd34eb291cfd301a4df",
+      "partitions.bin": "1d9cca96de0fe07ad7fc0648b9878ddecd9ce565e38b589ad20fea698ed4c80c",
+      "bootloader.bin": "6f232c4aafe7d21239a1c59404723ca2cfdca063ef73501a21126a8cef39f432"
+    },
+    "c3": {
+      "firmware.elf": "6bbf0b396a0a1bf2468708ae94aad8e1fdb36267b2e82483dc46601a5474e0eb",
+      "firmware.bin": "c6c698fe8234dc9bd062ea3e23697a3a24fd00a070ddf60ae041430ff600724b",
+      "partitions.bin": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1",
+      "bootloader.bin": "da409642ea1619c16b4ef485219a91c3c2ae873ce3bae37330c24100bd747439"
+    },
+    "c6": {
+      "firmware.elf": "1138a6baa266c3c2d8f06d2da4fc1d9008d0879a122254bbb8dbad5c07efd213",
+      "firmware.bin": "9e6495b6746d23475a2c4246faef9c78b41385066a31f6d5e784503d3aa94375",
+      "partitions.bin": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1",
+      "bootloader.bin": "022390206caedbc5f780cd955b31e1dd1219091f374e420cd0531b2f5b5b5037"
+    },
+    "s3-pdm": {
+      "firmware.elf": "2bffa30e0daafe2b1df9fed1017561c460f89e6cd25a151279312f37cdb4f840",
+      "firmware.bin": "48026f73c4a3060eaa587c503037c31ab720a30109335cda4f91c04bbbb6842f",
+      "partitions.bin": "1d9cca96de0fe07ad7fc0648b9878ddecd9ce565e38b589ad20fea698ed4c80c",
+      "bootloader.bin": "6f232c4aafe7d21239a1c59404723ca2cfdca063ef73501a21126a8cef39f432"
+    }
+  },
+  "rom_sha256": {
+    "esp32s3_rev0_rom.elf": "c0ce0f338d1de1bdc6efbef1591779a2a42c1ab7d759d3c6ae8ae63a7dd34cfd",
+    "esp32c3_rev3_rom.elf": "19ac22e08707df926fb0cf4c54795d4067b983fae8635f396ded173a6d78fc3c",
+    "esp32c6_rev0_rom.elf": "788e1d38724aeb8fd974fa10c4a7b089c02627d35342ce84b9e0b12b239f3551"
+  },
+  "wasm": {
+    "sha256": "9be93d5e82359afcdb66f5139dec544e99c97d663bea6e6d8f6206413c2e306f",
+    "bytes": 3202881
+  },
+  "external_test_executable_sha256": {
+    "pcm_sources_arduino-a194ff4eaf1958df": "dcb76b7becf1560ba479fcb22724a4c55623feceebda44a7e324f2670588398d",
+    "pcm_sources_arduino-e4e4096c3a9377fe": "b9044c758baccdf0065652063a5961960d49c91e1a5806fd269fa92880aea7eb"
+  },
+  "arduino_runs": [
+    {
+      "environment": "c3",
+      "wired_slot": 0,
+      "readings": [
+        {
+          "RX_BYTES": 512,
+          "RMS": 11584.92,
+          "FREQ": 1000.0
+        },
+        {
+          "RX_BYTES": 512,
+          "RMS": 11584.92,
+          "FREQ": 1000.0
+        }
+      ],
+      "consumed_frames": {
+        "0": 12766,
+        "15": 0
+      },
+      "stopped_rx_queue": 30411,
+      "capacity": 32000,
+      "elapsed_cycles": 15891932,
+      "resets": 1,
+      "insns": 197624810,
+      "cycles": 197624810,
+      "passed": true
+    },
+    {
+      "environment": "c3",
+      "wired_slot": 15,
+      "readings": [
+        {
+          "RX_BYTES": 512,
+          "RMS": 11585.12,
+          "FREQ": 2000.0
+        },
+        {
+          "RX_BYTES": 512,
+          "RMS": 11585.12,
+          "FREQ": 2000.0
+        }
+      ],
+      "consumed_frames": {
+        "0": 0,
+        "15": 12499
+      },
+      "stopped_rx_queue": 30415,
+      "capacity": 32000,
+      "elapsed_cycles": 15852380,
+      "resets": 1,
+      "insns": 194904810,
+      "cycles": 194904810,
+      "passed": true
+    },
+    {
+      "environment": "c3",
+      "wired_slot": null,
+      "readings": [
+        {
+          "RX_BYTES": 512,
+          "RMS": 0.0,
+          "FREQ": 0.0
+        },
+        {
+          "RX_BYTES": 512,
+          "RMS": 0.0,
+          "FREQ": 0.0
+        }
+      ],
+      "consumed_frames": {
+        "0": 0,
+        "15": 0
+      },
+      "stopped_rx_queue": 30405,
+      "capacity": 32000,
+      "elapsed_cycles": 15954684,
+      "resets": 1,
+      "insns": 180344810,
+      "cycles": 180344810,
+      "passed": true
+    },
+    {
+      "environment": "c6",
+      "wired_slot": 0,
+      "readings": [
+        {
+          "RX_BYTES": 512,
+          "RMS": 11584.92,
+          "FREQ": 1000.0
+        },
+        {
+          "RX_BYTES": 512,
+          "RMS": 11584.92,
+          "FREQ": 1000.0
+        }
+      ],
+      "consumed_frames": {
+        "0": 6783,
+        "15": 0
+      },
+      "stopped_rx_queue": 30410,
+      "capacity": 32000,
+      "elapsed_cycles": 15898768,
+      "resets": 1,
+      "insns": 137708550,
+      "cycles": 137708550,
+      "passed": true
+    },
+    {
+      "environment": "c6",
+      "wired_slot": 15,
+      "readings": [
+        {
+          "RX_BYTES": 512,
+          "RMS": 11585.12,
+          "FREQ": 2000.0
+        },
+        {
+          "RX_BYTES": 512,
+          "RMS": 11585.12,
+          "FREQ": 2000.0
+        }
+      ],
+      "consumed_frames": {
+        "0": 0,
+        "15": 6561
+      },
+      "stopped_rx_queue": 30402,
+      "capacity": 32000,
+      "elapsed_cycles": 15979152,
+      "resets": 1,
+      "insns": 135468550,
+      "cycles": 135468550,
+      "passed": true
+    },
+    {
+      "environment": "c6",
+      "wired_slot": null,
+      "readings": [
+        {
+          "RX_BYTES": 512,
+          "RMS": 0.0,
+          "FREQ": 0.0
+        },
+        {
+          "RX_BYTES": 512,
+          "RMS": 0.0,
+          "FREQ": 0.0
+        }
+      ],
+      "consumed_frames": {
+        "0": 0,
+        "15": 0
+      },
+      "stopped_rx_queue": 30408,
+      "capacity": 32000,
+      "elapsed_cycles": 15921488,
+      "resets": 1,
+      "insns": 121068550,
+      "cycles": 121068550,
+      "passed": true
+    },
+    {
+      "environment": "s3",
+      "wired_slot": 0,
+      "readings": [
+        {
+          "RX_BYTES": 512,
+          "RMS": 11584.92,
+          "FREQ": 1000.0
+        },
+        {
+          "RX_BYTES": 512,
+          "RMS": 11584.92,
+          "FREQ": 1000.0
+        }
+      ],
+      "consumed_frames": {
+        "0": 3697,
+        "15": 0
+      },
+      "stopped_rx_queue": 30405,
+      "capacity": 32000,
+      "elapsed_cycles": 23935264,
+      "resets": 1,
+      "insns": 51315897,
+      "cycles": 158487549,
+      "passed": true
+    },
+    {
+      "environment": "s3",
+      "wired_slot": 15,
+      "readings": [
+        {
+          "RX_BYTES": 512,
+          "RMS": 11585.12,
+          "FREQ": 2000.0
+        },
+        {
+          "RX_BYTES": 512,
+          "RMS": 11585.12,
+          "FREQ": 2000.0
+        }
+      ],
+      "consumed_frames": {
+        "0": 0,
+        "15": 3626
+      },
+      "stopped_rx_queue": 30397,
+      "capacity": 32000,
+      "elapsed_cycles": 24055456,
+      "resets": 1,
+      "insns": 50229274,
+      "cycles": 157527549,
+      "passed": true
+    },
+    {
+      "environment": "s3",
+      "wired_slot": null,
+      "readings": [
+        {
+          "RX_BYTES": 512,
+          "RMS": 0.0,
+          "FREQ": 0.0
+        },
+        {
+          "RX_BYTES": 512,
+          "RMS": 0.0,
+          "FREQ": 0.0
+        }
+      ],
+      "consumed_frames": {
+        "0": 0,
+        "15": 0
+      },
+      "stopped_rx_queue": 30397,
+      "capacity": 32000,
+      "elapsed_cycles": 24056608,
+      "resets": 1,
+      "insns": 43069167,
+      "cycles": 150327549,
+      "passed": true
+    },
+    {
+      "environment": "s3-pdm",
+      "wired_slot": 0,
+      "readings": [
+        {
+          "RX_BYTES": 512,
+          "RMS": 11584.92,
+          "FREQ": 1000.0
+        },
+        {
+          "RX_BYTES": 512,
+          "RMS": 11584.92,
+          "FREQ": 1000.0
+        }
+      ],
+      "consumed_frames": {
+        "0": 3697,
+        "15": 0
+      },
+      "stopped_rx_queue": 30405,
+      "capacity": 32000,
+      "elapsed_cycles": 23935264,
+      "resets": 1,
+      "insns": 51315538,
+      "cycles": 158487549,
+      "passed": true
+    },
+    {
+      "environment": "s3-pdm",
+      "wired_slot": 15,
+      "readings": [
+        {
+          "RX_BYTES": 512,
+          "RMS": 11585.12,
+          "FREQ": 2000.0
+        },
+        {
+          "RX_BYTES": 512,
+          "RMS": 11585.12,
+          "FREQ": 2000.0
+        }
+      ],
+      "consumed_frames": {
+        "0": 0,
+        "15": 3626
+      },
+      "stopped_rx_queue": 30397,
+      "capacity": 32000,
+      "elapsed_cycles": 24055456,
+      "resets": 1,
+      "insns": 50228915,
+      "cycles": 157527549,
+      "passed": true
+    },
+    {
+      "environment": "s3-pdm",
+      "wired_slot": null,
+      "readings": [
+        {
+          "RX_BYTES": 512,
+          "RMS": 0.0,
+          "FREQ": 0.0
+        },
+        {
+          "RX_BYTES": 512,
+          "RMS": 0.0,
+          "FREQ": 0.0
+        }
+      ],
+      "consumed_frames": {
+        "0": 0,
+        "15": 0
+      },
+      "stopped_rx_queue": 30397,
+      "capacity": 32000,
+      "elapsed_cycles": 24056608,
+      "resets": 1,
+      "insns": 43068808,
+      "cycles": 150327549,
+      "passed": true
+    }
+  ],
+  "checks": [
+    {
+      "command": "tools/fetch-demo-assets.sh --no-linux",
+      "exit": 0
+    },
+    {
+      "command": "cargo +1.99.0 clippy --workspace --all-targets -- -D warnings",
+      "exit": 0
+    },
+    {
+      "command": "cargo +1.99.0 clippy --release --target wasm32-unknown-unknown -p esp32sim-wasm --features jit-tests -- -D warnings",
+      "exit": 0
+    },
+    {
+      "command": "ESP32SIM_ROM_DIR=$PWD/web/wasm/fw cargo +1.99.0 test --release --workspace -- --include-ignored --skip external_",
+      "rom_directory_absolute": true,
+      "exit": 0,
+      "passed": 612,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "command": "PCM_FIRMWARE_DIR=/tmp/gap-audio-arduino/.pio/build ESP32SIM_ROM_DIR=$PWD/web/wasm/fw cargo +1.99.0 test --release -p esp32sim --test pcm_sources_arduino -- --ignored --nocapture --test-threads=1",
+      "exit": 0,
+      "passed": 4,
+      "cases": 12,
+      "reads": 24
+    },
+    {
+      "command": "RUSTUP_TOOLCHAIN=1.99.0 tools/wasm-build.sh && node tools/wasm-test.mjs hello c3-hello c6-hello c6-energy-scan c6-contiki c6-contiki-net c6-rpl-net panel",
+      "exit": 0
+    },
+    {
+      "command": "node tools/check-evidence-privacy.mjs",
+      "exit": 0,
+      "tracked_evidence_files": 1555,
+      "gzip_files": 15
+    },
+    {
+      "command": "git diff --cached --check",
+      "exit": 0
+    }
+  ],
+  "wasm_results": [
+    "ok   wasm JIT handoff: shared-memory block committed at a scheduler boundary",
+    "ok   hello: board none, 4.3 M insns in 0.3 s wall (12.7 Minsn/s), 129 console lines, 0 binary frames",
+    "ok   c3-hello: board none, 480.0 M insns in 0.9 s wall (562.1 Minsn/s), 125 console lines, 0 binary frames",
+    "ok   c6-hello: board none, 480.0 M insns in 0.9 s wall (513.4 Minsn/s), 121 console lines, 0 binary frames",
+    "ok   c6-energy-scan: board waveshare-c6-lcd147, 480.0 M insns in 4.7 s wall (101.9 Minsn/s), 149 console lines, 141 binary frames",
+    "ok   c6-contiki: board waveshare-c6-lcd147, 1920.0 M insns in 5.3 s wall (365.0 Minsn/s), 181 console lines, 17 binary frames",
+    "ok   c6-contiki-net: 2 nodes, n0 tx 5/rx 5, n1 tx 5/rx 5, 30 s simulated in 5.5 s wall (5x real time)",
+    "ok   c6-rpl-net: 2 nodes, n0 tx 27/rx 27, n1 tx 27/rx 27, 90 s simulated in 15.4 s wall (6x real time)",
+    "ok   panel: board waveshare-lcd4b, 142.5 M insns in 6.3 s wall (22.7 Minsn/s), 193 console lines, 254 binary frames"
+  ],
+  "original_local_log_sha256": {
+    "gap-audio-arduino-initial.log": "6929c1ad64baeae954c5d26a120df8762e7732306036bca72efc9ce5501f38f8",
+    "gap-audio-arduino-final.log": "b77e28089262973b62fca42f6d8005bc3f6d1c7a1107c8dbc26c40ddd0809315",
+    "gap-audio-clippy-final.log": "50feb4c6933ddfae1991c4d1c49ce9a70b6c73904ec8a34985376f9a67a6fd20",
+    "gap-audio-clippy-wasm.log": "9186f84267979bfb2724cbdf7112413e970a81f0ce9710e5d3b3ef15a80d6f80",
+    "gap-audio-workspace.log": "502d731bfeff110dcfe42dd19e89ed93ef61dc9d51dc399164cd042984a9a04a",
+    "gap-audio-wasm-tests.log": "38491e6c42581d3e688add750b485437a2cdb078efb4901c6e0a6d200d220ec6",
+    "gap-audio-pio.log": "67505661dac32318e3e14001a9754fec22e023140294d007c1534f504f927d69"
+  },
+  "retained_failures": [
+    {
+      "stage": "initial PDM register check",
+      "result": "expected 123, got silence",
+      "cause": "8333 Hz receiver sampled before the 8000 Hz host first frame",
+      "resolution": "Program 4000 Hz receiver and advance a full frame"
+    },
+    {
+      "stage": "initial external check compilation",
+      "result": "E0369, Stop does not implement PartialEq",
+      "resolution": "Use matches!"
+    },
+    {
+      "stage": "initial Clippy",
+      "result": "precedence warning in test descriptor expression",
+      "resolution": "Parenthesize frames * 4"
+    },
+    {
+      "stage": "format new files",
+      "result": "rustfmt missing from installed 1.99.0 toolchain",
+      "resolution": "Installed stable rustfmt used on three new files only; all cargo checks use 1.99.0"
+    },
+    {
+      "stage": "first Arduino run",
+      "passed_tests": 3,
+      "failed_test": "external_pcm_arduino_s3_pdm",
+      "result": "selected source None instead of Some(0)",
+      "cause": "PDM CLK routes to RX WS, not RX BCLK",
+      "resolution": "Correct PDM signal mapping and register test; four tests pass on retry"
+    }
+  ],
+  "redactions": "New curated receipt. Personal path labels, unrelated boot logs and build chatter omitted. Numeric observations and original local log hashes retained. No raw private capture or compressed profile committed."
+}
