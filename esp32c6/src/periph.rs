@@ -472,7 +472,7 @@ impl Peripherals {
         let sel = self.gpio.func_in_sel[signal];
         let pin = (sel & 63) as usize;
         if pin >= 31 { return None; }
-        let mux = self.misc.generic.get(&0x90).map_or(0, |r| r.read(4 + 4 * pin as u32));
+        let mux = self.io_mux.read(4 + 4 * pin as u32);
         let out = self.gpio.func_out_sel[pin];
         (sel & 0xc0 == 0x80
             && mux & (7 << 12 | 1 << 9) == (1 << 12 | 1 << 9)
