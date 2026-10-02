@@ -32,5 +32,67 @@
   "wasm": {
     "bytes": 3368288,
     "sha256": "3e46ecd565f6575d02921623571097e1a08e9bfe7b97df9d04ecfc3f64283204"
+  },
+  "followup": {
+    "implementation": "7ae2af40642e2c27f9e130173223b3e6a2b09bcd",
+    "release_tests": 676,
+    "classic_host_tests": 7,
+    "addon_tests": 277,
+    "app_contract": "9/9",
+    "logs": {
+      "classic-gps-red.log": {
+        "bytes": 891,
+        "sha256": "3463321d7647ee2b5e325fa079588f3ece8c9f72ce03bcf5feb1f80b53f9961a"
+      },
+      "classic-gps-green.log": {
+        "bytes": 711,
+        "sha256": "8280b26b1610c69e7211bfe218af9ea1205d36089a5e5611706c8763b0c78ad5"
+      },
+      "classic-emu-clippy-followup.log": {
+        "bytes": 655,
+        "sha256": "565b72bc583d596af22f6534cd4d6ba9852de44f9ff871aceb61fa1ce930e7e8"
+      },
+      "classic-emu-wasm-clippy-followup.log": {
+        "bytes": 951,
+        "sha256": "1ff8532d91aa5ce3841b39be91714034578d51dabac1387fecdfad7afa02f8d8"
+      },
+      "classic-emu-tests-followup.log": {
+        "bytes": 63995,
+        "sha256": "bb45a3f352f4e66f7fab7b2489d712da7941e438af7335c86002a3246cafb214"
+      },
+      "classic-emu-wasm-build-followup.log": {
+        "bytes": 965,
+        "sha256": "5356fea7cc2099b2b3a8c41101921dc79a0e852a65540332e3a810265ec82af4"
+      },
+      "classic-emu-wasm-tests-followup.log": {
+        "bytes": 969,
+        "sha256": "c2ee20f91d1938dee0b59a19db3d9b9f792619fc32b21f6bda2520ccc9918969"
+      },
+      "classic-gps-followup.log": {
+        "bytes": 80,
+        "sha256": "0b40e8b5de3ac23455cce3d80974e3019b96ffe8ebaaf6046bd642f8cdaf6d4c"
+      },
+      "classic-network-followup.log": {
+        "bytes": 1243,
+        "sha256": "fff94f4d14033dc14d5c788981c735496f7b10e32a7bf8d40b59685fca43e7f0"
+      },
+      "classic-contract-followup.log": {
+        "bytes": 216,
+        "sha256": "18a04c8ac57454f9f4d9dceeca5ee6144a216f6bde1c7e7c274e8af2786917c3"
+      },
+      "classic-addon-clippy-followup.log": {
+        "bytes": 1391,
+        "sha256": "99b86f475517df3972747d3848ca7912b861e2d2630ceb10edbeb6a9bc4d607f"
+      },
+      "classic-addon-wasm-clippy-followup.log": {
+        "bytes": 1381,
+        "sha256": "2f0cbd785dd70e16208ab69ae45b229a624d0495158b6203e9a5423e54c0c3e8"
+      },
+      "classic-addon-tests-followup.log": {
+        "bytes": 29812,
+        "sha256": "0122a3524901e6ba4af590fee4aaaf3026e853460e720ccdd2c66c5a8ff66082"
+      }
+    },
+    "candidate_wasm_sha256": "934a291c0c0e2fff5c81b13878caad9bddca1cb2426a7c116f6b5aa35a70b947"
   }
 }

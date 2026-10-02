@@ -33,3 +33,13 @@ Retained failures: initial compile used root paths for BoardEdge/SpiPins and an 
 ## Retention and privacy
 
 receipt.json retains command outputs' hashes, test counts and the emulator WASM hash. Logs stay outside Git. Only task-relevant aggregate results are committed. No process inventories, personal paths, host identifiers or private firmware captures are retained here. No speed conclusion is inferred from test durations.
+
+## UART and relay follow-up
+
+Implementation `7ae2af40642e2c27f9e130173223b3e6a2b09bcd`, based on `ffaa4a4`, closes the two failures above. Arduino HardwareSerial(1) selects UART1 RX signal 17 on GPIO4, sets IO_MUX to 0x200 (input enabled, output function untouched), and uses the 1 MHz reference clock/divider 0x200068. Classic incorrectly required output function 2 for matrix inputs. Removing that requirement from the shared classic input selector matches the independent input matrix. The new board-endpoint regression fails before the fix (route None instead of GPIO4), then checks FIFO pointers, APB reads, RX timeout and DPORT interrupt assertion/clearing after the fix. No UART FIFO/timeout behavior was changed.
+
+The existing product relay executable and frame policy were restored against esp-soc's current VirtualNet/NAT. Restricted NAT checks numeric destinations again before socket creation; its regression rejects loopback, private and link-local TCP/UDP without opening flows. This preserves the current bounded/retransmitting NAT implementation rather than replacing it with the older fork's NAT.
+
+Rust 1.99.0: 676 release workspace tests, both strict Clippy gates, WASM build/eight scenarios and privacy pass. The private add-on passes 277 tests and both native/WASM strict Clippy after its fixed-size array-chunk migration. App contract passes 9/9. All eight representative classic families pass. The full GPS verifier checks fix, km/h conversion, clear, negative coordinates and reboot. The checked-in network verifier passes WPA2/DHCP (10.0.2.15), exact 256-byte binary and 65,536-byte chunked responses, and a 19-byte UTF-8 POST echo, using esp32dev firmware and the relay compiled from this source. Public internet/TLS/protocol and sustained-load checks were not requested or run.
+
+Acceptance preparation initially compared candidate assets with the original app's old version selector. The private harness now verifies through its copied candidate selector, with a regression check. Relay dependencies were installed with npm ci in a real disposable copy. The original app remains read-only; only the disposable adapter adds the classic chip-map entry. Earlier failure evidence remains above. No raw private source or machine-identifying logs are committed.
