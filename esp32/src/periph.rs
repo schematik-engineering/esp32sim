@@ -190,7 +190,6 @@ const IOMUX_OFFSETS: [u32; 40] = [
 pub struct ClassicGpio {
     pub gpio: Gpio,
     io_mux: RegRam,
-    external: u64,
     rtc_pads: u64,
     signal_out: [bool; 256],
     signal_oe: [bool; 256],
@@ -200,7 +199,6 @@ impl ClassicGpio {
         Self {
             gpio: Gpio::new(),
             io_mux: RegRam::new(),
-            external: 0,
             rtc_pads: 0,
             signal_out: [false; 256],
             signal_oe: [false; 256],
@@ -331,7 +329,6 @@ impl ClassicGpio {
         if pin >= 40 {
             return false;
         }
-        self.external |= 1 << pin;
         let status = self.gpio.status;
         let irq = self.gpio.set_input(pin, level);
         if self.rtc_pads & (1 << pin) != 0 {
@@ -341,16 +338,18 @@ impl ClassicGpio {
             irq
         }
     }
+    pub fn release_input(&mut self, pin: u8) {
+        if pin >= 40 { return; }
+        let status = self.gpio.status;
+        self.gpio.release_input(pin);
+        if self.rtc_pads & (1 << pin) != 0 { self.gpio.status = status; }
+    }
     fn sync_pull(&mut self, pin: usize) {
-        if pin >= 34 || (self.external | self.rtc_pads) & (1 << pin) != 0 {
+        if pin >= 34 || self.rtc_pads & (1 << pin) != 0 {
             return;
         }
         let cfg = self.mux(pin);
-        if cfg & (1 << 8) != 0 {
-            self.gpio.set_input(pin as u8, true);
-        } else if cfg & (1 << 7) != 0 {
-            self.gpio.set_input(pin as u8, false);
-        }
+        self.gpio.set_pulls(pin as u8, cfg & (1 << 8) != 0, cfg & (1 << 7) != 0);
     }
     /// Resolve a peripheral input routed through GPIO_FUNCm_IN_SEL_CFG.
     pub fn signal_input(&self, signal: usize) -> Option<bool> {

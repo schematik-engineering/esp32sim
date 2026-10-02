@@ -101,6 +101,9 @@ pub trait BoardModel {
     fn touch_at(&mut self, _cycle: VirtualCycle, x: u16, y: u16, down: bool) { self.touch(x, y, down); }
     /// Current board-driven GPIO input levels, used to reconnect a persistent board after reset.
     fn input_levels(&self) -> Vec<(u8, bool)> { Vec::new() }
+    /// Board-managed pins currently undriven. These resolve from chip output or IO_MUX pulls.
+    /// Return the current set after output callbacks and `advance_to`, including after reset.
+    fn released_inputs(&self) -> Vec<u8> { Vec::new() }
     /// Earliest autonomous transition strictly after the board's current cycle.
     fn next_deadline(&self) -> Option<VirtualCycle> { None }
     /// Advance monotonically through every board transition due by `cycle`.

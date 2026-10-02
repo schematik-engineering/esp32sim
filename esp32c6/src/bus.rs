@@ -60,6 +60,7 @@ impl SocBus {
             self.periph.gpio.set_input(pin, level);
             self.irq_dirty |= old != self.periph.gpio.input;
         }
+        for pin in self.board.released_inputs() { esp_soc::SocBus::gpio_release_input(self, pin); }
     }
 
     pub fn new(flash_size: usize, mac: [u8; 6]) -> Self {
@@ -456,6 +457,7 @@ impl SocBus {
             self.periph.gpio.set_input(edge.pin, edge.level);
             self.irq_dirty |= old != self.periph.gpio.input;
         }
+        for pin in self.board.released_inputs() { esp_soc::SocBus::gpio_release_input(self, pin); }
         self.periph.i2s0.rx_pcr_clock(self.periph.pcr.read(0x78), self.periph.pcr.read(0x7c));
         if let Some(ch) = self.periph.gdma.gdma.in_channel_for(3) {
             let bytes = self.periph.i2s0.rx_data(cycles as u64, false);

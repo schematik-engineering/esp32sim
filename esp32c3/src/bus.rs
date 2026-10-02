@@ -133,6 +133,7 @@ impl SocBus {
         }
         for (pin, level) in self.board.input_levels() { self.periph.gpio.set_input(pin, level); }
         self.irq_dirty = true;
+        for pin in self.board.released_inputs() { esp_soc::SocBus::gpio_release_input(self, pin); }
     }
 
     fn deliver_gpio_output(&mut self) {
@@ -361,6 +362,7 @@ impl SocBus {
             if let Some(events) = &mut self.gpio_events { events.push((edge.cycle, edge.pin, edge.level)); }
             self.irq_dirty = true;
         }
+        for pin in self.board.released_inputs() { esp_soc::SocBus::gpio_release_input(self, pin); }
         self.periph.gpio.input_changes.clear();
         if let Some(ch) = self.periph.gdma.in_channel_for(3) {
             let bytes = self.periph.i2s0.rx_data(cycles as u64, false);

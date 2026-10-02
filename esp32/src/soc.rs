@@ -174,6 +174,10 @@ impl esp_soc::SocBus for SocBus {
             self.irq_dirty = true;
         }
     }
+    fn gpio_release_input(&mut self, pin: u8) {
+        self.periph.gpio.release_input(pin);
+        self.irq_dirty = true;
+    }
     fn gpio_set_input(&mut self, pin: u8, level: bool) {
         self.periph.gpio.set_input(pin, level);
         self.irq_dirty = true;
