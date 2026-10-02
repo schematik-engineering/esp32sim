@@ -946,6 +946,96 @@ The privacy checker inspected 1,472 tracked evidence files and found no configur
 patterns. Manual review found no user name, host name, email address, device identifier
 or unrelated command in this extension.
 
+## BLE controller and host-peer extension
+
+Revision `0755b8b` extends EX199 from `4ff7f45`. The new mechanism is an
+opt-in standard HCI controller behind runtime ELF-symbol interception, with a wider
+contract for advertising, scanning, guest callbacks and ATT traffic. No earlier
+Bluetooth/VHCI experiment or preserved patch was found in the catalog. The design
+comparison was written before implementation in `/tmp/esp32-classic-ble-report.md`.
+
+| Approach | Required work and risk | Estimate from source inspection |
+| --- | --- | --- |
+| Hardware under `libbtdm_app` | Undocumented controller registers, exchange memory, link-layer scheduling, interrupts and shared RF/PHY setup. `docs/wifi-plan.md` supplies a tracing method, but no Bluetooth model. Different later controllers require more reverse engineering. | Several engineer-weeks to first reliable GATT traffic, potentially months for coverage. |
+| Virtual HCI/VHCI, selected | Lifecycle and packet model plus safe guest callbacks. ELF symbols, Xtensa ABI, FreeRTOS context and calls outside VHCI must be handled. | Several engineer-days for a bounded prototype; broader protocol coverage takes longer. |
+
+The exact Arduino-ESP32 3.3.8 package uses IDF libraries `5.5.4+sha.735507283d`.
+Classic sdkconfig selects Bluedroid and BTDM. `BLEDevice::init` calls `btStart`,
+controller init/enable and the real Bluedroid host. S3/C3 select NimBLE with legacy
+VHCI and can reuse this packet model. C6 selects direct NimBLE transport with shared
+buffer/NPL initialization; it needs a different adapter, not this whole-init hook.
+[Arduino lifecycle](https://github.com/espressif/arduino-esp32/blob/3.3.8/cores/esp32/esp32-hal-bt.c)
+and [IDF H4 callbacks](https://github.com/espressif/esp-idf/blob/v5.5.4/components/bt/host/bluedroid/hci/hci_hal_h4.c)
+are primary references. Exact source hashes and other references are in
+[the BLE receipt](ble-receipt.json).
+
+`esp-soc/src/ble.rs` implements H4 commands/events, one LE ACL link, advertising,
+scanning, ATT discovery/read/write/subscription and notification delivery. The virtual
+peripheral advertises `esp32sim` and Battery Service `180f`. The classic adapter
+substitutes controller lifecycle, VHCI and TX-power APIs. A small runtime trampoline
+creates a guest FreeRTOS task; ordinary guest calls deliver the registered callbacks.
+This avoids callback recursion and CPU snapshot restoration across scheduler switches.
+Controller BSS supplies packet storage. Original substituted flash bytes are restored
+by physical offset before reboot, even if the MMU mapping changed. Firmware files,
+open host code and sketch callbacks remain unchanged.
+
+The four unchanged official examples are named `Server`, `Notify`, `Write`, and `Scan`
+in Arduino 3.3.8. Temporary projects under `/tmp/esp32-ble-firmware` used the same
+`esp32dev` platform configuration as SPI above. Each built with `pio run --project-dir
+/tmp/esp32-ble-firmware/NAME`. The receipt retains source, ELF, factory-image and ROM
+hashes, exact commands, scripts, output checks and numeric samples.
+
+All runtime commands use this prefix, plus the example's script and stop time:
+
+```sh
+target/release/esp32sim --chip esp32 --boot rom --ble \
+  --rom "$HOME/.platformio/packages/tool-esp-rom-elfs/esp32_rev300_rom.elf" \
+  --flash-image /tmp/esp32-ble-firmware/NAME/.pio/build/esp32dev/firmware.factory.bin \
+  --elf /tmp/esp32-ble-firmware/NAME/.pio/build/esp32dev/firmware.elf \
+  --max-seconds SECONDS --no-reboot --no-dump
+```
+
+Server connects at 0.5 s, discovers at 0.6 s, and reads `0x002a` at 1.0 s.
+Notify subscribes to discovered CCCD `0x002b` at 0.7 s. Write sends hexadecimal
+`48656c6c6f2066726f6d20686f7374` to `0x002a` at 0.7 s and reads it at 0.8 s.
+Scan needs no script. Relevant results:
+
+```text
+Server: BLE Server Example; service 4fafc201-1fb5-459e-8fcc-c5c9c331914b
+read handle=0x002a ... text="Hello World says Neil"
+Notify: notification values 01000000, 02000000, 03000000, 04000000
+Write sketch: New value: Hello from host
+Scan sketch: Advertised Device: Name: esp32sim ... rssi: -35
+Devices found: 1
+Scan done!
+```
+
+Boot-to-advertising modeled/wall seconds were Server `0.288107/5.199412`,
+Notify `0.288295/5.549557`, and Write `0.288125/4.839128`. Wall samples start
+at process launch and include ELF loading and host scheduling. These are single
+sequential samples, not a speed comparison or calibrated radio timing. A separate
+software reset at 0.6 s reached a second ROM boot and advertisement at 0.888089 s.
+
+`cargo build --release`, touched-crate tests, `cargo test --workspace`, and
+`tools/wasm-build.sh` pass. Touched tests total 147 passed/15 ignored; workspace
+499 passed/22 ignored/0 failed. Nine new packet/guest-register tests cover the model
+and callback adapter. Existing external-firmware tests keep their ignore rules.
+`git diff --check` and the evidence privacy check pass.
+
+Limits: one connection, legacy advertising, ATT MTU 23, writes up to 20 bytes,
+no pairing/encrypted links, RF, PHY calibration or calibrated Bluetooth timing.
+The guest task polls once per tick and remains allocated until reboot. Exact ELF
+symbols and windowed callbacks are required. Other-chip adapters remain unimplemented.
+Unknown commands return HCI errors. No Bluetooth MMIO block is claimed: tests exercise
+HCI bytes and actual Xtensa registers/call windows instead of invented radio registers.
+
+Retained negatives include the initial PlatformIO cache permission failure, two failed
+linker endian attempts, and initially unsupported startup queries `080f`/`0c14`, now
+implemented. Review also corrected a flash-resident callback-table check and reboot
+restoration. Home labels were normalized; raw temporary logs and unrelated identities
+were not committed. Numeric values and hashes are unchanged. Privacy checking and
+manual review cover the new receipt and this section.
+
 ## Modeled behavior and known gaps
 
 The target models the classic memory/cache windows, both MMU tables, mask ROM and SRAM,

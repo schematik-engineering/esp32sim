@@ -1,0 +1,650 @@
+{
+  "schema": 1,
+  "experiment": "EX199",
+  "date": "2026-10-02",
+  "framework": "Arduino-ESP32 3.3.8",
+  "libraries": "5.5.4+sha.735507283d",
+  "idf_version_header": "5.5.4",
+  "platform": "https://github.com/pioarduino/platform-espressif32.git#55.03.38-1",
+  "board": "esp32dev",
+  "source_prefixes": {
+    "arduino": "/Users/alice/.platformio/packages/framework-arduinoespressif32",
+    "libs": "/Users/alice/.platformio/packages/framework-arduinoespressif32-libs",
+    "idf": "https://raw.githubusercontent.com/espressif/esp-idf/v5.5.4/components/bt/"
+  },
+  "sources": {
+    "libs/esp32/qio_qspi/include/sdkconfig.h": {
+      "sha256": "b0345b2f0e54eb03c96779e2d17ea95f2ed683ebda188b5e46c6991449d972a6",
+      "bytes": 73702
+    },
+    "libs/esp32s3/qio_qspi/include/sdkconfig.h": {
+      "sha256": "af4e902230a4166d6efc5c8bb3d1251f9f10b26309b465e2890c838400951be0",
+      "bytes": 85769
+    },
+    "libs/esp32c3/qio_qspi/include/sdkconfig.h": {
+      "sha256": "9624af88454c264084ee5144fbe4edff173399f9d67114fec31487e6f9f43402",
+      "bytes": 76076
+    },
+    "libs/esp32c6/qio_qspi/include/sdkconfig.h": {
+      "sha256": "db213b47a80ebb227239219d2e545a0c3ce2ef10eccc1b9595b3df8d9fc98eed",
+      "bytes": 83570
+    },
+    "arduino/libraries/BLE/src/BLEDevice.cpp": {
+      "sha256": "16e63f60b11166a33da28e20013dde81bb62f0b3d8bf90010813e2299bfcdf29",
+      "bytes": 51802
+    },
+    "arduino/cores/esp32/esp32-hal-bt.c": {
+      "sha256": "d9fe22798c29db94fb6ebdcd98ce000ffaebb3e2186ad7e1ca3da591debf6503",
+      "bytes": 4289
+    },
+    "arduino/libraries/BLE/src/BLEAdvertising.cpp": {
+      "sha256": "cb9cbea5fa62020dd44a4ddf7b879327732651bd8920049ec1a57895a5ed8f6a",
+      "bytes": 60354
+    },
+    "idf/CMakeLists.txt": {
+      "sha256": "ae3e22d7204035f2bf4d1851bf6b53f97de00a77d90b8fdbd9daa45195efd384",
+      "bytes": 58006
+    },
+    "idf/controller/esp32/bt.c": {
+      "sha256": "1f6c05f80a39d9ed12c268d4b43ae97a2e1a821a155af788da3e43860d7842f3",
+      "bytes": 67969
+    },
+    "idf/controller/esp32c6/bt.c": {
+      "sha256": "91f5203140b55024d6310d7f877790182de10f9093919b07c74e550d6ff0cbbf",
+      "bytes": 64351
+    },
+    "idf/host/bluedroid/device/controller.c": {
+      "sha256": "887893240ac669f3f06a67edb93357beb0cb426ec9397729c4b089ec9c57f49e",
+      "bytes": 24263
+    },
+    "idf/host/bluedroid/hci/hci_hal_h4.c": {
+      "sha256": "d95d054c5a46746b7f83f9f9db701c87655c65dabc686bd8caa2b80ca3ecfacc",
+      "bytes": 22674
+    },
+    "idf/host/bluedroid/hci/hci_layer.c": {
+      "sha256": "b21e117d7f27d490336424016a69f3352ec7629961a2b7173daba25bb0063969",
+      "bytes": 31208
+    },
+    "idf/host/bluedroid/hci/include/hci/hci_trans_int.h": {
+      "sha256": "05a2bf71d420a901d483fb98f619a8633e00a05dd47e9714da20ed6e9000f25d",
+      "bytes": 999
+    },
+    "idf/host/bluedroid/stack/btm/btm_devctl.c": {
+      "sha256": "781465a8692831491665a6b5c54fba9acc288b783fa0cdebaf88e9743eecb4ab",
+      "bytes": 46525
+    },
+    "idf/host/bluedroid/stack/btu/btu_hcif.c": {
+      "sha256": "03a68136cc354f2cf1983a77a533542b5fd226db12034cb302aea6671e3a93fa",
+      "bytes": 119199
+    },
+    "idf/host/nimble/esp-hci/src/esp_nimble_hci.c": {
+      "sha256": "35e957a2e809ea0155a5988421f9bc706fde2dbc23758c03627b18bcdb3597bb",
+      "bytes": 10618
+    },
+    "idf/porting/transport/driver/vhci/hci_driver_nimble.c": {
+      "sha256": "f754b8f1e1695b3693ec9746f6957ea4fdd3918209953f3b2d1490a9f820ee60",
+      "bytes": 1554
+    },
+    "idf/porting/transport/src/hci_transport.c": {
+      "sha256": "f0ab0411806218611afaf978d445d9dc2465eeae439e414be007bcc1e5c3925a",
+      "bytes": 4900
+    },
+    "rom/esp32_rev300_rom.elf": {
+      "sha256": "920b70635440517866aab2230964a570d2cf2b676658d93c52fbac108c1cca31",
+      "bytes": 857500
+    }
+  },
+  "stack_config": {
+    "esp32": [
+      "CONFIG_BT_BLUEDROID_ENABLED=1",
+      "CONFIG_BT_CLASSIC_ENABLED=1",
+      "CONFIG_BT_BLE_ENABLED=1",
+      "CONFIG_BTDM_CTRL_MODE_BTDM=1"
+    ],
+    "esp32s3": [
+      "CONFIG_BT_NIMBLE_ENABLED=1",
+      "CONFIG_BT_NIMBLE_LEGACY_VHCI_ENABLE=1"
+    ],
+    "esp32c3": [
+      "CONFIG_BT_NIMBLE_ENABLED=1",
+      "CONFIG_BT_NIMBLE_LEGACY_VHCI_ENABLE=1"
+    ],
+    "esp32c6": [
+      "CONFIG_BT_NIMBLE_ENABLED=1",
+      "CONFIG_SOC_ESP_NIMBLE_CONTROLLER=1",
+      "CONFIG_BT_NIMBLE_LEGACY_VHCI_ENABLE absent"
+    ]
+  },
+  "builds": {
+    "server": {
+      "source_url": "https://github.com/espressif/arduino-esp32/blob/3.3.8/libraries/BLE/examples/Server/Server.ino",
+      "source_copy": "Byte-for-byte .ino copied to src/main.cpp; Arduino.h already included.",
+      "command": "pio run --project-dir /tmp/esp32-ble-firmware/server",
+      "result": "passed",
+      "reported_wall_seconds": 12.6,
+      "concurrent": false,
+      "artifacts": {
+        "platformio.ini": {
+          "sha256": "b86c69259be417474b2dfef705f80db5720beff2f80b471ef5762f2a65651500",
+          "bytes": 152
+        },
+        "src/main.cpp": {
+          "sha256": "ebb7ba07b385799db98652fa30697c0ff30d934f67e4f1c8b01e798fa1d7956c",
+          "bytes": 1666
+        },
+        ".pio/build/esp32dev/firmware.elf": {
+          "sha256": "71cb81d036a9b08bc704949ba0f2ba2849c8ccb4206be5ec403df2317221fb77",
+          "bytes": 11682580
+        },
+        ".pio/build/esp32dev/firmware.factory.bin": {
+          "sha256": "f350885b67add4df403e5e9e9db032f2e356964d899b51c0fc7e39370c8371d6",
+          "bytes": 1177200
+        }
+      }
+    },
+    "notify": {
+      "source_url": "https://github.com/espressif/arduino-esp32/blob/3.3.8/libraries/BLE/examples/Notify/Notify.ino",
+      "source_copy": "Byte-for-byte .ino copied to src/main.cpp; Arduino.h already included.",
+      "command": "pio run --project-dir /tmp/esp32-ble-firmware/notify",
+      "result": "passed",
+      "reported_wall_seconds": 19.44,
+      "concurrent": true,
+      "artifacts": {
+        "platformio.ini": {
+          "sha256": "b86c69259be417474b2dfef705f80db5720beff2f80b471ef5762f2a65651500",
+          "bytes": 152
+        },
+        "src/main.cpp": {
+          "sha256": "4104a310fcb7a5413721fbebf01c650978efbfea4a7740975adf050b640c1543",
+          "bytes": 3850
+        },
+        ".pio/build/esp32dev/firmware.elf": {
+          "sha256": "79c02ab06724ad3c0b160a796b60a379e7be68c42f420690d084534a5ec63672",
+          "bytes": 11694148
+        },
+        ".pio/build/esp32dev/firmware.factory.bin": {
+          "sha256": "fe163bf2b09b4bc52660a5f2a72cdcf9509c33c09c3dbcbbf6f9b3623adf8fb1",
+          "bytes": 1181600
+        }
+      }
+    },
+    "write": {
+      "source_url": "https://github.com/espressif/arduino-esp32/blob/3.3.8/libraries/BLE/examples/Write/Write.ino",
+      "source_copy": "Byte-for-byte .ino copied to src/main.cpp; Arduino.h already included.",
+      "command": "pio run --project-dir /tmp/esp32-ble-firmware/write",
+      "result": "passed",
+      "reported_wall_seconds": 20.6,
+      "concurrent": true,
+      "artifacts": {
+        "platformio.ini": {
+          "sha256": "b86c69259be417474b2dfef705f80db5720beff2f80b471ef5762f2a65651500",
+          "bytes": 152
+        },
+        "src/main.cpp": {
+          "sha256": "e7d5d8bb03f12194e8ea84c6b607b295916650de8b03cacff04a7c8fb736c6c8",
+          "bytes": 1868
+        },
+        ".pio/build/esp32dev/firmware.elf": {
+          "sha256": "74826fd683ca91324d1f80ea4dcd86c8472f9a759389581888cfd47ed3d2d73e",
+          "bytes": 11691908
+        },
+        ".pio/build/esp32dev/firmware.factory.bin": {
+          "sha256": "999ad548d37e93cb5dd03d3a9e0a44fd84fdd04fb541fd88638e158095768235",
+          "bytes": 1177568
+        }
+      }
+    },
+    "scan": {
+      "source_url": "https://github.com/espressif/arduino-esp32/blob/3.3.8/libraries/BLE/examples/Scan/Scan.ino",
+      "source_copy": "Byte-for-byte .ino copied to src/main.cpp; Arduino.h already included.",
+      "command": "pio run --project-dir /tmp/esp32-ble-firmware/scan",
+      "result": "passed",
+      "reported_wall_seconds": 21.33,
+      "concurrent": true,
+      "artifacts": {
+        "platformio.ini": {
+          "sha256": "b86c69259be417474b2dfef705f80db5720beff2f80b471ef5762f2a65651500",
+          "bytes": 152
+        },
+        "src/main.cpp": {
+          "sha256": "90502d0863416af26e3d0787ea5cd3524acb764ca0feaf7a3f65994c5844e1dc",
+          "bytes": 1341
+        },
+        ".pio/build/esp32dev/firmware.elf": {
+          "sha256": "5106d6349a36f9c6b27384366d1da5d41c746084ee62a43446e8dbf059ec80db",
+          "bytes": 11673104
+        },
+        ".pio/build/esp32dev/firmware.factory.bin": {
+          "sha256": "3be93e1b64cf4fabd59bf2812c71dd1fa42b1def363b726be83692b1e5c6900a",
+          "bytes": 1171520
+        }
+      }
+    }
+  },
+  "negative_results": [
+    {
+      "command": "pio run --project-dir /tmp/esp32-ble-firmware/server",
+      "error": "PermissionError: [Errno 1] Operation not permitted: '/Users/alice/.platformio/platforms.lock'",
+      "fix_attempt": "One rerun with authorized installed-package cache write access.",
+      "outcome": "passed"
+    },
+    {
+      "operation": "Fetch guessed IDF source paths",
+      "error": "HTTP Error 404: Not Found",
+      "paths": [
+        "host/bluedroid/hci/hci_driver.c",
+        "host/bluedroid/hci/hci_trans.c",
+        "host/bluedroid/stack/controller/controller.c",
+        "host/bluedroid/hci/esp_bluedroid_hci.c",
+        "host/nimble/nimble/porting/nimble/src/nimble_port.c"
+      ],
+      "outcome": "Missing paths were not used as evidence. Actual controller source found at host/bluedroid/device/controller.c. C6 NPL setup confirmed in pinned controller/esp32c6/bt.c."
+    }
+  ],
+  "privacy": "Home-directory labels normalized to `/Users/alice`. No hostname, login, email, physical device identifier, process/application inventory or raw private capture committed. BLE addresses are fixed synthetic fixture addresses. Numeric values and artifact hashes preserved; new receipts have no prior published version to sanitize.",
+  "elf_preconditions": {
+    "tool": "xtensa-esp32-elf-nm -S firmware.elf",
+    "all_four": {
+      "esp_bt_controller_init_bytes": 531,
+      "xTaskCreatePinnedToCore_bytes": 124,
+      "controller_bss_bytes": 2936
+    },
+    "server": {
+      "esp_bt_controller_init": "0x400ebc08",
+      "xTaskCreatePinnedToCore": "0x400968e0",
+      "_bt_controller_bss_start": "0x3ffc7104",
+      "_bt_controller_bss_end": "0x3ffc7c7c",
+      "hci_host_cb": "0x3f41784c"
+    },
+    "caveat": "Validates address/space preconditions only. The callback table is in mapped DROM, not DRAM."
+  },
+  "runtime_results": {
+    "server": {
+      "command": [
+        "/private/tmp/esp32sim-classic-ble/target/release/esp32sim",
+        "--chip",
+        "esp32",
+        "--boot",
+        "rom",
+        "--rom",
+        "/Users/alice/.platformio/packages/tool-esp-rom-elfs/esp32_rev300_rom.elf",
+        "--flash-image",
+        "/tmp/esp32-ble-firmware/server/.pio/build/esp32dev/firmware.factory.bin",
+        "--elf",
+        "/tmp/esp32-ble-firmware/server/.pio/build/esp32dev/firmware.elf",
+        "--ble",
+        "--max-seconds",
+        "1.3",
+        "--no-reboot",
+        "--no-dump",
+        "--script",
+        "/tmp/esp32-ble-firmware/server.script"
+      ],
+      "source_revision": "0755b8bd4739d6d89ea0de4c97cd04cfd6bd5058",
+      "exit_status": 0,
+      "wall_seconds": 6.7336112090270035,
+      "log_sha256": "5753d15b1c32c5570f0b6fa82f17b3b2ece47f189e20a03cfcedd3c2a8dc888d",
+      "log_bytes": 3354,
+      "log_path": "target/ble/server-final.log",
+      "stop_summary": "[emu] stop: Halted \u2014 core0 21367812 + core1 2896766 insns in 6.4s wall = 3.8 Minsn/s; emulated 1.300s (312000063 cycles); 41365 exceptions, 4221 interrupts",
+      "advertising_samples": [
+        {
+          "modeled_seconds": 0.288107,
+          "wall_seconds": 5.199412
+        }
+      ],
+      "script": {
+        "path": "/tmp/esp32-ble-firmware/server.script",
+        "text": "0.5 ble connect\n0.6 ble discover\n1.0 ble read 0x002a\n",
+        "sha256": "a02973055c8b429ca1d9ed171a04b3f4d71d2472dac3f80838051efcaa3ff38c"
+      },
+      "checks": [
+        "advertised name and service UUID",
+        "connected",
+        "discovered actual guest GATT database",
+        "initial value read"
+      ],
+      "output": [
+        "Starting BLE work!",
+        "Characteristic defined! Now you can read it in your phone!",
+        "[ble] t=0.288107s advertising service=4fafc201-1fb5-459e-8fcc-c5c9c331914b name=\"BLE Server Example\" data=02010611074b9131c3c9c5cc8f9e45b51f01c2af4f",
+        "[ble] t=0.602209s service start=0x0028 end=0xffff uuid=4fafc201-1fb5-459e-8fcc-c5c9c331914b",
+        "[ble] t=0.605218s characteristic declaration=0x0029 handle=0x002a properties=0x0a uuid=beb5483e-36e1-4688-b7f5-ea07361b26a8",
+        "[ble] t=1.001293s read handle=0x002a value=48656c6c6f20576f726c642073617973204e65696c text=\"Hello World says Neil\""
+      ]
+    },
+    "notify": {
+      "command": [
+        "/private/tmp/esp32sim-classic-ble/target/release/esp32sim",
+        "--chip",
+        "esp32",
+        "--boot",
+        "rom",
+        "--rom",
+        "/Users/alice/.platformio/packages/tool-esp-rom-elfs/esp32_rev300_rom.elf",
+        "--flash-image",
+        "/tmp/esp32-ble-firmware/notify/.pio/build/esp32dev/firmware.factory.bin",
+        "--elf",
+        "/tmp/esp32-ble-firmware/notify/.pio/build/esp32dev/firmware.elf",
+        "--ble",
+        "--max-seconds",
+        "2.6",
+        "--no-reboot",
+        "--no-dump",
+        "--script",
+        "/tmp/esp32-ble-firmware/notify.script"
+      ],
+      "source_revision": "0755b8bd4739d6d89ea0de4c97cd04cfd6bd5058",
+      "exit_status": 0,
+      "wall_seconds": 9.348375917004887,
+      "log_sha256": "c5f33d2efbc63b79294f6ed8c894be104170858071ece32392d5ee50b1512fdb",
+      "log_bytes": 3678,
+      "log_path": "target/ble/notify-final.log",
+      "stop_summary": "[emu] stop: Halted \u2014 core0 25898808 + core1 56244584 insns in 9.3s wall = 8.8 Minsn/s; emulated 2.600s (624000000 cycles); 61454 exceptions, 8169 interrupts",
+      "advertising_samples": [
+        {
+          "modeled_seconds": 0.288295,
+          "wall_seconds": 5.549557
+        }
+      ],
+      "script": {
+        "path": "/tmp/esp32-ble-firmware/notify.script",
+        "text": "0.5 ble connect\n0.6 ble discover\n0.7 ble subscribe 0x002b\n",
+        "sha256": "2e6416962ae397a1284c1c88cf4cf932f23599e7e70284df73b66aaaabdcf2f4"
+      },
+      "checks": [
+        "discovered CCCD 0x002b",
+        "subscription write acknowledged",
+        "four incrementing notifications from unchanged sketch"
+      ],
+      "notification_values_le_hex": [
+        "01000000",
+        "02000000",
+        "03000000",
+        "04000000"
+      ],
+      "notification_modeled_seconds": [
+        1.001314,
+        1.50232,
+        2.003326,
+        2.504343
+      ],
+      "output": [
+        "Waiting a client connection to notify...",
+        "[ble] t=0.610402s attribute handle=0x002b uuid=2902",
+        "[ble] t=0.700385s write complete handle=0x002b"
+      ]
+    },
+    "write": {
+      "command": [
+        "/private/tmp/esp32sim-classic-ble/target/release/esp32sim",
+        "--chip",
+        "esp32",
+        "--boot",
+        "rom",
+        "--rom",
+        "/Users/alice/.platformio/packages/tool-esp-rom-elfs/esp32_rev300_rom.elf",
+        "--flash-image",
+        "/tmp/esp32-ble-firmware/write/.pio/build/esp32dev/firmware.factory.bin",
+        "--elf",
+        "/tmp/esp32-ble-firmware/write/.pio/build/esp32dev/firmware.elf",
+        "--ble",
+        "--max-seconds",
+        "1.2",
+        "--no-reboot",
+        "--no-dump",
+        "--script",
+        "/tmp/esp32-ble-firmware/write.script"
+      ],
+      "source_revision": "0755b8bd4739d6d89ea0de4c97cd04cfd6bd5058",
+      "exit_status": 0,
+      "wall_seconds": 6.287854874972254,
+      "log_sha256": "d781b6efd65445dea9cde4e9af81eaaa5f8472a2c15fd325d6a3277e2b4c3fd2",
+      "log_bytes": 3550,
+      "log_path": "target/ble/write-final.log",
+      "stop_summary": "[emu] stop: Halted \u2014 core0 21191184 + core1 2786951 insns in 6.3s wall = 3.8 Minsn/s; emulated 1.200s (288000000 cycles); 40580 exceptions, 3929 interrupts",
+      "advertising_samples": [
+        {
+          "modeled_seconds": 0.288125,
+          "wall_seconds": 4.839128
+        }
+      ],
+      "script": {
+        "path": "/tmp/esp32-ble-firmware/write.script",
+        "text": "0.5 ble connect\n0.6 ble discover\n0.7 ble write 0x002a 48656c6c6f2066726f6d20686f7374\n0.8 ble read 0x002a\n",
+        "sha256": "ae6368a4b3e7e2fd1a7049c8683e59614de50d84692f4ce45983a6f8686fa145"
+      },
+      "checks": [
+        "host ATT write reaches sketch onWrite callback",
+        "sketch serial output",
+        "subsequent read matches written value"
+      ],
+      "output": [
+        "New value: Hello from host",
+        "[ble] t=0.700485s write complete handle=0x002a",
+        "[ble] t=0.800308s read handle=0x002a value=48656c6c6f2066726f6d20686f7374 text=\"Hello from host\""
+      ]
+    },
+    "scan": {
+      "command": [
+        "/private/tmp/esp32sim-classic-ble/target/release/esp32sim",
+        "--chip",
+        "esp32",
+        "--boot",
+        "rom",
+        "--rom",
+        "/Users/alice/.platformio/packages/tool-esp-rom-elfs/esp32_rev300_rom.elf",
+        "--flash-image",
+        "/tmp/esp32-ble-firmware/scan/.pio/build/esp32dev/firmware.factory.bin",
+        "--elf",
+        "/tmp/esp32-ble-firmware/scan/.pio/build/esp32dev/firmware.elf",
+        "--ble",
+        "--max-seconds",
+        "5.6",
+        "--no-reboot",
+        "--no-dump"
+      ],
+      "source_revision": "0755b8bd4739d6d89ea0de4c97cd04cfd6bd5058",
+      "exit_status": 0,
+      "wall_seconds": 11.855364167015068,
+      "log_sha256": "792f2e57359aba02aa347d67aed39501077e321cc836a4ab90da444db3a8e76f",
+      "log_bytes": 1665,
+      "log_path": "target/ble/scan-final.log",
+      "stop_summary": "[emu] stop: Halted \u2014 core0 33997780 + core1 7435321 insns in 11.8s wall = 3.5 Minsn/s; emulated 5.600s (1344000000 cycles); 95974 exceptions, 17034 interrupts",
+      "advertising_samples": [],
+      "checks": [
+        "virtual advertising peripheral reported by guest scan callback",
+        "exactly one discovered device",
+        "five-second scan completes"
+      ],
+      "output": [
+        "Scanning...",
+        "Advertised Device: Name: esp32sim, Address: 02:53:49:00:00:02, serviceUUID: 0000180f-0000-1000-8000-00805f9b34fb, serviceUUID: 0000180f-0000-1000-8000-00805f9b34fb, rssi: -35 ",
+        "Devices found: 1",
+        "Scan done!"
+      ]
+    },
+    "reboot": {
+      "command": [
+        "/private/tmp/esp32sim-classic-ble/target/release/esp32sim",
+        "--chip",
+        "esp32",
+        "--boot",
+        "rom",
+        "--rom",
+        "/Users/alice/.platformio/packages/tool-esp-rom-elfs/esp32_rev300_rom.elf",
+        "--flash-image",
+        "/tmp/esp32-ble-firmware/server/.pio/build/esp32dev/firmware.factory.bin",
+        "--elf",
+        "/tmp/esp32-ble-firmware/server/.pio/build/esp32dev/firmware.elf",
+        "--ble",
+        "--max-seconds",
+        "1.2",
+        "--no-dump",
+        "--script",
+        "/tmp/esp32-ble-firmware/reboot.script"
+      ],
+      "source_revision": "0755b8bd4739d6d89ea0de4c97cd04cfd6bd5058",
+      "exit_status": 0,
+      "wall_seconds": 10.434698999975808,
+      "log_sha256": "ef73b637c65f6d56ff9f38df8f5b52fdadbefcf7fce1da7a8c487e79f7ab7b83",
+      "log_bytes": 2200,
+      "log_path": "target/ble/reboot-final.log",
+      "stop_summary": "[emu] stop: Halted \u2014 core0 36318303 + core1 4290520 insns in 10.4s wall = 3.9 Minsn/s; emulated 1.200s (288000000 cycles); 53940 exceptions, 4128 interrupts",
+      "advertising_samples": [
+        {
+          "modeled_seconds": 0.288107,
+          "wall_seconds": 4.842524
+        },
+        {
+          "modeled_seconds": 0.888089,
+          "wall_seconds": 10.015764
+        }
+      ],
+      "script": {
+        "path": "/tmp/esp32-ble-firmware/reboot.script",
+        "text": "0.6 poke 3ff48000 80000000\n",
+        "sha256": "f302bb349e68b1a0d7f13cf410e58c021958aa2c86eaef0de47350e34151f1a9"
+      },
+      "checks": [
+        "software reset at 0.6 modeled seconds",
+        "ROM loads unchanged application again",
+        "second BLE initialization and advertisement"
+      ],
+      "output": [
+        "rst:0x1 (POWERON_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)",
+        "Starting BLE work!",
+        "[ble] t=0.288107s advertising service=4fafc201-1fb5-459e-8fcc-c5c9c331914b name=\"BLE Server Example\" data=02010611074b9131c3c9c5cc8f9e45b51f01c2af4f",
+        "rst:0x3 (SW_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)",
+        "Starting BLE work!",
+        "[ble] t=0.888089s advertising service=4fafc201-1fb5-459e-8fcc-c5c9c331914b name=\"BLE Server Example\" data=02010611074b9131c3c9c5cc8f9e45b51f01c2af4f"
+      ]
+    }
+  },
+  "implementation_revision": "0755b8bd4739d6d89ea0de4c97cd04cfd6bd5058",
+  "base_revision": "4ff7f45",
+  "environment": {
+    "os": "macOS 26.6.2",
+    "architecture": "Darwin arm64",
+    "rustc": "1.96.0 (ac68faa20 2026-05-25)",
+    "cargo": "1.96.0 (30a34c682 2026-05-25)",
+    "node": "v22.23.1",
+    "python": "3.14.7",
+    "cpu_brand": "unavailable: sandbox denied sysctl"
+  },
+  "measurement": {
+    "order": [
+      "server",
+      "notify",
+      "write",
+      "scan",
+      "reboot"
+    ],
+    "conditions": "Sequential native CLI runs after builds/tests completed. No host-speed comparison. Other host activity uncontrolled. One sample per example.",
+    "modeled_time": "Bus cycles / 240000000 from ROM boot. Instruction-driven time, not calibrated Bluetooth latency.",
+    "wall_time": "Python perf_counter from subprocess launch to receipt of the advertising stderr line, including image/ELF loading and OS scheduling.",
+    "retention": "Full sanitized transcripts remain in ignored target/ble/*.log. Only relevant output excerpts and numeric samples retained here. Firmware projects remain in /tmp/esp32-ble-firmware; nothing uploaded."
+  },
+  "emulator_artifacts": {
+    "target/release/esp32sim": {
+      "sha256": "1133bafc8942ecc6380038d0831a7e712f5e11065b25a919e224460fdc95e216",
+      "bytes": 2765256
+    },
+    "web/wasm/esp32sim.wasm": {
+      "sha256": "090f665980968cc030d908abdcce426c7466ae86cb5254f13a93894456f11e54",
+      "bytes": 2681917
+    }
+  },
+  "validation": {
+    "build-release-final": {
+      "command": "cargo build --release",
+      "exit_status": 0,
+      "log_sha256": "34d12ca7d9f86b66c6ae0a82c835a3936d7b82fb2bb57c760fa77806cbecbca6",
+      "log_path": "target/ble/build-release-final.log"
+    },
+    "test-touched-final": {
+      "command": "cargo test -p esp32 -p esp-soc -p esp32sim",
+      "exit_status": 0,
+      "log_sha256": "9de93563f2e7de22f9e9c4db0cd26ee01b4e0becd3e4e5f764b8ec5325234933",
+      "log_path": "target/ble/test-touched-final.log",
+      "passed": 147,
+      "failed": 0,
+      "ignored": 15
+    },
+    "test-workspace-final": {
+      "command": "cargo test --workspace",
+      "exit_status": 0,
+      "log_sha256": "b5f5fa7be3435ab6cc1e9d78fb4a17f251485ea876e9c6c96b4695a7b395b53c",
+      "log_path": "target/ble/test-workspace-final.log",
+      "passed": 499,
+      "failed": 0,
+      "ignored": 22
+    },
+    "wasm-build-final": {
+      "command": "tools/wasm-build.sh",
+      "exit_status": 0,
+      "log_sha256": "510ccd68ded0634e2d5d5fb36a26d4186b82162d5bfb905e80ac70cbbb0bbce6",
+      "log_path": "target/ble/wasm-build-final.log"
+    },
+    "privacy": {
+      "command": "node tools/check-evidence-privacy.mjs",
+      "exit_status": 0,
+      "output": "PASS: 1473 tracked evidence files checked (15 gzip files); no configured privacy patterns found. Manual review is still required.",
+      "manual_review": "Reviewed added Markdown and JSON. Only normalized home labels and fixed synthetic BLE addresses; no compressed profiles or raw captures added."
+    },
+    "diff": {
+      "command": "git diff --check",
+      "exit_status": 0
+    }
+  },
+  "boundary_tests": [
+    "four shared HCI/ACL/ATT tests",
+    "five classic adapter tests: task-create arguments and return windows; receive/send-ready/delay execution; invalid buffers, flash callback table and missing symbols; Machine dispatch; physical flash restoration after MMU changes",
+    "CLI opt-in and unsupported-chip/missing-symbol rejection"
+  ],
+  "prototype_limits": [
+    "single ACL connection; legacy advertising",
+    "ATT MTU 23; script write maximum 20 bytes",
+    "no RF, PHY calibration, pairing, link encryption, calibrated radio timing or Bluetooth hardware register model",
+    "guest task polls once per FreeRTOS tick and allocation survives controller deinit until chip reboot",
+    "requires matching unstripped ELF and windowed Xtensa callback ABI",
+    "S3/C3/C6 adapters not implemented; shared HCI state is reusable",
+    "event-mask/filter/advertising interval settings do not model RF scheduling; fixtures use one immediate advertising report per scan"
+  ],
+  "additional_negative_results": [
+    {
+      "command": "xtensa-esp-elf-ld, then one -EL retry",
+      "error": "little endian output does not match Xtensa configuration",
+      "resolution": "Stopped linking attempts. Same-section assembler offsets used; emitted bytes validated by guest instruction tests."
+    },
+    {
+      "command": "initial Server ROM boot with --debug ble",
+      "observation": "HCI 0x080f and 0x0c14 returned Unknown HCI Command, but advertising still completed.",
+      "resolution": "Added stored default link policy and 248-byte local-name write/read before final runs.",
+      "log_sha256": "2b0b87f0f09660a2e5dddf4f060e044d97ac653cba0d7d859190e903feff657a"
+    },
+    {
+      "review": "callback table initially restricted to DRAM",
+      "resolution": "Actual hci_host_cb is const DROM; allow mapped table reads and test flash table registration."
+    },
+    {
+      "review": "runtime trampoline patch initially survived reboot in backing flash",
+      "resolution": "Save overwritten physical flash bytes and restore before reset, independently of current MMU. Unit and live reboot checks pass."
+    },
+    {
+      "command": "git add / git commit in worktree sandbox",
+      "error": "Unable to create worktree index.lock: Operation not permitted",
+      "resolution": "One authorized escalation wrote only this worktree Git metadata and committed locally."
+    },
+    {
+      "command": "sysctl -n machdep.cpu.brand_string hw.memsize",
+      "error": "sysctl: sysctl fmt -1 1024 1: Operation not permitted",
+      "resolution": "No retry needed for functional claims; report Darwin arm64 without inferred hardware model."
+    },
+    {
+      "command": "node tools/check-evidence-privacy.mjs",
+      "error": "ble-receipt.json: personal home-directory label",
+      "resolution": "False positive: period adjacent to normalized home alias was parsed as part of the label. Added code delimiters, then one retry passed. No personal information or measured value changed."
+    }
+  ]
+}
