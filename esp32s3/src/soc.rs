@@ -219,6 +219,16 @@ impl esp_soc::SocBus for SocBus {
     fn take_gpio_events(&mut self) -> Vec<(u64, u8, bool)> { self.gpio_events.as_mut().map(std::mem::take).unwrap_or_default() }
     fn gpio_input(&self) -> u64 { self.periph.gpio.input }
     fn pwm_output(&self, pin: u32) -> Option<(f64, u32)> { self.periph.ledc.output(&self.periph.gpio, pin).or_else(|| self.periph.mcpwm.iter().find_map(|pwm| pwm.output(&self.periph.gpio, pin))) }
+    fn gpio_state(&self, pin: u8) -> Option<esp_soc::GpioState> {
+        if pin > 48 || (22..=25).contains(&pin) { return None; }
+        let mux = self.periph.io_mux.read(4 + u32::from(pin) * 4);
+        Some(esp_soc::GpioState {
+            output: self.periph.gpio.out & (1u64 << pin) != 0,
+            output_enable: self.periph.gpio.enable & (1u64 << pin) != 0,
+            pull_up: mux & (1 << 8) != 0,
+            pull_down: mux & (1 << 7) != 0,
+        })
+    }
     fn board(&mut self) -> &mut dyn BoardModel { &mut *self.board }
     fn board_ref(&self) -> &dyn BoardModel { &*self.board }
     fn audio(&self) -> (&[i16], u32) { let a = self.periph.audio(); (&a.pcm, a.sample_rate) }
