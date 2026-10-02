@@ -43,6 +43,32 @@ pub trait BoardModel {
     /// GPIO matrix has that channel routed to. Drivers that take a fresh channel per refresh
     /// (the Arduino NeoPixel one does) make the channel meaningless; the pin names the strip.
     fn rmt_frame(&mut self, _pin: u8, _bits: &[bool]) {}
+    /// GPIO-routed parallel samples. By default, recover WS2812 frames for boards
+    /// using `rmt_frame`; other parallel devices can override this callback.
+    fn parallel_output(&mut self, pins: &[(u8, u8)], samples: &[u16], clock_hz: u32) {
+        for &(pin, lane) in pins {
+            if lane >= 16 || clock_hz == 0 { continue; }
+            let mut bits=Vec::new();
+            let mut at=0;
+            while at<samples.len() {
+                while at<samples.len() && samples[at] & (1<<lane)==0 { at+=1; }
+                let start=at;
+                while at<samples.len() && samples[at] & (1<<lane)!=0 { at+=1; }
+                let high=at-start;
+                let start=at;
+                while at<samples.len() && samples[at] & (1<<lane)==0 { at+=1; }
+                let low=at-start;
+                if high==0 { break; }
+                let high_ns=high as u64*1_000_000_000/u64::from(clock_hz);
+                if !(150..=1100).contains(&high_ns) { bits.clear(); continue; }
+                bits.push(high_ns>=550);
+                if low as u64*1_000_000>=50*u64::from(clock_hz) {
+                    self.rmt_frame(pin, &bits); bits.clear();
+                }
+            }
+            if !bits.is_empty() { self.rmt_frame(pin, &bits); }
+        }
+    }
     /// Bytes a GP-SPI master (`host` = 2 or 3) shifted out on MOSI.
     fn spi_tx(&mut self, _host: u8, _data: &[u8]) {}
     /// One complete GP-SPI transaction. The default preserves transmit-only boards and models an
@@ -130,3 +156,28 @@ pub type Board = Box<dyn BoardModel>;
 /// A bare module: nothing on the pins, console only.
 pub struct NoBoard;
 impl BoardModel for NoBoard { fn name(&self) -> &'static str { "none" } }
+
+#[cfg(test)]
+mod parallel_tests {
+    use super::*;
+    #[derive(Default)]
+    struct Frames(Vec<(u8, Vec<bool>)>);
+    impl BoardModel for Frames {
+        fn name(&self) -> &'static str { "parallel-test" }
+        fn rmt_frame(&mut self, pin: u8, bits: &[bool]) { self.0.push((pin, bits.to_vec())); }
+    }
+    #[test]
+    fn parallel_lanes_mirrors_and_reset_boundaries_reach_existing_boards() {
+        let mut samples = Vec::new();
+        for _ in 0..24 { samples.extend([3, 2, 0, 0]); }
+        samples.extend(std::iter::repeat_n(0, 200));
+        for _ in 0..24 { samples.extend([3, 1, 0, 0]); }
+        let mut board = Frames::default();
+        board.parallel_output(&[(4, 0), (5, 1), (6, 0)], &samples, 3_200_000);
+        assert_eq!(board.0, vec![(4, vec![false; 24]), (4, vec![true; 24]),
+            (5, vec![true; 24]), (5, vec![false; 24]), (6, vec![false; 24]), (6, vec![true; 24])]);
+        board.parallel_output(&[(4, 0)], &samples, 0);
+        board.parallel_output(&[(4, 16)], &samples, 3_200_000);
+        assert_eq!(board.0.len(), 6);
+    }
+}

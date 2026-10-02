@@ -35,6 +35,7 @@ pub mod src {
     pub const TG1_T0: usize = 54; pub const TG1_T1: usize = 55; pub const TG1_WDT: usize = 56;
     pub const SYSTIMER_T0: usize = 57; pub const SYSTIMER_T1: usize = 58; pub const SYSTIMER_T2: usize = 59;
     pub const MCPWM0: usize = 61;
+    pub const PARLIO: usize = 63;
     pub const DMA_IN_CH0: usize = 66; pub const DMA_OUT_CH0: usize = 69; pub const GPSPI2: usize = 72;
     pub const AES: usize = 73; pub const SHA: usize = 74; pub const RSA: usize = 75; pub const ECC: usize = 76;
     pub const COUNT: usize = 77;
@@ -343,6 +344,7 @@ pub struct Peripherals {
     pub aes: Aes,
     pub rsa: Rsa,
     pub rmt: RmtC6,
+    pub parlio: crate::parlio::Parlio,
     pub i2s0: I2s,
     pub gdma: GdmaC6,
     pub spi2: GpSpi,
@@ -378,6 +380,7 @@ device_set! { Peripherals; clock: (clock) CPU_HZ, [(ClockDomain::Systimer, 10), 
     0x02 "SPI0" (spi0) => [];
     0x03 "SPI1" (spi1) => [];
     0x06 "RMT" (rmt) => [src::RMT];
+    0x15 "PARL_IO" (parlio) => [src::PARLIO];
     0x07 "LEDC" (ledc) => [src::LEDC];
     0x08 "TIMG0" (timg[0]) => [src::TG0_T0];
     0x09 "TIMG1" (timg[1]) => [src::TG1_T0];
@@ -435,7 +438,7 @@ impl Peripherals {
             spi0: SpiMemC6({ let mut s = SpiMem::new(false); s.has_psram = false; s }),
             spi1: SpiMemC6({ let mut s = SpiMem::new(true); s.has_psram = false; s }),   // no PSRAM on the C6
             sha: Sha::new(), aes: Aes::new(), rsa: Rsa::new(),
-            i2s0: I2s::new(CPU_HZ), rmt: RmtC6::new(CPU_HZ), gdma: GdmaC6::new(), spi2: GpSpi::new(), radio: Ieee802154::new(), modem_bb: ModemBb::new(), wifi_mac: WifiMac::new(),
+            i2s0: I2s::new(CPU_HZ), rmt: RmtC6::new(CPU_HZ), parlio: crate::parlio::Parlio::new(), gdma: GdmaC6::new(), spi2: GpSpi::new(), radio: Ieee802154::new(), modem_bb: ModemBb::new(), wifi_mac: WifiMac::new(),
             intmtx: IntMatrix::new(), intc: Intc::new(), cache: Cache::new(), lpsys: LpSys::new(), pcr: Pcr::new(), ana_mst: AnaMst::new(), assist_debug: AssistDebug::new(),
             rng: Rng::new(), cpu_sub: RegRam::new(),
             misc: Misc::new(), spi_exec: false, clock: Self::new_clock(),
@@ -500,6 +503,7 @@ impl Peripherals {
             self.i2c.set_pins(self.i2c_pin(46).zip(self.i2c_pin(45)));
         }
         if mmio::write32(self, addr, v).contains(WriteEffect::SPI_EXEC) { self.spi_exec = true; }
+        if addr == PERIPH_BASE + 0x960ac { self.parlio.set_clock(v); }
         if addr == PERIPH_BASE + 0x96034 || addr == PERIPH_BASE + 0x96038 {
             let conf = self.pcr.read(0x34); let clock = self.pcr.read(0x38);
             self.ledc.external_clock_hz = if conf & 3 != 1 || clock & (1 << 22) == 0 { 0 } else { match (clock >> 20) & 3 { 1 => 80_000_000, 2 => 20_000_000, 3 => 40_000_000, _ => 0 } };

@@ -1387,3 +1387,53 @@ fn camera_stopped_capture_does_not_pause_or_replay_sensor_bytes() {
     assert_eq!(bus.periph.lcd_cam.int_raw, 0);
     assert!(bus.periph.lcd_cam.cam_frame.is_none());
 }
+
+#[test]
+    fn rmt_dma_fifo_consumes_timed_symbols_and_returns_descriptor() {
+        let mut bus = dma_bus();
+        let desc = FIRST_DESC;
+        let data = FIRST_DESC + 64;
+        bus.periph.gdma.out[0].peri_sel = 9;
+        bus.periph.gdma.out[0].conf0 = 4;
+        bus.periph.gdma.out[0].conf1 = 1 << 12;
+        bus.write32(desc, (1 << 31) | (1 << 30) | (12 << 12) | 12).unwrap();
+        bus.write32(desc + 4, data).unwrap();
+        bus.write32(desc + 8, 0).unwrap();
+        bus.write32(data, 0x8000 | 35 | (15 << 16)).unwrap();
+        bus.write32(data + 4, 0x8000 | 10 | (40 << 16)).unwrap();
+        bus.write32(data + 8, 0).unwrap();
+        bus.periph.rmt.write(0x2c, (1 << 25) | (2 << 8) | 1);
+        bus.dma_rmt_step();
+        assert_eq!(bus.periph.rmt.dma_fifo.len(), 3);
+        assert_eq!(bus.periph.gdma.out[0].int_raw & 15, 11);
+        assert!(!bus.periph.gdma.out[0].running);
+        assert_eq!(bus.read32(desc).unwrap() >> 31, 0);
+        bus.periph.rmt.tick(1);
+        assert!(bus.periph.rmt.done.is_empty());
+        bus.periph.rmt.tick(600);
+        assert_eq!(bus.periph.rmt.done, vec![(3,vec![true,false])]);
+        assert_eq!(bus.periph.rmt.int_raw & (1 << 3), 1 << 3);
+    }
+
+#[test]
+    fn rmt_dma_fifo_is_bounded_and_rejects_bad_descriptors() {
+        let mut bus = dma_bus();
+        bus.periph.gdma.out[0].peri_sel = 9;
+        bus.periph.gdma.out[0].conf1 = 1 << 12;
+        bus.periph.rmt.ch[3].conf0 = 1 << 25;
+        bus.write32(FIRST_DESC, (1 << 31) | (256 << 12) | 256).unwrap();
+        bus.write32(FIRST_DESC + 4, FIRST_DESC + 64).unwrap();
+        bus.write32(FIRST_DESC + 8, 0).unwrap();
+        bus.dma_rmt_step();
+        assert_eq!(bus.periph.rmt.dma_fifo.len(), 48);
+        assert_eq!(bus.periph.gdma.out[0].buf_pos, 192);
+        bus.dma_rmt_step();
+        assert_eq!(bus.periph.rmt.dma_fifo.len(), 48);
+        bus.periph.rmt.dma_fifo.clear();
+        bus.write32(FIRST_DESC, (1 << 31) | (257 << 12) | 256).unwrap();
+        bus.dma_rmt_step();
+        assert!(!bus.periph.gdma.out[0].running);
+        assert_eq!(bus.periph.gdma.out[0].int_raw & 4, 4);
+        assert_eq!(bus.periph.rmt.int_raw & (1 << 28), 1 << 28);
+        assert!(bus.periph.rmt.dma_fifo.is_empty());
+    }

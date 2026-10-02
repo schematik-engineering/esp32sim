@@ -1,0 +1,56 @@
+{
+  "verify.mjs": "f770b297a91609da6c5612a97d98cb6258d1b3ee5478b0e8004f8392849011b5",
+  "build-assets.py": "7dd327c47d31b0b72e66eec2e81e8807b66217c853acb7b44b98baeba8eff8fb",
+  "Cargo.lock": "80d12ff40db5f4d063660b826ce13d6d611bd4507ca88e83bf87457c39befeca",
+  "Cargo.toml": "3885086829ef0a2457e10f6afee30c4e6a8194eeec3c002d23ebc841094a095d",
+  "base_revision": "6e562b863f4a5c94c5055747e8331452adaf2de1",
+  "addon_revision": "b0f59f359ca46509f7a1a4c0dbad9066ca6bb7e8",
+  "reference_revision": "221080ffccfa829106b398f896653535853c76c8",
+  "candidate_wasm": {
+    "sha256": "8940b32702f897307aad9e8ceb584e7623f95e4458283407a5f390e0b5000c60",
+    "bytes": 2751682
+  },
+  "source_files": {
+    "esp-periph/src/gpio.rs": "afbc3e521d560bd13a9f97ff83d80a1c59f865eb4d3acbbcdd22e3a7b4d96d16",
+    "esp-periph/src/rmt.rs": "a7b78d9fa80d6584917b38d6d274864b3c9824e8bfb2e4c4f09df314a0e25143",
+    "esp-soc/src/board.rs": "ff91439662da8daf43659c4325f67646ee8415bda1b5c08162a8c020068a54a6",
+    "esp32c3/src/bus.rs": "9421c7ad1b915f2b9517f2eb6df95c41e924b42cb1f0731de0ae68c044ef2368",
+    "esp32c3/tests/pin_transport.rs": "4fda5bfee3604e408cb0f5200896348a942a5745eaa131ac5abfba479a7d3a33",
+    "esp32c6/src/bus.rs": "c125cde210c7caa832e423e7f70f94aa861fab3108854e110639b4e262ea2edd",
+    "esp32c6/src/lib.rs": "af7dc926d6420004fffbdac83d06a18f1e079d03286683444aa204d0064a14e4",
+    "esp32c6/src/periph.rs": "607e16cf5a8b70e3ac6c1353e87ae2658963a666c7d570efbfdbfc25fbc7ddf6",
+    "esp32s3/src/bus.rs": "ccecb25e0230ecb6bf5171ddc9e3dd62fde7252fab08cec2ed8d3ca0a716fb52",
+    "esp32s3/src/bus/dma.rs": "f58c3054cd47e5d7a9afe04addad5a53ddf3fc97a7fd828f324159cd67844c2c",
+    "esp32s3/src/bus/tests.rs": "dd95147022516b342fdbf9fb11e015e799b7be12f712fda5045c8615911c6d42",
+    "esp32c6/src/parlio.rs": "f01511d41a5de25555c4f6c473d46905c2d8212247374767969b0e300a4339ae"
+  },
+  "original_failures": {
+    "run-neopixel-drivers-esp32s3.log": {
+      "sha256": "f6d9e12796562f6cd0eda99d998127c43fee76e044114ebdc9c06cd85db97c0f",
+      "result": "ERR_ASSERTION: fixture output deadline expired"
+    },
+    "run-neopixel-drivers-esp32c3.log": {
+      "sha256": "79c564a739c50f3f478cf5dd1b79625262dc21d36c9dc2a17e9750b8e3dac848",
+      "result": "ERR_ASSERTION: fixture output deadline expired"
+    },
+    "run-neopixel-drivers-esp32c6.log": {
+      "sha256": "8e430c3ee742fd3b82160bec95fdde7e47ebed89b3f6f13310aa1fdb8182601d",
+      "result": "ERR_ASSERTION: fixture output deadline expired"
+    },
+    "run-fastled-drivers-esp32s3.log": {
+      "sha256": "b741e9d938bf77a896a16df50404d975ac4cc1d1881469ef069e6efc4c0a4dc4",
+      "result": "ERR_ASSERTION: fixture output deadline expired"
+    },
+    "run-fastled-drivers-esp32c6.log": {
+      "sha256": "afb239cd25dfc7ced4295c80e8989436eb988e34f48ccc6ed860058f707b9a88",
+      "result": "ERR_ASSERTION: fixture output deadline expired"
+    }
+  },
+  "environment": {
+    "os": "Darwin",
+    "arch": "arm64",
+    "node": "v22.23.1",
+    "rustc": "1.99.0 (b940084d7 2026-09-28)",
+    "cargo": "1.99.0 (5f94df478 2026-08-27)"
+  }
+}

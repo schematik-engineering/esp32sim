@@ -370,8 +370,7 @@ impl SocBus {
         if !self.periph.gpio.changes.is_empty() { self.deliver_gpio_output(); }
         self.deliver_spi2_transfer();
         for (ch, bits) in std::mem::take(&mut self.periph.rmt.rmt.done) {
-            let pin = self.periph.gpio.pin_for_signal(51 + ch as u32).unwrap_or(u8::MAX);
-            self.board.rmt_frame(pin, &bits);
+            for pin in self.periph.gpio.pins_for_signal(51 + ch as u32) { self.board.rmt_frame(pin, &bits); }
             self.irq_dirty = true;
         }
         self.deliver_board_inputs();

@@ -53,6 +53,44 @@ impl DescriptorWalk {
 }
 
 impl SocBus {
+    pub(super) fn dma_rmt_step(&mut self) {
+        if self.periph.rmt.ch[3].conf0 & (1 << 25) == 0 { return; }
+        let Some(index) = self.periph.gdma.out_channel_for(9) else { return; };
+        let mut channel = self.periph.gdma.out[index];
+        for _ in 0..64 {
+            if !channel.running || self.periph.rmt.dma_fifo.len() >= 48 { break; }
+            let result = (|| -> Result<(), ()> {
+                if channel.desc == 0 || channel.desc & 3 != 0 { return Err(()); }
+                let (word, desc) = self.try_dma_desc(channel.desc).map_err(|_| ())?;
+                if desc.length > desc.size || desc.length & 3 != 0 || desc.buf & 3 != 0
+                    || channel.buf_pos > desc.length
+                    || (channel.conf1 & (1 << 12) != 0 && !desc.owner_dma) { return Err(()); }
+                if channel.buf_pos == desc.length {
+                    if channel.conf0 & 4 != 0 { self.write32(desc.addr, word & !(1 << 31)).map_err(|_| ())?; }
+                    channel.int_raw |= 1;
+                    if desc.eof { channel.int_raw |= 2; channel.eof_desc = desc.addr; }
+                    channel.desc = desc.next;
+                    channel.buf_pos = 0;
+                    if desc.next == 0 { channel.running = false; channel.int_raw |= 8; }
+                } else {
+                    let addr = desc.buf.checked_add(channel.buf_pos).ok_or(())?;
+                    let symbol = self.read32(addr).map_err(|_| ())?;
+                    self.periph.rmt.dma_fifo.push_back(symbol);
+                    channel.buf_pos += 4;
+                }
+                Ok(())
+            })();
+            if result.is_err() {
+                channel.running = false;
+                channel.int_raw |= 4;
+                self.periph.rmt.int_raw |= 1 << 28;
+                break;
+            }
+        }
+        self.irq_dirty |= channel.int_raw != self.periph.gdma.out[index].int_raw;
+        self.periph.gdma.out[index] = channel;
+    }
+
     pub(super) fn complete_spi2_dma(&mut self) {
         if let Some((deadline, _)) = &self.spi2_scheduled {
             if self.cycles < *deadline { return; }

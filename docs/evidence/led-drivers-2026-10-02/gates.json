@@ -1,0 +1,66 @@
+[
+  {
+    "command": "tools/fetch-demo-assets.sh --no-linux",
+    "result": "passed",
+    "log_sha256": "4f8cec562c3b5544bd51564773c5601c727f4107a2f0ccedb47f7db551ad4702"
+  },
+  {
+    "command": "cargo +1.99.0 clippy --workspace --all-targets -- -D warnings",
+    "result": "passed",
+    "log_sha256": "c95b5f2600b9e2f5bd653188c390566219acc9f31482cd1928dfc0796258266d"
+  },
+  {
+    "command": "cargo +1.99.0 clippy --release --target wasm32-unknown-unknown -p esp32sim-wasm --features jit-tests -- -D warnings",
+    "result": "passed",
+    "log_sha256": "7ba86c1f35de7e5da22f3d6cbeb32aec91721683f3ca37db2d7a65746a0ddd78"
+  },
+  {
+    "command": "ESP32SIM_ROM_DIR=$PWD/web/wasm/fw cargo +1.99.0 test --release --workspace -- --include-ignored --skip external_",
+    "result": "failed",
+    "log_sha256": "40a8fab8bf5095c6febbd497d2a87cec3be19f951a15dd63ee243fa85a499de6",
+    "counts": {
+      "passed": 248,
+      "failed": 1,
+      "ignored": 0,
+      "filtered out": 4
+    },
+    "error": "C3 RMT test routed GPIO5/6 without enabling outputs: received [] instead of two colored frames; setup fixed before one full retry."
+  },
+  {
+    "command": "ESP32SIM_ROM_DIR=$PWD/web/wasm/fw cargo +1.99.0 test --release --workspace -- --include-ignored --skip external_",
+    "result": "passed",
+    "log_sha256": "7b4c13e4d5df4c48287d7c1f60350577504b3449acb474f46ae2a645eed03323",
+    "counts": {
+      "passed": 654,
+      "failed": 0,
+      "ignored": 0,
+      "filtered out": 50
+    }
+  },
+  {
+    "command": "RUSTUP_TOOLCHAIN=1.99.0 tools/wasm-build.sh",
+    "result": "passed",
+    "log_sha256": "bf2735f764beef9b9030f197bbc4d46733ce98e1cffa26387c4fea23eaafab39"
+  },
+  {
+    "command": "node tools/wasm-test.mjs hello c3-hello c6-hello c6-energy-scan c6-contiki c6-contiki-net c6-rpl-net panel",
+    "result": "passed",
+    "log_sha256": "74e2740946433b9f5b89ec5026ecdacddba59d30329d78ee5facb0ab12f7d8d0",
+    "checks": [
+      "ok   wasm JIT handoff: shared-memory block committed at a scheduler boundary",
+      "ok   hello: board none, 4.3 M insns in 0.4 s wall (11.4 Minsn/s), 129 console lines, 0 binary frames",
+      "ok   c3-hello: board none, 480.0 M insns in 1.0 s wall (495.9 Minsn/s), 125 console lines, 0 binary frames",
+      "ok   c6-hello: board none, 480.0 M insns in 1.2 s wall (409.6 Minsn/s), 121 console lines, 0 binary frames",
+      "ok   c6-energy-scan: board waveshare-c6-lcd147, 480.0 M insns in 7.2 s wall (66.6 Minsn/s), 149 console lines, 141 binary frames",
+      "ok   c6-contiki: board waveshare-c6-lcd147, 1920.0 M insns in 13.7 s wall (139.8 Minsn/s), 181 console lines, 17 binary frames",
+      "ok   c6-contiki-net: 2 nodes, n0 tx 5/rx 5, n1 tx 5/rx 5, 30 s simulated in 11.2 s wall (3x real time)",
+      "ok   c6-rpl-net: 2 nodes, n0 tx 27/rx 27, n1 tx 27/rx 27, 90 s simulated in 18.9 s wall (5x real time)",
+      "ok   panel: board waveshare-lcd4b, 146.1 M insns in 24.3 s wall (6.0 Minsn/s), 193 console lines, 212 binary frames"
+    ]
+  },
+  {
+    "command": "node tools/check-evidence-privacy.mjs",
+    "result": "passed",
+    "log_sha256": "31d27b816ef31a5b824910892281864b8bde7109d07a32218434a7d3f86511e0"
+  }
+]
