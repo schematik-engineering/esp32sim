@@ -31,6 +31,7 @@ pub const MMU_INVALID: u32 = 1 << 8;
 pub const PAGE: u32 = 0x1_0000;
 
 pub struct SocBus {
+    pub ble: esp_soc::ble::vhci::Ble,
     pub sram: Vec<u8>,
     pub irom: Vec<u8>,
     pub drom: Vec<u8>,
@@ -52,6 +53,7 @@ pub struct SocBus {
 impl SocBus {
     pub fn new(flash_size: usize, mac: [u8; 6]) -> Self {
         SocBus {
+            ble: Default::default(),
             sram: vec![0; SRAM_SIZE],
             irom: vec![0; (IROM_MASK_HIGH - IROM_MASK_LOW) as usize],
             drom: vec![0; (DROM_MASK_HIGH - DROM_MASK_LOW) as usize],
@@ -282,6 +284,11 @@ impl SocBus {
         if due { mac.net_polled_us = now_us; }
         for e in out { let r = net.handle(&e, now_us); mac.eth_rx.extend(r); }
         let r = net.poll(now_us); mac.eth_rx.extend(r);
+    }
+
+    pub(crate) fn flash_off(&mut self, addr: u32) -> Option<usize> {
+        if !(IBUS_LOW..IBUS_HIGH).contains(&addr) && !(DBUS_LOW..DBUS_HIGH).contains(&addr) { return None; }
+        self.resolve(addr).map(|(_, off, _)| off)
     }
 
     pub fn load_bytes(&mut self, addr: u32, data: &[u8]) -> Result<(), String> {
