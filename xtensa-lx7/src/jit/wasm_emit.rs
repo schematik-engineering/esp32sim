@@ -485,7 +485,9 @@ impl Gen<'_> {
         self.get(1);
         self.c(instruction as usize as u32);
         self.c(pc);
-        self.helper(0, 1);
+        if self.dynamic { self.get(DONE); self.c(self.pending); self.op(0x6a); }
+        else { self.c(self.pending); }
+        self.helper(0, 3);
         // Preserve the helper result across reload, whose window calculation uses TMP.
         self.set(REL);
         if continue_block {
@@ -1102,8 +1104,8 @@ fn section(out: &mut Vec<u8>, id: u8, bytes: &[u8]) {
 }
 fn module(body: &[u8], wide: bool) -> Vec<u8> {
     let mut out = b"\0asm\x01\0\0\0".to_vec();
-    let mut types = vec![3];
-    for count in [7, 4, 3] {
+    let mut types = vec![4];
+    for count in [7, 4, 3, 5] {
         types.extend([0x60, count]);
         types.extend(vec![0x7f; count as usize]);
         types.extend([1, 0x7f]);

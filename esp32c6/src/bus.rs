@@ -44,6 +44,7 @@ pub struct SocBus {
     pub board: esp_soc::Board,
     pub cycles: u64,
     pub pcm_sources: esp_periph::i2s::PcmSources,
+    execution: emu_core::bus::ExecutionClock,
     pub last_fault: Option<(u32, bool)>,
     /// a peripheral write may have moved an interrupt line: re-derive before the next instruction
     pub irq_dirty: bool,
@@ -75,7 +76,7 @@ impl SocBus {
             flash: vec![0xff; flash_size],
             mmu: [0; MMU_ENTRIES], mmu_index: 0, mmu_power_ctrl: 0,
             periph: Peripherals::new(mac), board: Box::new(esp_soc::NoBoard),
-            pcm_sources: Default::default(), cycles: 0, last_fault: None, irq_dirty: true, gpio_events: None, debug: Default::default(),
+            pcm_sources: Default::default(), cycles: 0, execution: Default::default(), last_fault: None, irq_dirty: true, gpio_events: None, debug: Default::default(),
         }
     }
 
@@ -145,6 +146,9 @@ impl SocBus {
         let v = if size == 4 { v } else { merge(self.periph.read32(a)) };
         let old_drive = (self.periph.gpio.enable, self.periph.gpio.out);
         self.periph.write32(a, v);
+        if (0x6009_0000..0x6009_2000).contains(&a) {
+            self.board.gpio_waveform_at(self.execution.now.max(self.cycles), &self.periph.gpio, &self.periph.io_mux, 128);
+        }
         if let Some(port) = match a { 0x60000000 => Some(0), 0x60001000 => Some(1), _ => None } {
             self.board.uart_tx(self.periph.uart_route(port), v as u8);
         }
@@ -408,7 +412,7 @@ impl SocBus {
     fn deliver_gpio_output(&mut self) {
         let ch = std::mem::take(&mut self.periph.gpio.changes);
         if let Some(ev) = &mut self.gpio_events { for &(pin, level) in &ch { ev.push((self.cycles, pin, level)); } }
-        self.board.gpio_output_at(self.cycles, &ch, self.periph.gpio.enable, self.periph.gpio.out);
+        self.board.gpio_output_at(self.execution.now.max(self.cycles), &ch, self.periph.gpio.enable, self.periph.gpio.out);
     }
 
     /// GPIO edges precede SPI transfers and completed RMT frames.
@@ -539,6 +543,18 @@ impl Bus for SocBus {
             _ => { self.last_fault = Some((addr, true)); Err(Fault::Prohibited) }
         }
     }
+    fn write8_at(&mut self, addr: u32, v: u8, instruction: u64) -> Result<(), Fault> {
+        if Self::is_periph(addr) { self.note_instruction(instruction); self.periph_write(addr, u32::from(v), 1); return Ok(()); }
+        self.write8(addr, v)
+    }
+    fn write16_at(&mut self, addr: u32, v: u16, instruction: u64) -> Result<(), Fault> {
+        if Self::is_periph(addr) { self.note_instruction(instruction); self.periph_write(addr, u32::from(v), 2); return Ok(()); }
+        self.write16(addr, v)
+    }
+    fn write32_at(&mut self, addr: u32, v: u32, instruction: u64) -> Result<(), Fault> {
+        if Self::is_periph(addr) { self.note_instruction(instruction); self.periph_write(addr, v, 4); return Ok(()); }
+        self.write32(addr, v)
+    }
     fn fetch(&mut self, pc: u32) -> Result<[u8; 4], Fault> {
         match self.resolve(pc) {
             Some((b, o, _)) if o < b.len() => {
@@ -555,6 +571,8 @@ impl Bus for SocBus {
         1
     }
     #[inline(always)]
+    fn begin_execution(&mut self, cycle: u64, instruction: u64) { self.execution.begin(cycle, instruction); }
+    fn note_instruction(&mut self, instruction: u64) { self.execution.note(instruction); }
     fn note_pc(&mut self, pc: u32) { self.periph.misc.cur_pc = pc; }
     /// a peripheral write may have moved a line: the core's run stops so the machine re-derives it
     #[inline(always)]

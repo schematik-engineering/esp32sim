@@ -603,6 +603,7 @@ impl<S: Soc> Machine<S> {
                     let mut left = total;
                     let mut stop = None;
                     self.bus.set_defer(true);
+                    self.bus.begin_execution(self.bus.cycles(), self.cores[busy].insn_count());
                     while left > 0 {
                         let (used, s) = self.step_blocks(busy, left);
                         left -= used.min(left);
@@ -674,6 +675,7 @@ impl<S: Soc> Machine<S> {
                     // Only the core that stopped inside the round carries its resume offset.
                     let budget = (quantum - if i == resume_core { resume_at } else { 0 }) as u32;
                     let mut left = budget;
+                    self.bus.begin_execution(self.bus.cycles() + (quantum - u64::from(budget)) * u64::from(cpi), self.cores[i].insn_count());
                     while left > 0 {
                         let (used, stop) = self.step_blocks(i, left);
                         left -= used.min(left);
@@ -695,6 +697,7 @@ impl<S: Soc> Machine<S> {
                     }
                     if i == 0 { self.run_steps += u64::from(budget); }
                 } else {
+                    self.bus.begin_execution(self.bus.cycles(), self.cores[i].insn_count());
                     for used in 1..=quantum {
                         let stop = self.step_core(i);
                         if let Some(stop) = stop {
@@ -809,6 +812,7 @@ impl<S: Soc> Machine<S> {
             for i in 0..S::CORES {
                 if !on[i] { continue; }
                 let mut left = q as u32;
+                self.bus.begin_execution(self.bus.cycles() + done * q, self.cores[i].insn_count());
                 while left > 0 {
                     // lane-s2b: a start the core prepared runs without step_blocks' stub/probe test (the
                     // memo never names a boundary PC and batches run without observers).
@@ -929,6 +933,7 @@ impl<S: Soc> Machine<S> {
                 }
                 let mut budget = left.min(self.quantum).min(deadline) as u32;
                 let (mut used_total, mut yielded, mut stop) = (0u64, false, None);
+                self.bus.begin_execution(now, self.cores[0].insn_count());
                 while budget > 0 {
                     let (used, s) = if blocks { self.step_blocks(0, budget) } else { (1, self.step_core(0)) };
                     used_total += used as u64;

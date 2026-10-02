@@ -1,0 +1,232 @@
+{
+  "binaries": {
+    "base": "a181d436271a808d0af915b1b9eec0169960827674b50e90da81b5798587942d",
+    "candidate": "8c87f8244b4b2c10effbcefc70485beea63648724ac7b2168fc443195ad10d87"
+  },
+  "runs": [
+    {
+      "workload": "panel",
+      "label": "base",
+      "seconds": 1.1795638750772923,
+      "instructions": [
+        165253633,
+        25917517
+      ],
+      "stdout_sha256": "6aae2fec8b3c25b35c3b57eabd92937795cc368de87c25ee13b24eac4afe95af"
+    },
+    {
+      "workload": "panel",
+      "label": "candidate",
+      "seconds": 1.223617999930866,
+      "instructions": [
+        165253633,
+        25917517
+      ],
+      "stdout_sha256": "6aae2fec8b3c25b35c3b57eabd92937795cc368de87c25ee13b24eac4afe95af"
+    },
+    {
+      "workload": "panel",
+      "label": "candidate",
+      "seconds": 1.2043928749626502,
+      "instructions": [
+        165253633,
+        25917517
+      ],
+      "stdout_sha256": "6aae2fec8b3c25b35c3b57eabd92937795cc368de87c25ee13b24eac4afe95af"
+    },
+    {
+      "workload": "panel",
+      "label": "base",
+      "seconds": 1.173595792031847,
+      "instructions": [
+        165253633,
+        25917517
+      ],
+      "stdout_sha256": "6aae2fec8b3c25b35c3b57eabd92937795cc368de87c25ee13b24eac4afe95af"
+    },
+    {
+      "workload": "panel",
+      "label": "base",
+      "seconds": 1.1881561250193045,
+      "instructions": [
+        165253633,
+        25917517
+      ],
+      "stdout_sha256": "6aae2fec8b3c25b35c3b57eabd92937795cc368de87c25ee13b24eac4afe95af"
+    },
+    {
+      "workload": "panel",
+      "label": "candidate",
+      "seconds": 1.2037046250188723,
+      "instructions": [
+        165253633,
+        25917517
+      ],
+      "stdout_sha256": "6aae2fec8b3c25b35c3b57eabd92937795cc368de87c25ee13b24eac4afe95af"
+    },
+    {
+      "workload": "panel",
+      "label": "candidate",
+      "seconds": 1.225627791020088,
+      "instructions": [
+        165253633,
+        25917517
+      ],
+      "stdout_sha256": "6aae2fec8b3c25b35c3b57eabd92937795cc368de87c25ee13b24eac4afe95af"
+    },
+    {
+      "workload": "panel",
+      "label": "base",
+      "seconds": 1.1934437910094857,
+      "instructions": [
+        165253633,
+        25917517
+      ],
+      "stdout_sha256": "6aae2fec8b3c25b35c3b57eabd92937795cc368de87c25ee13b24eac4afe95af"
+    },
+    {
+      "workload": "c3-hello",
+      "label": "base",
+      "seconds": 3.856602792046033,
+      "instructions": [
+        4800000000
+      ],
+      "stdout_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd"
+    },
+    {
+      "workload": "c3-hello",
+      "label": "candidate",
+      "seconds": 4.473606250016019,
+      "instructions": [
+        4800000000
+      ],
+      "stdout_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd"
+    },
+    {
+      "workload": "c3-hello",
+      "label": "candidate",
+      "seconds": 4.925312708015554,
+      "instructions": [
+        4800000000
+      ],
+      "stdout_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd"
+    },
+    {
+      "workload": "c3-hello",
+      "label": "base",
+      "seconds": 4.735107958083972,
+      "instructions": [
+        4800000000
+      ],
+      "stdout_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd"
+    },
+    {
+      "workload": "c3-hello",
+      "label": "base",
+      "seconds": 4.80287145904731,
+      "instructions": [
+        4800000000
+      ],
+      "stdout_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd"
+    },
+    {
+      "workload": "c3-hello",
+      "label": "candidate",
+      "seconds": 4.96702366694808,
+      "instructions": [
+        4800000000
+      ],
+      "stdout_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd"
+    },
+    {
+      "workload": "c3-hello",
+      "label": "candidate",
+      "seconds": 4.737740125041455,
+      "instructions": [
+        4800000000
+      ],
+      "stdout_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd"
+    },
+    {
+      "workload": "c3-hello",
+      "label": "base",
+      "seconds": 4.260306332958862,
+      "instructions": [
+        4800000000
+      ],
+      "stdout_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd"
+    },
+    {
+      "workload": "c6-hello",
+      "label": "base",
+      "seconds": 4.444110166979954,
+      "instructions": [
+        4800000000
+      ],
+      "stdout_sha256": "bd69fbb9ac5c677337a293c1ec0ff7941306eec82c499290917a7c42360f86ad"
+    },
+    {
+      "workload": "c6-hello",
+      "label": "candidate",
+      "seconds": 3.9015556670492515,
+      "instructions": [
+        4800000000
+      ],
+      "stdout_sha256": "bd69fbb9ac5c677337a293c1ec0ff7941306eec82c499290917a7c42360f86ad"
+    },
+    {
+      "workload": "c6-hello",
+      "label": "candidate",
+      "seconds": 3.8658862919546664,
+      "instructions": [
+        4800000000
+      ],
+      "stdout_sha256": "bd69fbb9ac5c677337a293c1ec0ff7941306eec82c499290917a7c42360f86ad"
+    },
+    {
+      "workload": "c6-hello",
+      "label": "base",
+      "seconds": 3.898592874989845,
+      "instructions": [
+        4800000000
+      ],
+      "stdout_sha256": "bd69fbb9ac5c677337a293c1ec0ff7941306eec82c499290917a7c42360f86ad"
+    },
+    {
+      "workload": "c6-hello",
+      "label": "base",
+      "seconds": 4.2734000839991495,
+      "instructions": [
+        4800000000
+      ],
+      "stdout_sha256": "bd69fbb9ac5c677337a293c1ec0ff7941306eec82c499290917a7c42360f86ad"
+    },
+    {
+      "workload": "c6-hello",
+      "label": "candidate",
+      "seconds": 3.8928498750319704,
+      "instructions": [
+        4800000000
+      ],
+      "stdout_sha256": "bd69fbb9ac5c677337a293c1ec0ff7941306eec82c499290917a7c42360f86ad"
+    },
+    {
+      "workload": "c6-hello",
+      "label": "candidate",
+      "seconds": 3.9770796250086278,
+      "instructions": [
+        4800000000
+      ],
+      "stdout_sha256": "bd69fbb9ac5c677337a293c1ec0ff7941306eec82c499290917a7c42360f86ad"
+    },
+    {
+      "workload": "c6-hello",
+      "label": "base",
+      "seconds": 3.8953634159406647,
+      "instructions": [
+        4800000000
+      ],
+      "stdout_sha256": "bd69fbb9ac5c677337a293c1ec0ff7941306eec82c499290917a7c42360f86ad"
+    }
+  ]
+}
