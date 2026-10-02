@@ -105,7 +105,9 @@ pub trait BoardModel {
     fn next_deadline(&self) -> Option<VirtualCycle> { None }
     /// Advance monotonically through every board transition due by `cycle`.
     fn advance_to(&mut self, _cycle: VirtualCycle) {}
-    /// Timestamped GPIO input edges emitted by the last advance.
+    /// Timestamped GPIO input edges due by the last advance, including synchronous output
+    /// responses. GPIO input reads drain these even when no cycles have elapsed.
+    /// Keep future edges in the board until `advance_to` reaches their cycle.
     fn take_edges(&mut self) -> Vec<BoardEdge> { Vec::new() }
     /// A pin by the name scripts and the UI use (`btn1`, `sw`, ...).
     fn named_pin(&self, _name: &str) -> Option<u8> { None }
