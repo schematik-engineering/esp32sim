@@ -260,9 +260,12 @@ impl SocBus {
         self.dma_i2s_one(cycles, 0);
         self.dma_i2s_one(cycles, 1);
         for port in 0..2 {
-            let Some(ch) = self.periph.gdma.in_channel_for(3 + port) else { continue };
+            let channel_id = self.periph.gdma.in_channel_for(3 + port);
             let i2s = if port == 0 { &mut self.periph.i2s0 } else { &mut self.periph.i2s1 };
-            let bytes = i2s.rx_data(cycles, port == 0);
+            i2s.rx_source = None;
+            let Some(ch) = channel_id else { continue };
+            let signals = esp_periph::i2s::RxSignals { data: if port == 0 { 25 } else { 30 }, input_select_bit: 7, output_mask: 0x3ff };
+            let bytes = i2s.rx_routed_data(cycles, port == 0, &self.periph.gpio, signals, &mut self.pcm_sources);
             let eof = i2s.read(0x64);
             let mut channel = self.periph.gdma.inp[ch];
             let mut eof_pos = self.periph.gdma.rx_eof_pos[ch];
@@ -271,6 +274,7 @@ impl SocBus {
             self.irq_dirty |= channel.int_raw != self.periph.gdma.inp[ch].int_raw;
             self.periph.gdma.inp[ch] = channel;
         }
+        self.pcm_sources.advance(cycles, crate::periph::CPU_HZ);
     }
 
     /// Move I2S TX data for controller `which` (0 = I2S0 on GDMA trigger 3, 1 = I2S1 on trigger 4).

@@ -237,6 +237,8 @@ impl esp_soc::SocBus for SocBus {
     }
     fn board(&mut self) -> &mut dyn BoardModel { &mut *self.board }
     fn board_ref(&self) -> &dyn BoardModel { &*self.board }
+    fn pcm_sources(&mut self) -> Option<&mut esp_periph::i2s::PcmSources> { self.flush_ticks(); Some(&mut self.pcm_sources) }
+    fn i2s_selected_source(&self, port: usize) -> Option<usize> { match port { 0 => self.periph.i2s0.rx_source, 1 => self.periph.i2s1.rx_source, _ => None } }
     fn i2s_input(&mut self, port: usize) -> Option<&mut esp_periph::i2s::PcmInput> { match port { 0 => Some(&mut self.periph.i2s0.rx_input), 1 => Some(&mut self.periph.i2s1.rx_input), _ => None } }
     fn audio(&self) -> (&[i16], u32) { let a = self.periph.audio(); (&a.pcm, a.sample_rate) }
     fn camera_frames(&self) -> u64 { self.periph.lcd_cam.frames }

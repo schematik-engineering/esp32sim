@@ -185,6 +185,8 @@ impl esp_soc::SocBus for SocBus {
     }
     fn board(&mut self) -> &mut dyn BoardModel { &mut *self.board }
     fn board_ref(&self) -> &dyn BoardModel { &*self.board }
+    fn pcm_sources(&mut self) -> Option<&mut esp_periph::i2s::PcmSources> { Some(&mut self.pcm_sources) }
+    fn i2s_selected_source(&self, port: usize) -> Option<usize> { if port == 0 { self.periph.i2s0.rx_source } else { None } }
     fn i2s_input(&mut self, port: usize) -> Option<&mut esp_periph::i2s::PcmInput> { if port == 0 { Some(&mut self.periph.i2s0.rx_input) } else { None } }
     fn audio(&self) -> (&[i16], u32) { (&[], 44100) }
     fn irq_sources_of(&self, _core: usize, line: u32) -> Vec<usize> { (0..src::COUNT).filter(|&s| self.periph.intmtx.map[s] == line).collect() }

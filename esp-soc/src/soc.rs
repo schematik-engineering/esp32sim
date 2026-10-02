@@ -153,6 +153,10 @@ pub trait SocBus: Bus {
     fn board_ref(&self) -> &dyn BoardModel;
     /// Host PCM source for an I2S controller, or None when the controller is absent.
     fn i2s_input(&mut self, _port: usize) -> Option<&mut esp_periph::i2s::PcmInput> { None }
+    /// Up to 16 pin-wired, independently clocked host PCM sources, when supported.
+    fn pcm_sources(&mut self) -> Option<&mut esp_periph::i2s::PcmSources> { None }
+    /// Source selected on the last active RX DMA tick; None for unwired/stopped or legacy RX.
+    fn i2s_selected_source(&self, _port: usize) -> Option<usize> { None }
     /// Captured audio so far (left channel) and its sample rate.
     fn audio(&self) -> (&[i16], u32);
     fn camera_frames(&self) -> u64 { 0 }

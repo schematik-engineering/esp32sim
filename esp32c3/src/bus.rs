@@ -44,6 +44,7 @@ pub struct SocBus {
     /// a bare module: nothing on the pins
     pub board: esp_soc::Board,
     pub cycles: u64,
+    pub pcm_sources: esp_periph::i2s::PcmSources,
     pub last_fault: Option<(u32, bool)>,
     /// a peripheral write may have moved an interrupt line: re-derive before the next instruction
     pub irq_dirty: bool,
@@ -63,7 +64,7 @@ impl SocBus {
             flash: vec![0xff; flash_size],
             mmu: [MMU_INVALID; MMU_ENTRIES],
             periph: Peripherals::new(mac), board: Box::new(esp_soc::NoBoard),
-            cycles: 0, last_fault: None, irq_dirty: true, gpio_events: None, debug: Default::default(),
+            pcm_sources: Default::default(), cycles: 0, last_fault: None, irq_dirty: true, gpio_events: None, debug: Default::default(),
         }
     }
 
@@ -367,8 +368,10 @@ impl SocBus {
         }
         self.deliver_board_inputs();
         self.periph.gpio.input_changes.clear();
+        self.periph.i2s0.rx_source = None;
         if let Some(ch) = self.periph.gdma.in_channel_for(3) {
-            let bytes = self.periph.i2s0.rx_data(cycles as u64, false);
+            let signals = esp_periph::i2s::RxSignals { data: 15, input_select_bit: 6, output_mask: 0x1ff };
+            let bytes = self.periph.i2s0.rx_routed_data(cycles as u64, false, &self.periph.gpio, signals, &mut self.pcm_sources);
             let eof = self.periph.i2s0.read(0x64);
             let mut channel = self.periph.gdma.inp[ch];
             let mut eof_pos = self.periph.gdma.rx_eof_pos[ch];
@@ -377,6 +380,7 @@ impl SocBus {
             self.irq_dirty |= channel.int_raw != self.periph.gdma.inp[ch].int_raw;
             self.periph.gdma.inp[ch] = channel;
         }
+        self.pcm_sources.advance(cycles as u64, crate::periph::CPU_HZ);
     }
 }
 
