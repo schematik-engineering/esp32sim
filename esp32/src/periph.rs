@@ -355,7 +355,7 @@ impl ClassicGpio {
         let cfg = *self.gpio.func_in_sel.get(signal)?;
         if cfg & 0xc0 == 0x80 {
             let pin = (cfg & 63) as usize;
-            return (pin < 40 && self.matrix_pad(pin) && self.input_enabled(pin)).then_some(pin as u8);
+            return (pin < 40 && self.input_enabled(pin)).then_some(pin as u8);
         }
         Self::direct_pin(signal).filter(|&pin| (self.mux(pin) >> 12) & 7 == 1 && self.input_enabled(pin)).map(|p| p as u8)
     }

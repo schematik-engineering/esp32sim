@@ -108,3 +108,33 @@ fn physical_spi_excludes_released_and_high_selects() {
         assert_eq!(p.cs & (1 << 4) != 0, !high);
     }
 }
+
+#[test]
+fn uart_matrix_receive_does_not_require_gpio_output_mux() {
+    struct Gps;
+    impl BoardModel for Gps {
+        fn name(&self) -> &'static str { "gps" }
+        fn uart_rx(&mut self) -> Vec<esp_soc::uart::UartInput> {
+            vec![esp_soc::uart::UartInput { pin: 4, baud: 9600, data: b"$G".to_vec() }]
+        }
+    }
+    let mut b = bus();
+    b.board = Box::new(Gps);
+    // Arduino HardwareSerial(1), RX GPIO4: input enabled, output mux untouched.
+    b.write32(0x3ff4_9048, 1 << 9).unwrap();
+    b.write32(0x3ff4_4174, 0x80 | 4).unwrap();
+    b.write32(0x3ff5_0014, 0x200068).unwrap();
+    b.write32(0x3ff5_0020, 0x1c).unwrap();
+    b.write32(0x3ff5_0024, 0xd0000001).unwrap();
+    b.write32(0x3ff5_000c, 0x195).unwrap();
+    b.write32(0x3ff0_0190, 6).unwrap();
+    b.tick(1);
+    assert_eq!(b.periph.uart_route(1).rx_pin, Some(4));
+    assert_ne!(b.periph.cpu_lines(0) & (1 << 6), 0);
+    assert_ne!(b.read32(0x3ff5_0008).unwrap() & (1 << 8), 0);
+    assert_eq!((b.read32(0x3ff5_0060).unwrap() >> 13) & 0x7ff, 2);
+    assert_eq!(b.read32(0x3ff5_0000), Ok(b'$' as u32));
+    assert_eq!(b.read32(0x3ff5_0000), Ok(b'G' as u32));
+    b.write32(0x3ff5_0010, 0x195).unwrap();
+    assert_eq!(b.periph.cpu_lines(0) & (1 << 6), 0);
+}

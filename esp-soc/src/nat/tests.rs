@@ -274,3 +274,15 @@ fn udp_ignores_other_senders_and_preserves_dns_reply_address() {
     assert_eq!(&frames[0][26..30], &[10, 0, 2, 3]);
     assert_eq!(&frames[0][42..], b"answer");
 }
+
+    #[test]
+    fn restricted_nat_rejects_rebinding_targets_before_opening_sockets() {
+        let mut nat = Nat::restricted();
+        for dest in [[127,0,0,1], [10,0,0,1], [169,254,169,254], [192,168,1,1]] {
+            let mut syn = vec![0;20]; syn[..2].copy_from_slice(&1234u16.to_be_bytes()); syn[2..4].copy_from_slice(&80u16.to_be_bytes()); syn[12]=0x50; syn[13]=2;
+            nat.tcp_in(&[2;6], &[10,0,2,15], &dest, &syn, 0);
+            nat.udp_out(&[2;6], &[10,0,2,15], 1234, &dest, &dest, 53, b"dns", 0);
+        }
+        assert!(nat.tcp.is_empty()); assert!(nat.udp.is_empty());
+        assert_eq!(nat.tcp_refused,4);
+    }
