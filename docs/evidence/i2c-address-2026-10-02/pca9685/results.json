@@ -1,0 +1,272 @@
+{
+  "experiment": "EX211",
+  "extension": "PCA9685 programmable address aliases and all-call",
+  "base_revision": "f3a2ec3965806d39ec2ddc5fc44aae667848c1cd",
+  "implementation_revision": "bf5d672f7b0daf48a9a349a741120ab687f4ff78",
+  "reference_revision": "221080ffccfa829106b398f896653535853c76c8",
+  "environment": {
+    "os": "macOS 26.6.2",
+    "architecture": "arm64",
+    "rust": "1.99.0",
+    "node": "22.23.1",
+    "arduino": "3.3.8",
+    "idf_libraries": "5.5.4+sha.735507283d",
+    "platform": "55.3.38+sha.fbdfc29",
+    "adafruit_pwm_servo_driver": "3.0.3 at a98850b815bf9696c8ffdc2a0f89d657c52dd44b",
+    "adafruit_busio": "1.17.4",
+    "driver_sources_clean_and_identical_across_chips": true,
+    "conditions": "One bounded functional run per chip after the explicit BusIO pin. No performance or hardware timing claim; uncontrolled host load."
+  },
+  "regression": {
+    "test": "shared_programmable_aliases_and_all_call",
+    "command": "cargo +1.99.0 test --release -p esp32sim --test i2c_address shared_programmable_aliases_and_all_call",
+    "before": {
+      "revision": "f3a2ec3965806d39ec2ddc5fc44aae667848c1cd with new test",
+      "result": "failed",
+      "second_recipient_register": 0,
+      "expected": 85
+    },
+    "after": "passed"
+  },
+  "checks": {
+    "native_clippy": "pass",
+    "wasm_clippy_with_jit_tests": "pass",
+    "workspace_release": {
+      "passed": 614,
+      "failed": 0,
+      "ignored": 0,
+      "external_filtered": 27
+    },
+    "i2c_focused_and_external": {
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0
+    },
+    "wasm_build": "pass",
+    "wasm_demo_tests": "pass",
+    "evidence_privacy_and_manual_review": "pass"
+  },
+  "firmware": {
+    "s3": {
+      "cycles": 18000063,
+      "instructions": 5012461,
+      "reboots": 0,
+      "reset_counts": [
+        1,
+        1
+      ],
+      "mode1_after_reset": [
+        17,
+        17
+      ],
+      "wrong_pin_address_phases": 0,
+      "serial": [
+        "PCA begin 1 1 1",
+        "PCA main 300 450 and 256",
+        "PCA group 600 600",
+        "PCA disabled 600 700",
+        "PCA reset 0",
+        "PCA DONE"
+      ]
+    },
+    "c3": {
+      "cycles": 12000058,
+      "instructions": 12000058,
+      "reboots": 0,
+      "reset_counts": [
+        1,
+        1
+      ],
+      "mode1_after_reset": [
+        17,
+        17
+      ],
+      "wrong_pin_address_phases": 0,
+      "serial": [
+        "PCA begin 1 1 1",
+        "PCA main 300 450 and 256",
+        "PCA group 600 600",
+        "PCA disabled 600 700",
+        "PCA reset 0",
+        "PCA DONE"
+      ]
+    },
+    "c6": {
+      "cycles": 13000000,
+      "instructions": 13000000,
+      "reboots": 0,
+      "reset_counts": [
+        1,
+        1
+      ],
+      "mode1_after_reset": [
+        17,
+        17
+      ],
+      "wrong_pin_address_phases": 0,
+      "serial": [
+        "PCA begin 1 1 1",
+        "PCA main 300 450 and 256",
+        "PCA group 600 600",
+        "PCA disabled 600 700",
+        "PCA reset 0",
+        "PCA DONE"
+      ]
+    }
+  },
+  "first_successful_transitive_busio_build": {
+    "busio": "1.17.4",
+    "all_protocol_checks": "passed",
+    "s3_cycles": 18000063,
+    "s3_instructions": 5012592,
+    "c3_cycles_and_instructions": 12000058,
+    "c6_cycles_and_instructions": 13000000,
+    "limitation": "Initial firmware hashes were not captured before rebuilding with the explicit dependency pin; use final artifacts for reproduction."
+  },
+  "wasm_output": [
+    "ok   wasm JIT handoff: shared-memory block committed at a scheduler boundary",
+    "ok   hello: board none, 4.3 M insns in 0.4 s wall (10.1 Minsn/s), 129 console lines, 0 binary frames",
+    "ok   c3-hello: board none, 480.0 M insns in 1.3 s wall (376.5 Minsn/s), 125 console lines, 0 binary frames",
+    "ok   c6-hello: board none, 480.0 M insns in 1.4 s wall (353.7 Minsn/s), 121 console lines, 0 binary frames",
+    "ok   c6-energy-scan: board waveshare-c6-lcd147, 480.0 M insns in 4.9 s wall (97.6 Minsn/s), 149 console lines, 141 binary frames",
+    "ok   c6-contiki: board waveshare-c6-lcd147, 1920.0 M insns in 5.4 s wall (358.1 Minsn/s), 181 console lines, 17 binary frames",
+    "ok   c6-contiki-net: 2 nodes, n0 tx 5/rx 5, n1 tx 5/rx 5, 30 s simulated in 5.8 s wall (5x real time)",
+    "ok   c6-rpl-net: 2 nodes, n0 tx 27/rx 27, n1 tx 27/rx 27, 90 s simulated in 15.9 s wall (6x real time)",
+    "ok   panel: board waveshare-lcd4b, 142.5 M insns in 22.7 s wall (6.3 Minsn/s), 193 console lines, 254 binary frames"
+  ],
+  "artifacts": {
+    "esp-periph/src/i2c.rs": {
+      "bytes": 10593,
+      "sha256": "8d34aae144b3e60cd6700b146af32e9baa849a2f43585f6c8a738d489db03046"
+    },
+    "cli/tests/i2c_address.rs": {
+      "bytes": 18657,
+      "sha256": "54654de53956cfa6eafa1507b3d37b092b6089725c6897b32e07b35307cca4c0"
+    },
+    "Cargo.lock": {
+      "bytes": 1448,
+      "sha256": "8f78a401ad76d2745d18c08f1d0d451a6d4cd9cfbefbcfa6c933ce2e3eeb25af"
+    },
+    "tools/wasm-build.sh": {
+      "bytes": 1177,
+      "sha256": "a384ccbad27088ef72e2267b6fb0d9b99754119f188c379aea5a446ea7560036"
+    },
+    "tools/wasm-rustflags.sh": {
+      "bytes": 1045,
+      "sha256": "4efde895b6681de70c855e65afc23c0727eecf845e342c8ae2a0492f7264826c"
+    },
+    "tools/wasm-test.mjs": {
+      "bytes": 13633,
+      "sha256": "2fb4419e8f686369337fa774ed360bb11d29e97228a1e06ecb144aec46de01ca"
+    },
+    "web/wasm/esp32sim.wasm": {
+      "bytes": 3196480,
+      "sha256": "f659397a68f24b177514c0d9b0bf104e3b01dffc343d0ef9a86e6c46e4319eda"
+    },
+    "docs/evidence/i2c-address-2026-10-02/pca9685/platformio.ini": {
+      "bytes": 406,
+      "sha256": "656da81dbf76f77a5856ce802e18c5c108a105710455d03ba188486a3655c433"
+    },
+    "docs/evidence/i2c-address-2026-10-02/pca9685/src/main.cpp": {
+      "bytes": 1287,
+      "sha256": "a8f55268c0214f0973b1e649d6d9d7b2f296a35ce0313036dc19c91c3c2c390d"
+    },
+    "docs/evidence/i2c-address-2026-10-02/pca9685/.pio/build/s3/bootloader.bin": {
+      "bytes": 19984,
+      "sha256": "6f232c4aafe7d21239a1c59404723ca2cfdca063ef73501a21126a8cef39f432"
+    },
+    "docs/evidence/i2c-address-2026-10-02/pca9685/.pio/build/s3/partitions.bin": {
+      "bytes": 3072,
+      "sha256": "1d9cca96de0fe07ad7fc0648b9878ddecd9ce565e38b589ad20fea698ed4c80c"
+    },
+    "docs/evidence/i2c-address-2026-10-02/pca9685/.pio/build/s3/firmware.bin": {
+      "bytes": 337024,
+      "sha256": "7c3119c290c0fa50c49bb8037ccebe9c49ec4f6c6e1ac06c90ca0fbee24dd891"
+    },
+    "docs/evidence/i2c-address-2026-10-02/pca9685/.pio/libdeps/s3/Adafruit PWM Servo Driver Library/Adafruit_PWMServoDriver.cpp": {
+      "bytes": 10965,
+      "sha256": "09dd03aceade839d940887b2b02058a8e147ed9afe77d3c6901364afeda91058"
+    },
+    "docs/evidence/i2c-address-2026-10-02/pca9685/.pio/libdeps/s3/Adafruit PWM Servo Driver Library/Adafruit_PWMServoDriver.h": {
+      "bytes": 4229,
+      "sha256": "f50344e8b3791c8455c2ccba70dd9e8d359b1ac31cd5bbf3ff5a3dc836a8cb4b"
+    },
+    "docs/evidence/i2c-address-2026-10-02/pca9685/.pio/libdeps/s3/Adafruit BusIO/Adafruit_I2CDevice.cpp": {
+      "bytes": 9404,
+      "sha256": "317c342821f1df676a0e034f65685b4d6bf240d2ab8dcea91d18f1e063326d37"
+    },
+    "docs/evidence/i2c-address-2026-10-02/pca9685/.pio/libdeps/s3/Adafruit BusIO/Adafruit_I2CDevice.h": {
+      "bytes": 1139,
+      "sha256": "88b843d7a44e3f974950d883649e5682f21d9f8ce135daff3a42d015f7cd27e7"
+    },
+    "docs/evidence/i2c-address-2026-10-02/pca9685/.pio/build/c3/bootloader.bin": {
+      "bytes": 19520,
+      "sha256": "da409642ea1619c16b4ef485219a91c3c2ae873ce3bae37330c24100bd747439"
+    },
+    "docs/evidence/i2c-address-2026-10-02/pca9685/.pio/build/c3/partitions.bin": {
+      "bytes": 3072,
+      "sha256": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1"
+    },
+    "docs/evidence/i2c-address-2026-10-02/pca9685/.pio/build/c3/firmware.bin": {
+      "bytes": 329248,
+      "sha256": "73e493c804831fbb3b3e77a01c36a76f9c2f06944e84e6d311303b7cf16adf13"
+    },
+    "docs/evidence/i2c-address-2026-10-02/pca9685/.pio/libdeps/c3/Adafruit PWM Servo Driver Library/Adafruit_PWMServoDriver.cpp": {
+      "bytes": 10965,
+      "sha256": "09dd03aceade839d940887b2b02058a8e147ed9afe77d3c6901364afeda91058"
+    },
+    "docs/evidence/i2c-address-2026-10-02/pca9685/.pio/libdeps/c3/Adafruit PWM Servo Driver Library/Adafruit_PWMServoDriver.h": {
+      "bytes": 4229,
+      "sha256": "f50344e8b3791c8455c2ccba70dd9e8d359b1ac31cd5bbf3ff5a3dc836a8cb4b"
+    },
+    "docs/evidence/i2c-address-2026-10-02/pca9685/.pio/libdeps/c3/Adafruit BusIO/Adafruit_I2CDevice.cpp": {
+      "bytes": 9404,
+      "sha256": "317c342821f1df676a0e034f65685b4d6bf240d2ab8dcea91d18f1e063326d37"
+    },
+    "docs/evidence/i2c-address-2026-10-02/pca9685/.pio/libdeps/c3/Adafruit BusIO/Adafruit_I2CDevice.h": {
+      "bytes": 1139,
+      "sha256": "88b843d7a44e3f974950d883649e5682f21d9f8ce135daff3a42d015f7cd27e7"
+    },
+    "docs/evidence/i2c-address-2026-10-02/pca9685/.pio/build/c6/bootloader.bin": {
+      "bytes": 20976,
+      "sha256": "022390206caedbc5f780cd955b31e1dd1219091f374e420cd0531b2f5b5b5037"
+    },
+    "docs/evidence/i2c-address-2026-10-02/pca9685/.pio/build/c6/partitions.bin": {
+      "bytes": 3072,
+      "sha256": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1"
+    },
+    "docs/evidence/i2c-address-2026-10-02/pca9685/.pio/build/c6/firmware.bin": {
+      "bytes": 307504,
+      "sha256": "84e5dbab22d4e9280cf7616d05b5ed7dd08cdc8195a5d56f4af307b7a2f78b78"
+    },
+    "docs/evidence/i2c-address-2026-10-02/pca9685/.pio/libdeps/c6/Adafruit PWM Servo Driver Library/Adafruit_PWMServoDriver.cpp": {
+      "bytes": 10965,
+      "sha256": "09dd03aceade839d940887b2b02058a8e147ed9afe77d3c6901364afeda91058"
+    },
+    "docs/evidence/i2c-address-2026-10-02/pca9685/.pio/libdeps/c6/Adafruit PWM Servo Driver Library/Adafruit_PWMServoDriver.h": {
+      "bytes": 4229,
+      "sha256": "f50344e8b3791c8455c2ccba70dd9e8d359b1ac31cd5bbf3ff5a3dc836a8cb4b"
+    },
+    "docs/evidence/i2c-address-2026-10-02/pca9685/.pio/libdeps/c6/Adafruit BusIO/Adafruit_I2CDevice.cpp": {
+      "bytes": 9404,
+      "sha256": "317c342821f1df676a0e034f65685b4d6bf240d2ab8dcea91d18f1e063326d37"
+    },
+    "docs/evidence/i2c-address-2026-10-02/pca9685/.pio/libdeps/c6/Adafruit BusIO/Adafruit_I2CDevice.h": {
+      "bytes": 1139,
+      "sha256": "88b843d7a44e3f974950d883649e5682f21d9f8ce135daff3a42d015f7cd27e7"
+    },
+    "web/wasm/fw/esp32s3_rev0_rom.elf": {
+      "bytes": 949552,
+      "sha256": "c0ce0f338d1de1bdc6efbef1591779a2a42c1ab7d759d3c6ae8ae63a7dd34cfd"
+    },
+    "web/wasm/fw/esp32c3_rev3_rom.elf": {
+      "bytes": 556332,
+      "sha256": "19ac22e08707df926fb0cf4c54795d4067b983fae8635f396ded173a6d78fc3c"
+    },
+    "web/wasm/fw/esp32c6_rev0_rom.elf": {
+      "bytes": 489768,
+      "sha256": "788e1d38724aeb8fd974fa10c4a7b089c02627d35342ce84b9e0b12b239f3551"
+    }
+  },
+  "privacy": "Only relevant source/input hashes, configuration and functional outputs retained. Personal paths and unrelated host details excluded. No private add-on sources or binary captures committed."
+}

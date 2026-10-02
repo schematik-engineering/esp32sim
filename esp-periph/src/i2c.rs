@@ -7,6 +7,12 @@ use crate::regram::RegRam;
 use std::collections::VecDeque;
 
 pub trait I2cDevice {
+    /// Current 7-bit address, sampled after each data write. Defaults to the attached address.
+    fn address(&self, configured: u8) -> u8 { configured }
+    /// Match the main address, enabled aliases, or write-only general calls at address zero.
+    fn matches_address(&self, configured: u8, address: u8, _read: bool) -> bool { self.address(configured) == address }
+    /// Start at the actual bus address. Return false to reject this transaction.
+    fn start_address(&mut self, _address: u8, read: bool) -> bool { self.start(read) }
     /// Optional physical (SDA, SCL) attachment. None keeps controller-only addressing.
     fn pins(&self) -> Option<(u8, u8)> { None }
     /// Address phase: the master addressed this device for a read (`read`) or a write. Return ACK.
@@ -32,7 +38,7 @@ pub struct I2c {
     cmd: [u32; 16],
     classic: bool,
     devices: Vec<(u8, Box<dyn I2cDevice>)>,
-    cur: Option<usize>,
+    cur: Vec<usize>,
     pins: Option<(u8, u8)>,
     expect_addr: bool,
     nack: bool,
@@ -42,7 +48,7 @@ pub struct I2c {
 
 impl I2c {
     pub fn new() -> Self {
-        I2c { regs: RegRam::new(), tx: VecDeque::new(), rx: VecDeque::new(), int_raw: 0, int_ena: 0, cmd: [0; 16], classic: false, devices: Vec::new(), cur: None, pins: None, expect_addr: false, nack: false,
+        I2c { regs: RegRam::new(), tx: VecDeque::new(), rx: VecDeque::new(), int_raw: 0, int_ena: 0, cmd: [0; 16], classic: false, devices: Vec::new(), cur: Vec::new(), pins: None, expect_addr: false, nack: false,
               log: false, transactions: 0 }
     }
     /// Classic ESP32 has the same controller registers but 16 command slots and older opcodes.
@@ -58,19 +64,19 @@ impl I2c {
     pub fn has_pinned_devices(&self) -> bool { self.devices.iter().any(|(_, d)| d.pins().is_some()) }
     /// Current controller route, supplied by the SoC before starting a command list.
     pub fn set_pins(&mut self, pins: Option<(u8, u8)>) {
-        if self.pins != pins { self.cur = None; }
+        if self.pins != pins { self.cur.clear(); }
         self.pins = pins;
     }
     /// Remove a device, returning it so the host can move it to another bus or address.
     /// Forget a selected device: further writes NACK and reads return 0xff until a new address.
     pub fn detach(&mut self, addr: u8) -> Option<Box<dyn I2cDevice>> {
         let index = self.devices.iter().position(|(attached, _)| *attached == addr)?;
-        self.cur = self.cur.and_then(|cur| if cur == index { None } else { Some(cur - usize::from(cur > index)) });
+        self.cur.retain_mut(|cur| { if *cur == index { return false; } *cur -= usize::from(*cur > index); true });
         Some(self.devices.remove(index).1)
     }
     /// Remove every device without resetting registers, FIFOs or interrupt status.
     pub fn clear_devices(&mut self) {
-        self.cur = None;
+        self.cur.clear();
         self.devices.clear();
     }
     pub fn has_device(&self, addr: u8) -> bool { self.devices.iter().any(|(attached, _)| *attached == addr) }
@@ -124,30 +130,42 @@ impl I2c {
                         let ack = if self.expect_addr {
                             self.expect_addr = false;
                             let addr = b >> 1; let rd = b & 1 != 0;
-                            self.cur = self.devices.iter().position(|(a, d)| *a == addr && (d.pins().is_none() || d.pins() == self.pins));
-                            if self.log { eprintln!("[i2c] start addr {:#04x} {}{}", addr, if rd { "R" } else { "W" }, if self.cur.is_none() { " (no device)" } else { "" }); }
-                            match self.cur { Some(k) => self.devices[k].1.start(rd), None => false }
+                            self.cur.clear();
+                            for (k, (configured, device)) in self.devices.iter_mut().enumerate() {
+                                if device.matches_address(*configured, addr, rd) && (device.pins().is_none() || device.pins() == self.pins) && device.start_address(addr, rd) {
+                                    self.cur.push(k);
+                                }
+                            }
+                            if self.log { eprintln!("[i2c] start addr {:#04x} {}{}", addr, if rd { "R" } else { "W" }, if self.cur.is_empty() { " (no device)" } else { "" }); }
+                            !self.cur.is_empty()
                         } else {
                             if self.log { eprintln!("[i2c]   write {:#04x}", b); }
-                            match self.cur { Some(k) => self.devices[k].1.write(b), None => false }
+                            let mut ack = false;
+                            for &k in &self.cur {
+                                let (addr, device) = &mut self.devices[k];
+                                ack |= device.write(b);
+                                *addr = device.address(*addr);
+                            }
+                            ack
                         };
                         if !ack && ack_check {
                             self.nack = true; self.int_raw |= INT_NACK; self.cmd[i] |= 1 << 31;
-                            self.cur = None;
+                            self.cur.clear();
                             return;
                         }
                     }
                 }
                 3 => {                                                                   // READ n bytes
                     for _ in 0..n {
-                        let b = match self.cur { Some(k) => self.devices[k].1.read(), None => 0xff };
+                        let mut b = 0xff;
+                        for &k in &self.cur { b &= self.devices[k].1.read(); }
                         if self.log { eprintln!("[i2c]   read  {:#04x}", b); }
                         if self.rx.len() < 32 { self.rx.push_back(b); }
                     }
                 }
                 2 => {                                                                   // STOP
-                    if let Some(k) = self.cur { self.devices[k].1.stop(); }
-                    self.cur = None; self.cmd[i] |= 1 << 31; self.int_raw |= INT_TRANS_COMPLETE;
+                    for &k in &self.cur { self.devices[k].1.stop(); }
+                    self.cur.clear(); self.cmd[i] |= 1 << 31; self.int_raw |= INT_TRANS_COMPLETE;
                     return;
                 }
                 4 => { self.cmd[i] |= 1 << 31; self.int_raw |= INT_END_DETECT; return; } // END: driver continues later

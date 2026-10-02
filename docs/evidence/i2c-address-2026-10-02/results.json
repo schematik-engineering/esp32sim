@@ -1,0 +1,192 @@
+{
+  "experiment": "EX211",
+  "base_revision": "8cc5d233611d32586bfbb4c4885f6570aa8a64ba",
+  "implementation_revision": "996fdddab6ac2dd4334c53916de3cb409d419e90",
+  "reference_revision": "221080ffccfa829106b398f896653535853c76c8",
+  "environment": {
+    "os": "macOS 26.6.2",
+    "architecture": "arm64",
+    "rust": "1.99.0",
+    "clippy": "0.1.99 (b940084d7e 2026-09-28)",
+    "node": "22.23.1",
+    "arduino": "3.3.8",
+    "idf_libraries": "5.5.4+sha.735507283d",
+    "platform": "55.3.38+sha.fbdfc29",
+    "firmware_toolchain": "14.2.0+20260121",
+    "timing_conditions": "One functional run per chip; uncontrolled host load; no speed or hardware-timing claim."
+  },
+  "checks": {
+    "focused_and_external": {
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0
+    },
+    "workspace_release": {
+      "passed": 613,
+      "failed": 0,
+      "ignored": 0,
+      "external_filtered": 24,
+      "command": "ESP32SIM_ROM_DIR=\"$PWD/web/wasm/fw\" cargo +1.99.0 test --release --workspace -- --include-ignored --skip external_"
+    },
+    "native_clippy": "pass",
+    "wasm_jit_tests_clippy": "pass",
+    "demo_assets_no_linux": "pass",
+    "wasm_build": "pass",
+    "wasm_tests": "pass",
+    "evidence_privacy": "pass"
+  },
+  "arduino": {
+    "s3": {
+      "cycles": 4000000,
+      "instructions": 4352323,
+      "reboots": 0,
+      "general_call_reset_counts": [
+        1,
+        1
+      ],
+      "serial": [
+        "I2C before 234",
+        "I2C change 0",
+        "I2C old 2",
+        "I2C after 234",
+        "I2C reset 0",
+        "I2C DONE"
+      ]
+    },
+    "c3": {
+      "cycles": 4000000,
+      "instructions": 4000000,
+      "reboots": 0,
+      "general_call_reset_counts": [
+        1,
+        1
+      ],
+      "serial": [
+        "I2C before 234",
+        "I2C change 0",
+        "I2C old 2",
+        "I2C after 234",
+        "I2C reset 0",
+        "I2C DONE"
+      ]
+    },
+    "c6": {
+      "cycles": 4000000,
+      "instructions": 4000000,
+      "reboots": 0,
+      "general_call_reset_counts": [
+        1,
+        1
+      ],
+      "serial": [
+        "I2C before 234",
+        "I2C change 0",
+        "I2C old 2",
+        "I2C after 234",
+        "I2C reset 0",
+        "I2C DONE"
+      ]
+    }
+  },
+  "wasm_check_output": [
+    "ok   wasm JIT handoff: shared-memory block committed at a scheduler boundary",
+    "ok   hello: board none, 4.3 M insns in 0.6 s wall (6.9 Minsn/s), 129 console lines, 0 binary frames",
+    "ok   c3-hello: board none, 480.0 M insns in 1.6 s wall (309.5 Minsn/s), 125 console lines, 0 binary frames",
+    "ok   c6-hello: board none, 480.0 M insns in 1.8 s wall (266.8 Minsn/s), 121 console lines, 0 binary frames",
+    "ok   c6-energy-scan: board waveshare-c6-lcd147, 480.0 M insns in 7.2 s wall (66.7 Minsn/s), 149 console lines, 141 binary frames",
+    "ok   c6-contiki: board waveshare-c6-lcd147, 1920.0 M insns in 8.4 s wall (229.4 Minsn/s), 181 console lines, 17 binary frames",
+    "ok   c6-contiki-net: 2 nodes, n0 tx 5/rx 5, n1 tx 5/rx 5, 30 s simulated in 6.3 s wall (5x real time)",
+    "ok   c6-rpl-net: 2 nodes, n0 tx 27/rx 27, n1 tx 27/rx 27, 90 s simulated in 16.8 s wall (5x real time)",
+    "ok   panel: board waveshare-lcd4b, 142.5 M insns in 8.6 s wall (16.5 Minsn/s), 193 console lines, 254 binary frames"
+  ],
+  "artifacts": {
+    "esp-periph/src/i2c.rs": {
+      "sha256": "8032283a08932771dccd0481de824dc8b8574481f2ce7fcc8ff4452d884908c5",
+      "bytes": 10645
+    },
+    "cli/tests/i2c_address.rs": {
+      "sha256": "5ac5dc0341eeb2de2043fd2d0a39143cdbb2304a3bb4635bab723067134bcebc",
+      "bytes": 10787
+    },
+    "docs/evidence/i2c-address-2026-10-02/platformio.ini": {
+      "sha256": "9d019210b8cf28ebb6269d16eb9c0fae828276fa51d968b1442561066288a09a",
+      "bytes": 253
+    },
+    "docs/evidence/i2c-address-2026-10-02/src/main.cpp": {
+      "sha256": "b3cdfb38fb686d24da5a8c1b3a267d97a0b40bed5d0df9b8154260e50f088b38",
+      "bytes": 859
+    },
+    "tools/wasm-build.sh": {
+      "sha256": "a384ccbad27088ef72e2267b6fb0d9b99754119f188c379aea5a446ea7560036",
+      "bytes": 1177
+    },
+    "tools/wasm-rustflags.sh": {
+      "sha256": "4efde895b6681de70c855e65afc23c0727eecf845e342c8ae2a0492f7264826c",
+      "bytes": 1045
+    },
+    "tools/wasm-test.mjs": {
+      "sha256": "2fb4419e8f686369337fa774ed360bb11d29e97228a1e06ecb144aec46de01ca",
+      "bytes": 13633
+    },
+    "Cargo.lock": {
+      "sha256": "8f78a401ad76d2745d18c08f1d0d451a6d4cd9cfbefbcfa6c933ce2e3eeb25af",
+      "bytes": 1448
+    },
+    "web/wasm/esp32sim.wasm": {
+      "sha256": "357af014b4ca8e010df91e5594ad98b3f535633271878512a0505644ea578b2c",
+      "bytes": 3196470
+    },
+    "docs/evidence/i2c-address-2026-10-02/.pio/build/s3/firmware.bin": {
+      "sha256": "22c2e9c81e6aa1fe359c2b19986feb595f2d41b4645d99908046bc1b5af07167",
+      "bytes": 328960
+    },
+    "docs/evidence/i2c-address-2026-10-02/.pio/build/s3/bootloader.bin": {
+      "sha256": "6f232c4aafe7d21239a1c59404723ca2cfdca063ef73501a21126a8cef39f432",
+      "bytes": 19984
+    },
+    "docs/evidence/i2c-address-2026-10-02/.pio/build/s3/partitions.bin": {
+      "sha256": "1d9cca96de0fe07ad7fc0648b9878ddecd9ce565e38b589ad20fea698ed4c80c",
+      "bytes": 3072
+    },
+    "docs/evidence/i2c-address-2026-10-02/.pio/build/c3/firmware.bin": {
+      "sha256": "00a59f30c383885cea6408ebd69389c31ef071b5d4df0663969dc85269e72e15",
+      "bytes": 321824
+    },
+    "docs/evidence/i2c-address-2026-10-02/.pio/build/c3/bootloader.bin": {
+      "sha256": "da409642ea1619c16b4ef485219a91c3c2ae873ce3bae37330c24100bd747439",
+      "bytes": 19520
+    },
+    "docs/evidence/i2c-address-2026-10-02/.pio/build/c3/partitions.bin": {
+      "sha256": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1",
+      "bytes": 3072
+    },
+    "docs/evidence/i2c-address-2026-10-02/.pio/build/c6/firmware.bin": {
+      "sha256": "08fa7f754ea6d6082e91f04a38c12254d5c12db2a826fb4b23774e31e306cfe2",
+      "bytes": 300048
+    },
+    "docs/evidence/i2c-address-2026-10-02/.pio/build/c6/bootloader.bin": {
+      "sha256": "022390206caedbc5f780cd955b31e1dd1219091f374e420cd0531b2f5b5b5037",
+      "bytes": 20976
+    },
+    "docs/evidence/i2c-address-2026-10-02/.pio/build/c6/partitions.bin": {
+      "sha256": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1",
+      "bytes": 3072
+    },
+    "web/wasm/fw/esp32s3_rev0_rom.elf": {
+      "sha256": "c0ce0f338d1de1bdc6efbef1591779a2a42c1ab7d759d3c6ae8ae63a7dd34cfd",
+      "bytes": 949552
+    },
+    "web/wasm/fw/esp32c3_rev3_rom.elf": {
+      "sha256": "19ac22e08707df926fb0cf4c54795d4067b983fae8635f396ded173a6d78fc3c",
+      "bytes": 556332
+    },
+    "web/wasm/fw/esp32c6_rev0_rom.elf": {
+      "sha256": "788e1d38724aeb8fd974fa10c4a7b089c02627d35342ce84b9e0b12b239f3551",
+      "bytes": 489768
+    }
+  },
+  "privacy": {
+    "curation": "Only source/input identities, test outputs and relevant configuration retained; personal paths and unrelated host details omitted. Binary files are identified by hash, not committed.",
+    "effect": "No effect on measured values or protocol checks."
+  }
+}
