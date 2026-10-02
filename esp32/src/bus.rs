@@ -391,4 +391,16 @@ mod tests {
         b.write32(UART_FIFO_AHB[0], b'X' as u32).unwrap();
         assert_eq!(b.periph.uart[0].tx_out, b"X");
     }
+
+
+    #[test]
+    fn reboot_preserves_rtc_reset_hint_and_publishes_cause() {
+        let mut b = SocBus::new(4 << 20, [0; 6]);
+        let hint = 0x8006_0006;
+        b.periph.rtc.0.ram.write(0xc8, hint);
+        b.periph.rtc.0.reset_cause = 12;
+        assert_eq!(esp_soc::SocBus::reboot(&mut b, [0; 6]), 12);
+        assert_eq!(b.read32(0x3ff4_80b8), Ok(hint));
+        assert_eq!(b.read32(0x3ff4_8034), Ok(12 | (12 << 6)));
+    }
 }

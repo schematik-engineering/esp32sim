@@ -15,6 +15,7 @@ pub fn machine(mac: [u8; 6], flash_size: usize) -> Machine {
 
 fn core(i: usize) -> Cpu {
     let mut c = Cpu::new(if i == 0 { 0xcdcd } else { 0xabab });
+    c.lx6 = true;
     c.configid = [0xC2BC_FFFE, 0x1CC5_FE96];
     c
 }
@@ -115,6 +116,10 @@ impl esp_soc::SocBus for SocBus {
         self.periph.efuse = old.efuse;
         self.periph.misc.log_unknown = old.misc.log_unknown;
         self.periph.gpio.gpio.strap = old.gpio.gpio.strap;
+        self.periph.rtc.0.ram = old.rtc.0.ram;
+        self.periph.rtc.0.slow_ticks = old.rtc.0.slow_ticks;
+        self.periph.rtc.0.ram.write(0x38, cause | cause << 6);
+        self.periph.rtc.0.ram.write(0x98, 0);
         self.periph.rtc.0.reset_cause = cause;
         cause
     }
