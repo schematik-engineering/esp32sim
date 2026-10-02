@@ -105,6 +105,9 @@ impl SocBus {
             _ => { let old = self.periph.read32(a); let sh = (addr & 2) * 8; (old & !(0xffff << sh)) | ((v & 0xffff) << sh) }
         };
         self.periph.write32(a, v);
+        if let Some(port) = match a { 0x60000000 => Some(0), 0x60010000 => Some(1), _ => None } {
+            self.board.uart_tx(self.periph.uart_route(port), v as u8);
+        }
         // A SPI flash command must complete before the guest can read its result: firmware kicks
         // the command and polls/reads the data registers a few instructions later, well inside one
         // scheduling quantum. Running it at the quantum boundary instead loses the race and the
@@ -299,6 +302,10 @@ impl SocBus {
         if self.periph.aes.dma_pending { self.aes_dma_step(); }
         if !self.periph.wifi.tx_pending.is_empty() { self.wifi_tx_step(); }
         if self.periph.wifi.ap.is_some() { self.wifi_air_step(); self.wifi_net_step(); }
+        for input in self.board.uart_rx() {
+            self.periph.uart_pin_input(&input);
+            self.irq_dirty = true;
+        }
     }
 }
 

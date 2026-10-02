@@ -144,6 +144,7 @@ pub struct Peripherals {
     pub timg: [TimerGroup; 2],
     pub gpio: Gpio,
     pub ledc: Ledc,
+    pub io_mux: esp_periph::RegRam,
     pub rtc: RtcCntl,
     pub efuse: Efuse,
     pub system: SystemRegs,
@@ -170,6 +171,7 @@ device_set! { Peripherals; clock: (clock) CPU_HZ, [(ClockDomain::Systimer, 10), 
     0x34 "WIFI_MAC2" (wifi) delta 0x1000 => [];
     0x35 "WDEV" (wifi) delta 0x2000 => [];
     0x0e "I2C_MST" (i2c_mst) => [];
+    0x09 "IO_MUX" (io_mux) => [];
     0x00 "UART0" (uart[0]) => [src::UART0];
     0x10 "UART1" (uart[1]) => [src::UART1];
     0x02 "SPI1" (spi1) => [];
@@ -210,7 +212,7 @@ impl Peripherals {
         Peripherals {
             wifi: Default::default(), fe_iq: Default::default(), i2c_mst: Default::default(),
             uart: [Uart::new(UartLayout::C3), Uart::new(UartLayout::C3)], usb: UsbSerialJtag::new(CPU_HZ), systimer: Systimer::new(),
-            timg: [TimerGroup::new(), TimerGroup::new()], gpio: Gpio::new(), ledc: Ledc::new(LedcLayout::C3), rtc: RtcCntl::new_c3(),
+            timg: [TimerGroup::new(), TimerGroup::new()], gpio: Gpio::new(), ledc: Ledc::new(LedcLayout::C3), io_mux: esp_periph::RegRam::new(), rtc: RtcCntl::new_c3(),
             efuse: efuse_c3(mac, 0, 4, 3), system: SystemRegs::new(0x28), extmem: Extmem::new(), intc: Intc::new(),
             spi0: { let mut s = SpiMem::new(false); s.has_psram = false; s },
             spi1: { let mut s = SpiMem::new(true); s.has_psram = false; s },   // the C3 has no PSRAM
@@ -234,6 +236,23 @@ impl Peripherals {
             _ => "?",
         }
     }
+
+    pub fn uart_route(&self, port: usize) -> esp_soc::uart::UartRoute {
+        let clock = self.uart[port].clock_config();
+        esp_soc::uart::UartPins::C3.route(port, &self.gpio, &self.io_mux,
+            self.uart[port].baud(clock, 8_000_000))
+    }
+
+    pub fn uart_pin_input(&mut self, input: &esp_soc::uart::UartInput) {
+        if input.data.is_empty() { return; }
+        for port in 0..2 {
+            let route = self.uart_route(port);
+            if route.rx_pin != Some(input.pin) { continue; }
+            if route.matches_baud(input.baud) { self.uart[port].host_input(&input.data); }
+            else { self.uart[port].int_raw |= 1 << 3; }
+        }
+    }
+
 
     pub fn read32(&mut self, addr: u32) -> u32 {
         if addr & !0xfff == PERIPH_BASE + 0x3f000 { return crate::gdma::read(&self.gdma, addr & 0xfff); }

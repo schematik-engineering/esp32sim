@@ -125,6 +125,9 @@ impl SocBus {
         }
         let v = if size == 4 { v } else { merge(self.periph.read32(a)) };
         self.periph.write32(a, v);
+        if let Some(port) = match a { 0x60000000 => Some(0), 0x60001000 => Some(1), _ => None } {
+            self.board.uart_tx(self.periph.uart_route(port), v as u8);
+        }
         // A SPI flash command must complete before the guest reads its result (see the C3 notes:
         // running it at the quantum boundary loses the race and reads back zeros).
         if self.periph.spi_exec { self.run_spi(); }
@@ -417,6 +420,10 @@ impl SocBus {
     fn devices(&mut self, cycles: u32) {
         if self.periph.spi_exec { self.run_spi(); }
         self.periph.tick(cycles as u64);
+        for input in self.board.uart_rx() {
+            self.periph.uart_pin_input(&input);
+            self.irq_dirty = true;
+        }
         if self.periph.radio.rx_write.is_some() { self.radio_rx_store(); }
         if self.periph.spi2.dma_tx_pending.is_some() { self.spi2_dma_tx(); }
         if self.periph.aes.dma_pending { self.aes_dma_step(); }
