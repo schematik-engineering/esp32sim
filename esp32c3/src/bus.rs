@@ -111,6 +111,7 @@ impl SocBus {
             _ => { let old = self.periph.read32(a); let sh = (addr & 2) * 8; (old & !(0xffff << sh)) | ((v & 0xffff) << sh) }
         };
         let drive = (self.periph.gpio.enable, self.periph.gpio.out);
+        if a >> 12 == 0x60040 { self.periph.adc.now_cycles = self.cycles; }
         self.periph.write32(a, v);
         if let Some(port) = match a { 0x60000000 => Some(0), 0x60010000 => Some(1), _ => None } {
             self.board.uart_tx(self.periph.uart_route(port), v as u8);

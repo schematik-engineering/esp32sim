@@ -144,6 +144,7 @@ impl SocBus {
         }
         let v = if size == 4 { v } else { merge(self.periph.read32(a)) };
         let old_drive = (self.periph.gpio.enable, self.periph.gpio.out);
+        if a >> 12 == 0x6000e { self.periph.adc.now_cycles = self.cycles; }
         self.periph.write32(a, v);
         if let Some(port) = match a { 0x60000000 => Some(0), 0x60001000 => Some(1), _ => None } {
             self.board.uart_tx(self.periph.uart_route(port), v as u8);

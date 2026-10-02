@@ -5,6 +5,8 @@
 //! `rtc_cntl.rs`). Raw inputs bypass the voltage transfer curve; observations track completed samples.
 use std::collections::HashMap;
 use std::sync::Arc;
+mod stream;
+pub use stream::AnalogStream;
 
 #[derive(Clone)]
 pub enum AnalogSource {
@@ -12,12 +14,15 @@ pub enum AnalogSource {
     /// `samples` volts at `rate_hz`, starting at `start_cycles`; before the start it reads the first
     /// sample, after the end it holds the last one.
     Wave { samples: Arc<Vec<f32>>, rate_hz: f64, start_cycles: u64 },
+    /// Host PCM16 sampled on its own clock. Clones share the bounded queue.
+    Stream(AnalogStream),
 }
 impl std::fmt::Debug for AnalogSource {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             AnalogSource::Const(v) => write!(f, "Const({v} V)"),
             AnalogSource::Wave { samples, rate_hz, .. } => write!(f, "Wave({} samples @ {rate_hz} Hz)", samples.len()),
+            AnalogSource::Stream(_) => write!(f, "Stream(PCM16)"),
         }
     }
 }
@@ -49,6 +54,7 @@ impl AnalogInputs {
         match self.pins.get(&pin) {
             None => 0.0,
             Some(AnalogSource::Const(v)) => *v,
+            Some(AnalogSource::Stream(stream)) => stream.volts(now_cycles),
             Some(AnalogSource::Wave { samples, rate_hz, start_cycles }) => {
                 if samples.is_empty() { return 0.0; }
                 let dt = now_cycles.saturating_sub(*start_cycles) as f64 / self.cpu_hz.max(1) as f64;

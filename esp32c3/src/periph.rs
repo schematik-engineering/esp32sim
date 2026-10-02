@@ -215,7 +215,6 @@ impl DeviceSet for Peripherals {
     fn misc_mut(&mut self) -> &mut Misc { &mut self.misc }
     fn pre_access(&mut self, block: u32, _off: u32, _write: bool) {
         if (0x33..=0x35).contains(&block) { self.wifi.now_cycles = self.clock.cycles(); }
-        if block == 0x40 { self.adc.now_cycles = self.clock.cycles(); }
         if block == 0x26 { self.rng.now = self.clock.cycles() as u32; }
     }
 }
