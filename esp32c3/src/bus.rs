@@ -362,6 +362,16 @@ impl SocBus {
             self.irq_dirty = true;
         }
         self.periph.gpio.input_changes.clear();
+        if let Some(ch) = self.periph.gdma.in_channel_for(3) {
+            let bytes = self.periph.i2s0.rx_data(cycles as u64, false);
+            let eof = self.periph.i2s0.read(0x64);
+            let mut channel = self.periph.gdma.inp[ch];
+            let mut eof_pos = self.periph.gdma.rx_eof_pos[ch];
+            channel.receive(self, &bytes, eof, &mut eof_pos);
+            self.periph.gdma.rx_eof_pos[ch] = eof_pos;
+            self.irq_dirty |= channel.int_raw != self.periph.gdma.inp[ch].int_raw;
+            self.periph.gdma.inp[ch] = channel;
+        }
     }
 }
 

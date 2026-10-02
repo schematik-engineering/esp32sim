@@ -259,6 +259,18 @@ impl SocBus {
     pub(super) fn dma_i2s_step(&mut self, cycles: u64) {
         self.dma_i2s_one(cycles, 0);
         self.dma_i2s_one(cycles, 1);
+        for port in 0..2 {
+            let Some(ch) = self.periph.gdma.in_channel_for(3 + port) else { continue };
+            let i2s = if port == 0 { &mut self.periph.i2s0 } else { &mut self.periph.i2s1 };
+            let bytes = i2s.rx_data(cycles, port == 0);
+            let eof = i2s.read(0x64);
+            let mut channel = self.periph.gdma.inp[ch];
+            let mut eof_pos = self.periph.gdma.rx_eof_pos[ch];
+            channel.receive(self, &bytes, eof, &mut eof_pos);
+            self.periph.gdma.rx_eof_pos[ch] = eof_pos;
+            self.irq_dirty |= channel.int_raw != self.periph.gdma.inp[ch].int_raw;
+            self.periph.gdma.inp[ch] = channel;
+        }
     }
 
     /// Move I2S TX data for controller `which` (0 = I2S0 on GDMA trigger 3, 1 = I2S1 on trigger 4).

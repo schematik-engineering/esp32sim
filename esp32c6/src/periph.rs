@@ -10,7 +10,7 @@ use crate::radio::Ieee802154;
 use crate::wifi::{ModemBb, WifiMac};
 use emu_core::{ClockDomain, ClockTree};
 use esp_periph::{device_set, mmio, Device, DeviceSet, Dispatch, Misc, RegRam, WriteEffect, NO_SOURCE};
-use esp_periph::{Aes, Efuse, Gdma, Gpio, GpSpi, Ledc, LedcLayout, Mcpwm, Rsa, Sha, SpiMem, Systimer, TimerGroup, Uart, UartLayout, UsbSerialJtag};
+use esp_periph::{Aes, Efuse, Gdma, Gpio, GpSpi, I2s, Ledc, LedcLayout, Mcpwm, Rsa, Sha, SpiMem, Systimer, TimerGroup, Uart, UartLayout, UsbSerialJtag};
 use esp_periph::{RST_POWERON, RST_SW_CPU, RST_SW_SYS};
 
 pub const CPU_HZ: u64 = 160_000_000;
@@ -343,6 +343,7 @@ pub struct Peripherals {
     pub aes: Aes,
     pub rsa: Rsa,
     pub rmt: RmtC6,
+    pub i2s0: I2s,
     pub gdma: GdmaC6,
     pub spi2: GpSpi,
     pub radio: Ieee802154,
@@ -383,6 +384,7 @@ device_set! { Peripherals; clock: (clock) CPU_HZ, [(ClockDomain::Systimer, 10), 
     0x0a "SYSTIMER" (systimer) => [src::SYSTIMER_T0, src::SYSTIMER_T1, src::SYSTIMER_T2];
     0x0f "USB_SERIAL_JTAG" (usb) => [src::USB_SERIAL_JTAG];
     0x10 "INTMTX" (intmtx) => [];
+    0x0c "I2S" (i2s0) => [src::I2S];
     0x14 "MCPWM" (mcpwm) => [src::MCPWM0];
     // three channels; the model numbers its sources out 0..4 then in 0..4
     0x80 "GDMA" (gdma) => [src::DMA_OUT_CH0, src::DMA_OUT_CH0 + 1, src::DMA_OUT_CH0 + 2, NO_SOURCE, NO_SOURCE, src::DMA_IN_CH0, src::DMA_IN_CH0 + 1, src::DMA_IN_CH0 + 2, NO_SOURCE, NO_SOURCE];
@@ -430,7 +432,7 @@ impl Peripherals {
             spi0: SpiMemC6({ let mut s = SpiMem::new(false); s.has_psram = false; s }),
             spi1: SpiMemC6({ let mut s = SpiMem::new(true); s.has_psram = false; s }),   // no PSRAM on the C6
             sha: Sha::new(), aes: Aes::new(), rsa: Rsa::new(),
-            rmt: RmtC6::new(CPU_HZ), gdma: GdmaC6::new(), spi2: GpSpi::new(), radio: Ieee802154::new(), modem_bb: ModemBb::new(), wifi_mac: WifiMac::new(),
+            i2s0: I2s::new(CPU_HZ), rmt: RmtC6::new(CPU_HZ), gdma: GdmaC6::new(), spi2: GpSpi::new(), radio: Ieee802154::new(), modem_bb: ModemBb::new(), wifi_mac: WifiMac::new(),
             intmtx: IntMatrix::new(), intc: Intc::new(), cache: Cache::new(), lpsys: LpSys::new(), pcr: Pcr::new(), ana_mst: AnaMst::new(), assist_debug: AssistDebug::new(),
             rng: Rng::new(), cpu_sub: RegRam::new(),
             misc: Misc::new(), spi_exec: false, clock: Self::new_clock(),

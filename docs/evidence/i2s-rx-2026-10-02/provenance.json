@@ -1,0 +1,37 @@
+{
+  "base": "dddb128052dca15250e2169b92ab73c4d87f524c",
+  "reference": "221080ffccfa829106b398f896653535853c76c8",
+  "os": "Darwin",
+  "os_version": "26.6.2",
+  "arch": "arm64",
+  "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)",
+  "cargo": "cargo 1.96.0 (30a34c682 2026-05-25)",
+  "source_files": {
+    "cli/src/lib.rs": "440058c7b6d665a04bfbbe1bcaad36eb67e015fd09d4e9ca8c11f87a7afaee19",
+    "cli/tests/i2s_rx.rs": "2680fd428b8ab3a343a9b16f4bb51469e7adc2e164ab5995c130c056f99468a9",
+    "esp-periph/src/gdma.rs": "bed4f0ad311c58e4dab5ce4de438904d294ce87453e7328acb7a1d391829bc76",
+    "esp-periph/src/gdma/c3.rs": "fa84b1010d3d7c297d3182bdfae020c6eb2064422eb1b47f5b42738f8daead6f",
+    "esp-periph/src/i2s.rs": "0753125ecf94c02f33aaaf0fbcc349c829ec0d21f51ba6b0e9675e5f2b52640b",
+    "esp-periph/src/i2s/rx.rs": "4be3852f25bf1b4fb598f46ec9fff562007c88b7a03e635d13c95a55c6c46cc0",
+    "esp-soc/src/soc.rs": "ed4db8d83a2cd11b0e58cc280c208c01f0f4ba282879e85e1568655dba0065e1",
+    "esp32c3/src/bus.rs": "06b0f8d15f4d1c62ba78834af1a938757f64db043fc82b842530fbc8502a064c",
+    "esp32c3/src/periph.rs": "b79e984ca5a450c99640877f2f4b965c0c20135ffa43efce6125068374f3be74",
+    "esp32c3/src/soc.rs": "87b1e39231a58870f53540ac6c6d5f6445b12e0acde41f229323612984019b07",
+    "esp32c6/src/bus.rs": "0cdfebe00e6f4b157518ee476be58c62bd1a178beb7ff77c94c43a0852aee0fa",
+    "esp32c6/src/periph.rs": "836e71a37d519ac0d740b312ad220274a2a606faf029730e44fcb97a381ee749",
+    "esp32c6/src/soc.rs": "592af4bc62303278ea934b4373e83fb03e81b1e7c9a39b3bf623c04086d29d34",
+    "esp32s3/src/bus.rs": "d120d57693b20094a848e49cf9345201e2c33b65f59cc1b9316bf2b83f8658df",
+    "esp32s3/src/bus/dma.rs": "5d4cea3d09180af254628081bb859d2dae1c450b370187fa42fc5fd508aca298",
+    "esp32s3/src/soc.rs": "8a051dea89c90b40d91386acfbd1c3a28885350e969268cd5579ff18a9f723fb"
+  },
+  "artifacts": {
+    "target/release/esp32sim": {
+      "bytes": 2202312,
+      "sha256": "61357bbfcbf722ce682c15307eb1f469b4424a800fbf8590bb191c4c88fa398f"
+    },
+    "web/wasm/esp32sim.wasm": {
+      "bytes": 2136317,
+      "sha256": "f8650e6909317f7bddbfed1451293b80452e11997e48bfcc5e8344da7e72ee97"
+    }
+  }
+}

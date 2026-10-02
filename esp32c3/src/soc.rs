@@ -52,7 +52,9 @@ impl esp_soc::SocBus for SocBus {
     fn ble_command(&mut self, command: &str) -> Result<(), String> { self.ble.command(command, self.cycles, periph::CPU_HZ) }
     fn cycles(&self) -> u64 { self.cycles }
     fn next_deadline(&self) -> Option<u64> {
-        let timer = match self.periph.cycles_until_timer() { u32::MAX => None, cycles => Some(cycles.max(1) as u64) };
+        let timer = self.periph.cycles_until_timer();
+        let timer = if self.periph.i2s0.rx_running() { timer.min(256) } else { timer };
+        let timer = match timer { u32::MAX => None, cycles => Some(cycles.max(1) as u64) };
         let board = self.board.next_deadline().map(|t| t.saturating_sub(self.cycles).max(1));
         match (timer, board) { (Some(a), Some(b)) => Some(a.min(b)), (a, b) => a.or(b) }
     }
@@ -111,6 +113,7 @@ impl esp_soc::SocBus for SocBus {
         p.wifi.ap = old.wifi.ap; p.wifi.net = old.wifi.net; p.wifi.log = old.wifi.log; p.wifi.relay = old.wifi.relay;
         p.efuse = old.efuse;
         p.adc.analog = old.adc.analog;
+        p.i2s0.rx_input = old.i2s0.rx_input;
         p.misc.log_unknown = old.misc.log_unknown;
         p.usb.connected = old.usb.connected;
         p.rtc.reset_cause = cause;
@@ -181,6 +184,7 @@ impl esp_soc::SocBus for SocBus {
     }
     fn board(&mut self) -> &mut dyn BoardModel { &mut *self.board }
     fn board_ref(&self) -> &dyn BoardModel { &*self.board }
+    fn i2s_input(&mut self, port: usize) -> Option<&mut esp_periph::i2s::PcmInput> { if port == 0 { Some(&mut self.periph.i2s0.rx_input) } else { None } }
     fn audio(&self) -> (&[i16], u32) { (&[], 44100) }
     fn irq_sources_of(&self, _core: usize, line: u32) -> Vec<usize> { (0..src::COUNT).filter(|&s| self.periph.intc.map[s] == line).collect() }
 }

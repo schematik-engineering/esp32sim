@@ -8,7 +8,7 @@
 use esp_periph::{i2c::I2c, rmt_compact::RmtCompact, GpSpi};
 use emu_core::{ClockDomain, ClockTree};
 use esp_periph::{device_set, mmio, Device, DeviceSet, Dispatch, Misc, WriteEffect, NO_SOURCE};
-use esp_periph::{Aes, Efuse, Gdma, Gpio, Ledc, LedcLayout, RegRam, Rsa, RtcCntl, Sha, SpiMem, SystemRegs, Systimer, TimerGroup, Uart, UartLayout, UsbSerialJtag};
+use esp_periph::{Aes, Efuse, Gdma, Gpio, I2s, Ledc, LedcLayout, RegRam, Rsa, RtcCntl, Sha, SpiMem, SystemRegs, Systimer, TimerGroup, Uart, UartLayout, UsbSerialJtag};
 
 pub const CPU_HZ: u64 = 160_000_000;
 pub const PERIPH_BASE: u32 = 0x6000_0000;
@@ -19,6 +19,7 @@ pub const PERIPH_END: u32 = 0x6010_0000;
 /// enum omits the NMI entries, so its indices are shifted and every source lands on the wrong
 /// line. Only the sources we can assert are listed.
 pub mod src {
+    pub const I2S: usize = 20;
     pub const APB_CTRL: usize = 14; pub const GPIO: usize = 16; pub const SPI2: usize = 19;
     pub const UART0: usize = 21; pub const UART1: usize = 22; pub const LEDC: usize = 23;
     pub const EFUSE: usize = 24; pub const USB_SERIAL_JTAG: usize = 26; pub const RTC_CORE: usize = 27;
@@ -157,6 +158,7 @@ pub struct Peripherals {
     pub intc: Intc,
     pub spi0: SpiMem,
     pub spi1: SpiMem,
+    pub i2s0: I2s,
     pub gdma: Gdma,
     pub sha: Sha,
     pub aes: Aes,
@@ -197,6 +199,7 @@ device_set! { Peripherals; clock: (clock) CPU_HZ, [(ClockDomain::Systimer, 10), 
     0x3a "AES" (aes) => [src::AES];
     0x3b "SHA" (sha) => [];
     0x3c "RSA" (rsa) => [src::RSA];
+    0x2d "I2S" (i2s0) => [src::I2S];
     // three channels; out and in interrupts of a channel share one source
     0x3f "GDMA" (gdma) => [src::DMA_CH0, src::DMA_CH1, src::DMA_CH2, NO_SOURCE, NO_SOURCE, src::DMA_CH0, src::DMA_CH1, src::DMA_CH2, NO_SOURCE, NO_SOURCE];
     0x43 "USB_SERIAL_JTAG" (usb) => [src::USB_SERIAL_JTAG];
@@ -228,7 +231,7 @@ impl Peripherals {
             efuse: efuse_c3(mac, 0, 4, 3), system: SystemRegs::new(0x28), extmem: Extmem::new(), intc: Intc::new(),
             spi0: { let mut s = SpiMem::new(false); s.has_psram = false; s },
             spi1: { let mut s = SpiMem::new(true); s.has_psram = false; s },   // the C3 has no PSRAM
-            gdma: Gdma::new(),
+            i2s0: I2s::new(CPU_HZ), gdma: Gdma::new_c3(),
             sha: Sha::new(), aes: Aes::new(), rsa: Rsa::new(), rng: Rng::new(),
             misc: Misc::new(), spi_exec: false, clock: Self::new_clock(),
             last_status: [0; 4],

@@ -1,0 +1,365 @@
+{
+  "emulator_sha256": "61357bbfcbf722ce682c15307eb1f469b4424a800fbf8590bb191c4c88fa398f",
+  "runs": [
+    {
+      "environment": "s3",
+      "source": "tone",
+      "passed": true,
+      "exit": 0,
+      "input_sha256": {
+        "rom": "c0ce0f338d1de1bdc6efbef1591779a2a42c1ab7d759d3c6ae8ae63a7dd34cfd",
+        "bootloader": "6f232c4aafe7d21239a1c59404723ca2cfdca063ef73501a21126a8cef39f432",
+        "ptable": "1d9cca96de0fe07ad7fc0648b9878ddecd9ce565e38b589ad20fea698ed4c80c",
+        "app": "21f69009675f8f202243df673636f6793b5a4f410a0fb4a2940dd28eaee89d24"
+      },
+      "samples": [
+        [
+          512,
+          11584.92,
+          1000.0
+        ],
+        [
+          512,
+          11584.92,
+          1000.0
+        ],
+        [
+          512,
+          11584.92,
+          1000.0
+        ]
+      ],
+      "serial": [
+        "ARDUINO=3.3.8 BOOT=1",
+        "RX_BEGIN=1",
+        "RX_BYTES=512 RMS=11584.92 FREQ=1000.00",
+        "[emu] chip reset at t=0.330s: cause 0xc (RTC_SW_CPU_RESET)",
+        "ARDUINO=3.3.8 BOOT=1",
+        "RX_BEGIN=1",
+        "RX_BYTES=512 RMS=11584.92 FREQ=1000.00",
+        "[emu] chip reset at t=0.660s: cause 0xc (RTC_SW_CPU_RESET)",
+        "ARDUINO=3.3.8 BOOT=1",
+        "RX_BEGIN=1",
+        "RX_BYTES=512 RMS=11584.92 FREQ=1000.00",
+        "[emu] chip reset at t=0.991s: cause 0xc (RTC_SW_CPU_RESET)",
+        "ARDUINO=3.3.8 BOOT=1",
+        "RX_BEGIN=1",
+        "[emu] stop: Halted \u2014 core0 15087713 + core1 82300970 insns in 0.5s wall = 181.2 Minsn/s; emulated 1.200s (288000033 cycles); 22472 exceptions, 2724 interrupts"
+      ],
+      "output_sha256": "c76308957a56197a8067396dcc83dbafebd8b1fb501149e8b42b83beab2330dd"
+    },
+    {
+      "environment": "s3",
+      "source": "silence",
+      "passed": true,
+      "exit": 0,
+      "input_sha256": {
+        "rom": "c0ce0f338d1de1bdc6efbef1591779a2a42c1ab7d759d3c6ae8ae63a7dd34cfd",
+        "bootloader": "6f232c4aafe7d21239a1c59404723ca2cfdca063ef73501a21126a8cef39f432",
+        "ptable": "1d9cca96de0fe07ad7fc0648b9878ddecd9ce565e38b589ad20fea698ed4c80c",
+        "app": "21f69009675f8f202243df673636f6793b5a4f410a0fb4a2940dd28eaee89d24"
+      },
+      "samples": [
+        [
+          512,
+          0.0,
+          0.0
+        ],
+        [
+          512,
+          0.0,
+          0.0
+        ],
+        [
+          512,
+          0.0,
+          0.0
+        ],
+        [
+          512,
+          0.0,
+          0.0
+        ]
+      ],
+      "serial": [
+        "ARDUINO=3.3.8 BOOT=1",
+        "RX_BEGIN=1",
+        "RX_BYTES=512 RMS=0.00 FREQ=0.00",
+        "[emu] chip reset at t=0.313s: cause 0xc (RTC_SW_CPU_RESET)",
+        "ARDUINO=3.3.8 BOOT=1",
+        "RX_BEGIN=1",
+        "RX_BYTES=512 RMS=0.00 FREQ=0.00",
+        "[emu] chip reset at t=0.626s: cause 0xc (RTC_SW_CPU_RESET)",
+        "ARDUINO=3.3.8 BOOT=1",
+        "RX_BEGIN=1",
+        "RX_BYTES=512 RMS=0.00 FREQ=0.00",
+        "[emu] chip reset at t=0.940s: cause 0xc (RTC_SW_CPU_RESET)",
+        "ARDUINO=3.3.8 BOOT=1",
+        "RX_BEGIN=1",
+        "RX_BYTES=512 RMS=0.00 FREQ=0.00",
+        "[emu] stop: Halted \u2014 core0 15083546 + core1 70888934 insns in 0.6s wall = 145.2 Minsn/s; emulated 1.200s (288000000 cycles); 22554 exceptions, 2723 interrupts"
+      ],
+      "output_sha256": "41779764813afb1ad456961779fc7344936c06de1cd326619b6a11c3b999b464"
+    },
+    {
+      "environment": "c3",
+      "source": "tone",
+      "passed": true,
+      "exit": 0,
+      "input_sha256": {
+        "rom": "19ac22e08707df926fb0cf4c54795d4067b983fae8635f396ded173a6d78fc3c",
+        "bootloader": "da409642ea1619c16b4ef485219a91c3c2ae873ce3bae37330c24100bd747439",
+        "ptable": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1",
+        "app": "ae68138cfe7a06ca716ed998defab541c7c3db5415eb8dee86ad54b3cb79820e"
+      },
+      "samples": [
+        [
+          512,
+          11584.92,
+          1000.0
+        ],
+        [
+          512,
+          11584.92,
+          1000.0
+        ]
+      ],
+      "serial": [
+        "ARDUINO=3.3.8 BOOT=1",
+        "RX_BEGIN=1",
+        "RX_BYTES=512 RMS=11584.92 FREQ=1000.00",
+        "[emu] chip reset at t=0.619s: cause 0xc (RTC_SW_CPU_RESET)",
+        "ARDUINO=3.3.8 BOOT=1",
+        "RX_BEGIN=1",
+        "RX_BYTES=512 RMS=11584.92 FREQ=1000.00",
+        "[emu] stop: Halted \u2014 192000000 insns in 1.2s wall = 163.5 Minsn/s; emulated 1.200s (192000000 cycles); 0 exceptions, 1236 interrupts"
+      ],
+      "output_sha256": "048f710644663eafa03c22408625f83bbf2465317614f9ed9162c83455deb2b2"
+    },
+    {
+      "environment": "c3",
+      "source": "silence",
+      "passed": true,
+      "exit": 0,
+      "input_sha256": {
+        "rom": "19ac22e08707df926fb0cf4c54795d4067b983fae8635f396ded173a6d78fc3c",
+        "bootloader": "da409642ea1619c16b4ef485219a91c3c2ae873ce3bae37330c24100bd747439",
+        "ptable": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1",
+        "app": "ae68138cfe7a06ca716ed998defab541c7c3db5415eb8dee86ad54b3cb79820e"
+      },
+      "samples": [
+        [
+          512,
+          0.0,
+          0.0
+        ],
+        [
+          512,
+          0.0,
+          0.0
+        ]
+      ],
+      "serial": [
+        "ARDUINO=3.3.8 BOOT=1",
+        "RX_BEGIN=1",
+        "RX_BYTES=512 RMS=0.00 FREQ=0.00",
+        "[emu] chip reset at t=0.564s: cause 0xc (RTC_SW_CPU_RESET)",
+        "ARDUINO=3.3.8 BOOT=1",
+        "RX_BEGIN=1",
+        "RX_BYTES=512 RMS=0.00 FREQ=0.00",
+        "[emu] chip reset at t=1.127s: cause 0xc (RTC_SW_CPU_RESET)",
+        "[emu] stop: Halted \u2014 192000000 insns in 1.1s wall = 182.6 Minsn/s; emulated 1.200s (192000000 cycles); 0 exceptions, 1220 interrupts"
+      ],
+      "output_sha256": "0079b4f0406c272ac124fa3df65b7250cd984f117364cae1180edbe1757fa89a"
+    },
+    {
+      "environment": "c6",
+      "source": "tone",
+      "passed": true,
+      "exit": 0,
+      "input_sha256": {
+        "rom": "788e1d38724aeb8fd974fa10c4a7b089c02627d35342ce84b9e0b12b239f3551",
+        "bootloader": "022390206caedbc5f780cd955b31e1dd1219091f374e420cd0531b2f5b5b5037",
+        "ptable": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1",
+        "app": "0f5e9a92ffc64958d101298f06691af08dd9e09aa6ecb10f0534be2512d95ce0"
+      },
+      "samples": [
+        [
+          512,
+          11584.92,
+          1000.0
+        ],
+        [
+          512,
+          11584.92,
+          1000.0
+        ],
+        [
+          512,
+          11584.92,
+          1000.0
+        ]
+      ],
+      "serial": [
+        "ARDUINO=3.3.8 BOOT=1",
+        "RX_BEGIN=1",
+        "RX_BYTES=512 RMS=11584.92 FREQ=1000.00",
+        "[emu] chip reset at t=0.432s: cause 0xc (RTC_SW_CPU_RESET)",
+        "ARDUINO=3.3.8 BOOT=1",
+        "RX_BEGIN=1",
+        "RX_BYTES=512 RMS=11584.92 FREQ=1000.00",
+        "[emu] chip reset at t=0.863s: cause 0xc (RTC_SW_CPU_RESET)",
+        "ARDUINO=3.3.8 BOOT=1",
+        "RX_BEGIN=1",
+        "RX_BYTES=512 RMS=11584.92 FREQ=1000.00",
+        "[emu] stop: Halted \u2014 192000000 insns in 0.9s wall = 207.9 Minsn/s; emulated 1.200s (192000000 cycles); 0 exceptions, 1220 interrupts"
+      ],
+      "output_sha256": "5a3fe40b4e8a0baf484bc2739706e3f7c4e79da9d9d5e129d5b7741dcfb4d8cf"
+    },
+    {
+      "environment": "c6",
+      "source": "silence",
+      "passed": true,
+      "exit": 0,
+      "input_sha256": {
+        "rom": "788e1d38724aeb8fd974fa10c4a7b089c02627d35342ce84b9e0b12b239f3551",
+        "bootloader": "022390206caedbc5f780cd955b31e1dd1219091f374e420cd0531b2f5b5b5037",
+        "ptable": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1",
+        "app": "0f5e9a92ffc64958d101298f06691af08dd9e09aa6ecb10f0534be2512d95ce0"
+      },
+      "samples": [
+        [
+          512,
+          0.0,
+          0.0
+        ],
+        [
+          512,
+          0.0,
+          0.0
+        ],
+        [
+          512,
+          0.0,
+          0.0
+        ]
+      ],
+      "serial": [
+        "ARDUINO=3.3.8 BOOT=1",
+        "RX_BEGIN=1",
+        "RX_BYTES=512 RMS=0.00 FREQ=0.00",
+        "[emu] chip reset at t=0.379s: cause 0xc (RTC_SW_CPU_RESET)",
+        "ARDUINO=3.3.8 BOOT=1",
+        "RX_BEGIN=1",
+        "RX_BYTES=512 RMS=0.00 FREQ=0.00",
+        "[emu] chip reset at t=0.757s: cause 0xc (RTC_SW_CPU_RESET)",
+        "ARDUINO=3.3.8 BOOT=1",
+        "RX_BEGIN=1",
+        "RX_BYTES=512 RMS=0.00 FREQ=0.00",
+        "[emu] chip reset at t=1.134s: cause 0xc (RTC_SW_CPU_RESET)",
+        "[emu] stop: Halted \u2014 192000000 insns in 0.8s wall = 251.6 Minsn/s; emulated 1.200s (192000000 cycles); 0 exceptions, 1198 interrupts"
+      ],
+      "output_sha256": "17d8753fdfc66c083ed73b1bb19fe72487727bc8dd41d7644f317296339077ca"
+    },
+    {
+      "environment": "s3-pdm",
+      "source": "tone",
+      "passed": true,
+      "exit": 0,
+      "input_sha256": {
+        "rom": "c0ce0f338d1de1bdc6efbef1591779a2a42c1ab7d759d3c6ae8ae63a7dd34cfd",
+        "bootloader": "6f232c4aafe7d21239a1c59404723ca2cfdca063ef73501a21126a8cef39f432",
+        "ptable": "1d9cca96de0fe07ad7fc0648b9878ddecd9ce565e38b589ad20fea698ed4c80c",
+        "app": "0600eec437982338ad63cbd3288496334988ccde3189a6457ab2abf79d56ca0e"
+      },
+      "samples": [
+        [
+          512,
+          11584.92,
+          1000.0
+        ],
+        [
+          512,
+          11584.92,
+          1000.0
+        ],
+        [
+          512,
+          11584.92,
+          1000.0
+        ]
+      ],
+      "serial": [
+        "ARDUINO=3.3.8 BOOT=1",
+        "RX_BEGIN=1",
+        "RX_BYTES=512 RMS=11584.92 FREQ=1000.00",
+        "[emu] chip reset at t=0.330s: cause 0xc (RTC_SW_CPU_RESET)",
+        "ARDUINO=3.3.8 BOOT=1",
+        "RX_BEGIN=1",
+        "RX_BYTES=512 RMS=11584.92 FREQ=1000.00",
+        "[emu] chip reset at t=0.660s: cause 0xc (RTC_SW_CPU_RESET)",
+        "ARDUINO=3.3.8 BOOT=1",
+        "RX_BEGIN=1",
+        "RX_BYTES=512 RMS=11584.92 FREQ=1000.00",
+        "[emu] chip reset at t=0.991s: cause 0xc (RTC_SW_CPU_RESET)",
+        "ARDUINO=3.3.8 BOOT=1",
+        "RX_BEGIN=1",
+        "[emu] stop: Halted \u2014 core0 15087973 + core1 82300445 insns in 0.5s wall = 188.9 Minsn/s; emulated 1.200s (288000033 cycles); 22472 exceptions, 2724 interrupts"
+      ],
+      "output_sha256": "b56841b607dea20a2686a6fa539a8f0e095ddbe2fffc14fe02ddb8cc32e84b1c"
+    },
+    {
+      "environment": "s3-pdm",
+      "source": "silence",
+      "passed": true,
+      "exit": 0,
+      "input_sha256": {
+        "rom": "c0ce0f338d1de1bdc6efbef1591779a2a42c1ab7d759d3c6ae8ae63a7dd34cfd",
+        "bootloader": "6f232c4aafe7d21239a1c59404723ca2cfdca063ef73501a21126a8cef39f432",
+        "ptable": "1d9cca96de0fe07ad7fc0648b9878ddecd9ce565e38b589ad20fea698ed4c80c",
+        "app": "0600eec437982338ad63cbd3288496334988ccde3189a6457ab2abf79d56ca0e"
+      },
+      "samples": [
+        [
+          512,
+          0.0,
+          0.0
+        ],
+        [
+          512,
+          0.0,
+          0.0
+        ],
+        [
+          512,
+          0.0,
+          0.0
+        ],
+        [
+          512,
+          0.0,
+          0.0
+        ]
+      ],
+      "serial": [
+        "ARDUINO=3.3.8 BOOT=1",
+        "RX_BEGIN=1",
+        "RX_BYTES=512 RMS=0.00 FREQ=0.00",
+        "[emu] chip reset at t=0.313s: cause 0xc (RTC_SW_CPU_RESET)",
+        "ARDUINO=3.3.8 BOOT=1",
+        "RX_BEGIN=1",
+        "RX_BYTES=512 RMS=0.00 FREQ=0.00",
+        "[emu] chip reset at t=0.626s: cause 0xc (RTC_SW_CPU_RESET)",
+        "ARDUINO=3.3.8 BOOT=1",
+        "RX_BEGIN=1",
+        "RX_BYTES=512 RMS=0.00 FREQ=0.00",
+        "[emu] chip reset at t=0.940s: cause 0xc (RTC_SW_CPU_RESET)",
+        "ARDUINO=3.3.8 BOOT=1",
+        "RX_BEGIN=1",
+        "RX_BYTES=512 RMS=0.00 FREQ=0.00",
+        "[emu] stop: Halted \u2014 core0 15083676 + core1 70888102 insns in 0.5s wall = 166.4 Minsn/s; emulated 1.200s (288000000 cycles); 22556 exceptions, 2723 interrupts"
+      ],
+      "output_sha256": "5a6506389a8a9fbe4836a5a8761d2f032a892b7c5fab83b567fa92bde2a599c7"
+    }
+  ]
+}

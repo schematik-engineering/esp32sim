@@ -1,5 +1,6 @@
 use crate::device::{Device, WriteEffect};
 use crate::regram::RegRam;
+mod c3;
 
 // ------------------------------------------------------------------ GDMA (out/TX channels only for now) + I2S0 TX
 pub const GDMA_CHANNELS: usize = 5;
@@ -27,12 +28,18 @@ pub struct GdmaInCh {
 }
 impl GdmaInCh { pub fn irq(&self) -> bool { self.int_raw & self.int_ena != 0 } }
 
-pub struct Gdma { pub out: [GdmaOutCh; GDMA_CHANNELS], pub inp: [GdmaInCh; GDMA_CHANNELS], ram: RegRam, pub misc: u32, pub dbg: bool,
+pub struct Gdma { c3_layout: bool,
+                  /// Bytes received since the last peripheral EOF, per streaming IN channel.
+                  pub rx_eof_pos: [u32; GDMA_CHANNELS], pub out: [GdmaOutCh; GDMA_CHANNELS], pub inp: [GdmaInCh; GDMA_CHANNELS], ram: RegRam, pub misc: u32, pub dbg: bool,
                   /// the high bits of a descriptor address: the LINK registers carry 20 (S3 DRAM at 0x3FC0_0000, C6 SRAM at 0x4080_0000)
                   pub addr_base: u32 }
 impl Gdma {
-    pub fn new() -> Self { Gdma { out: [GdmaOutCh::default(); GDMA_CHANNELS], inp: [GdmaInCh::default(); GDMA_CHANNELS], ram: RegRam::new(), misc: 0, dbg: false, addr_base: DMA_ADDR_BASE } }
+    pub fn new() -> Self { Gdma { c3_layout: false, rx_eof_pos: [0; GDMA_CHANNELS], out: [GdmaOutCh::default(); GDMA_CHANNELS], inp: [GdmaInCh::default(); GDMA_CHANNELS], ram: RegRam::new(), misc: 0, dbg: false, addr_base: DMA_ADDR_BASE } }
     pub fn read(&self, off: u32) -> u32 {
+        if self.c3_layout { return self.read_c3(off); }
+        self.read_s3(off)
+    }
+    fn read_s3(&self, off: u32) -> u32 {
         if off < GDMA_CH_STRIDE * GDMA_CHANNELS as u32 {
             let ch = (off / GDMA_CH_STRIDE) as usize; let o = off % GDMA_CH_STRIDE; let c = &self.out[ch]; let r = &self.inp[ch];
             return match o {
@@ -52,16 +59,19 @@ impl Gdma {
         match off { 0x3c8 => self.misc, 0x40c => 0x2008250, _ => self.ram.read(off) }
     }
     pub fn write(&mut self, off: u32, v: u32) {
+        if self.c3_layout { self.write_c3(off, v); } else { self.write_s3(off, v); }
+    }
+    fn write_s3(&mut self, off: u32, v: u32) {
         if off < GDMA_CH_STRIDE * GDMA_CHANNELS as u32 {
             let ch = (off / GDMA_CH_STRIDE) as usize; let o = off % GDMA_CH_STRIDE;
             if o < 0x60 {
                 let r = &mut self.inp[ch];
                 match o {
-                    0x00 => { r.conf0 = v & !1; if v & 1 != 0 { r.running = false; r.desc = 0; r.buf_pos = 0; } }   // IN_RST self-clears
+                    0x00 => { r.conf0 = v & !1; if v & 1 != 0 { r.running = false; r.desc = 0; r.buf_pos = 0; self.rx_eof_pos[ch] = 0; } }   // IN_RST self-clears
                     0x04 => r.conf1 = v, 0x10 => r.int_ena = v, 0x14 => r.int_raw &= !v,
                     0x20 => {
                         r.link = v & 0xF_FFFF;
-                        if v & (1 << 22) != 0 || v & (1 << 23) != 0 { r.desc = self.addr_base | (v & 0xF_FFFF); r.buf_pos = 0; r.running = true; }   // START / RESTART
+                        if v & (1 << 22) != 0 || v & (1 << 23) != 0 { r.desc = self.addr_base | (v & 0xF_FFFF); r.buf_pos = 0; self.rx_eof_pos[ch] = 0; r.running = true; }   // START / RESTART
                         if v & (1 << 21) != 0 { r.running = false; }                                                                 // STOP
                     }
                     0x44 => r.pri = v, 0x48 => r.peri_sel = v & 0x3f,
@@ -106,4 +116,42 @@ impl Device for Gdma {
     /// bits 0..5 = out channels, bits 5..10 = in channels
     fn debug(&mut self, on: bool) { self.dbg = on; }
     fn irq_sources(&self) -> u64 { (0..GDMA_CHANNELS).fold(0, |m, i| m | ((self.out[i].irq() as u64) << i) | ((self.inp[i].irq() as u64) << (GDMA_CHANNELS + i))) }
+}
+
+impl GdmaInCh {
+    /// Fill a streaming peripheral's RX descriptors, publishing IN_DONE and IN_SUC_EOF.
+    /// A non-progressing descriptor or bus fault stops the channel with IN_DSCR_ERR.
+    pub fn receive(&mut self, bus: &mut impl emu_core::Bus, bytes: &[u8], eof_bytes: u32, eof_pos: &mut u32) {
+        let mut pos = 0;
+        while pos < bytes.len() && self.running && self.desc != 0 {
+            let result = (|| {
+                let dw0 = bus.read32_unpriced(self.desc)?;
+                let size = dw0 & 0xfff;
+                if size == 0 || eof_bytes == 0 || *eof_pos >= eof_bytes || self.buf_pos >= size
+                    || (self.conf1 & (1 << 12) != 0 && dw0 & (1 << 31) == 0) {
+                    return Err(emu_core::Fault::Unmapped);
+                }
+                let buffer = bus.read32_unpriced(self.desc.wrapping_add(4))?;
+                let next = bus.read32_unpriced(self.desc.wrapping_add(8))?;
+                let take = (size - self.buf_pos).min(eof_bytes - *eof_pos).min((bytes.len() - pos) as u32);
+                for byte in &bytes[pos..pos + take as usize] {
+                    bus.write8_unpriced(buffer.wrapping_add(self.buf_pos), *byte)?;
+                    self.buf_pos += 1;
+                }
+                pos += take as usize;
+                *eof_pos += take;
+                let eof = *eof_pos == eof_bytes;
+                if self.buf_pos == size || eof {
+                    bus.write32_unpriced(self.desc, (dw0 & !(0xfff << 12) & !(3 << 30)) | (self.buf_pos << 12) | if eof { 1 << 30 } else { 0 })?;
+                    self.int_raw |= 1;
+                    if eof { self.int_raw |= 2; self.eof_desc = self.desc; *eof_pos = 0; }
+                    self.desc = next;
+                    self.buf_pos = 0;
+                    if next == 0 { self.running = false; }
+                }
+                Ok::<(), emu_core::Fault>(())
+            })();
+            if result.is_err() { self.int_raw |= 1 << 3; self.running = false; break; }
+        }
+    }
 }

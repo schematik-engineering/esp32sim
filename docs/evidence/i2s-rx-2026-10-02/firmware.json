@@ -1,0 +1,66 @@
+{
+  "s3-pdm/partitions.bin": {
+    "bytes": 3072,
+    "sha256": "1d9cca96de0fe07ad7fc0648b9878ddecd9ce565e38b589ad20fea698ed4c80c"
+  },
+  "s3-pdm/firmware.elf": {
+    "bytes": 6795748,
+    "sha256": "8336288aeeef4336373347feb1eab1d5487a77210293626659ede7b6e2b8cc18"
+  },
+  "s3-pdm/firmware.bin": {
+    "bytes": 332544,
+    "sha256": "0600eec437982338ad63cbd3288496334988ccde3189a6457ab2abf79d56ca0e"
+  },
+  "s3-pdm/bootloader.bin": {
+    "bytes": 19984,
+    "sha256": "6f232c4aafe7d21239a1c59404723ca2cfdca063ef73501a21126a8cef39f432"
+  },
+  "s3/partitions.bin": {
+    "bytes": 3072,
+    "sha256": "1d9cca96de0fe07ad7fc0648b9878ddecd9ce565e38b589ad20fea698ed4c80c"
+  },
+  "s3/firmware.elf": {
+    "bytes": 6795736,
+    "sha256": "f471480a12fca6c0cb0a2161233a5b1f0dc6236183420cc6e144a8d93a76172e"
+  },
+  "s3/firmware.bin": {
+    "bytes": 332544,
+    "sha256": "21f69009675f8f202243df673636f6793b5a4f410a0fb4a2940dd28eaee89d24"
+  },
+  "s3/bootloader.bin": {
+    "bytes": 19984,
+    "sha256": "6f232c4aafe7d21239a1c59404723ca2cfdca063ef73501a21126a8cef39f432"
+  },
+  "c6/partitions.bin": {
+    "bytes": 3072,
+    "sha256": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1"
+  },
+  "c6/firmware.elf": {
+    "bytes": 6666168,
+    "sha256": "88df35bac05682a5b415eaac3357f229f37b137bb23358379c86705f161b47d0"
+  },
+  "c6/firmware.bin": {
+    "bytes": 304864,
+    "sha256": "0f5e9a92ffc64958d101298f06691af08dd9e09aa6ecb10f0534be2512d95ce0"
+  },
+  "c6/bootloader.bin": {
+    "bytes": 20976,
+    "sha256": "022390206caedbc5f780cd955b31e1dd1219091f374e420cd0531b2f5b5b5037"
+  },
+  "c3/partitions.bin": {
+    "bytes": 3072,
+    "sha256": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1"
+  },
+  "c3/firmware.elf": {
+    "bytes": 6619240,
+    "sha256": "4844769fb1aba55b5ef9920109690ffae2e1d2d833ab373c9d0ce3883a80a89a"
+  },
+  "c3/firmware.bin": {
+    "bytes": 328000,
+    "sha256": "ae68138cfe7a06ca716ed998defab541c7c3db5415eb8dee86ad54b3cb79820e"
+  },
+  "c3/bootloader.bin": {
+    "bytes": 19520,
+    "sha256": "da409642ea1619c16b4ef485219a91c3c2ae873ce3bae37330c24100bd747439"
+  }
+}
