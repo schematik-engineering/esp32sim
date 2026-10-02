@@ -47,6 +47,8 @@ impl Soc for Esp32 {
             *lines = bus.periph.cpu_lines(core);
         }
     }
+    fn function_hooks(bus: &SocBus) -> &[u32] { &bus.ble.hooks }
+    fn function_hook(core: &mut Cpu, bus: &mut SocBus) -> bool { crate::ble::intercept(core, bus) }
     fn core_state(bus: &SocBus, core: usize) -> CoreState {
         if core == 0 {
             CoreState::Running
@@ -58,6 +60,12 @@ impl Soc for Esp32 {
 }
 
 impl esp_soc::SocBus for SocBus {
+    fn enable_ble(&mut self, symbols: &std::collections::HashMap<String, u32>) -> Result<(), String> {
+        self.ble.enable(symbols)
+    }
+    fn ble_command(&mut self, command: &str) -> Result<(), String> {
+        self.ble.command(command, self.cycles)
+    }
     fn cycles(&self) -> u64 {
         self.cycles
     }
@@ -110,6 +118,9 @@ impl esp_soc::SocBus for SocBus {
         Ok(img.entry)
     }
     fn reboot(&mut self, mac: [u8; 6]) -> u32 {
+        if let Some((offset, bytes)) = self.ble.original_flash.take() {
+            self.write_flash(offset, &bytes).expect("saved controller flash range");
+        }
         let cause = self.periph.rtc.0.reset_cause;
         let old = std::mem::replace(&mut self.periph, Peripherals::new(mac));
         self.periph.efuse = old.efuse;
@@ -120,6 +131,7 @@ impl esp_soc::SocBus for SocBus {
         self.periph.rtc.0.ram.write(0x38, cause | cause << 6);
         self.periph.rtc.0.ram.write(0x98, 0);
         self.periph.rtc.0.reset_cause = cause;
+        self.ble.reset();
         self.attach_board_devices();
         cause
     }

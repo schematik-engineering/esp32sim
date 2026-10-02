@@ -41,6 +41,7 @@ pub struct SocBus {
     pub rng: Rng,
     pub mmu: [[u32; 2048]; 2],
     pub periph: Peripherals,
+    pub ble: crate::ble::Ble,
     pub board: esp_soc::Board,
     pub cycles: u64,
     pub last_fault: Option<(u32, bool)>,
@@ -65,6 +66,7 @@ impl SocBus {
             rng: Rng::new(),
             mmu: [[MMU_INVALID; 2048]; 2],
             periph: Peripherals::new(mac),
+            ble: crate::ble::Ble::default(),
             board: Box::new(esp_soc::NoBoard),
             cycles: 0,
             last_fault: None,
@@ -74,7 +76,7 @@ impl SocBus {
             ver: 0,
         }
     }
-    fn flash_off(&self, addr: u32) -> Option<usize> {
+    pub(crate) fn flash_off(&self, addr: u32) -> Option<usize> {
         let (table, index) = if (DBUS_LOW..DBUS_HIGH).contains(&addr) {
             (0, ((addr - DBUS_LOW) >> 16) as usize)
         } else if (IBUS_LOW..IBUS_HIGH).contains(&addr) {

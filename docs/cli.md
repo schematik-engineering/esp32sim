@@ -28,6 +28,7 @@ PSRAM and register presets.
 | `--no-reboot` | stop at the first chip reset instead of rebooting from ROM |
 | `--flash-at OFFSET=FILE` (repeatable) | write a file into flash at a hex offset — a data partition's contents (the panel's `demo` partition takes `energydata.json`) |
 | `--stub SYMBOL[=value]` (repeatable) | return `value` (default 0) immediately when execution reaches the function's entry; numeric function addresses require a `0x` prefix; accepts decimal, `0x` hex, `true` (1) or `false` (0); rejects invalid values |
+| `--ble` | classic ESP32 virtual BLE controller through ELF-symbol VHCI hooks; requires the matching firmware `--elf`. Runs the guest Bluedroid host and callbacks in a guest FreeRTOS task. Logs advertisements, GATT discovery, reads, writes and notifications. Also supplies an advertising peripheral named `esp32sim` with Battery Service `180f`. One connection, no RF or pairing; S3/C3/C6 adapters are not implemented. |
 | `--wifi SPEC` | attach a virtual access point the WiFi blob hears, plus a virtual network (DHCP/ARP/ICMP/DNS/SNTP; station 10.0.2.15, gateway 10.0.2.2) — for example `ssid=demo,chan=6,psk=demo-password,bssid=02:00:00:00:00:01`. `password` and `pass` alias `psk`; unknown keys and invalid values are rejected. Open and WPA2-PSK networks both join end to end, on the S3 (docs/wifi-plan.md) and on the C6 (docs/wifi-c6-plan.md) |
 | `--net nat\|none` | what the virtual network does with traffic it is not itself answering: `nat` (default) forwards TCP and UDP to the host's own network through ordinary sockets, `none` refuses it |
 | `--trace-fn PREFIX` (repeatable) | log every call to functions whose name starts with PREFIX, with args and caller; append `$` for an exact name |
@@ -102,3 +103,17 @@ One action per line, `<seconds> <cmd> [args]`; buttons/encoder are active low.
 `hw/wsdrive.py [port] [seconds]` drives the same inputs over the UI's WebSocket and reports
 real-time keep-up (push gaps, lag, audio delivered); `hw/wsaudio.py [port] [seconds]` listens to the
 UI's audio stream and reports sample counts/peak (how to check sound without listening).
+
+With `--ble`, scripts control the virtual central using `ble connect`, `ble discover`,
+`ble read HANDLE`, `ble write HANDLE HEX`, and `ble subscribe CCC_HANDLE`.
+Handles are decimal or `0x` hexadecimal. Use the handles printed by discovery, including
+the `2902` descriptor for subscriptions. Writes accept up to 20 bytes of hexadecimal
+data. Connect after the guest advertises, and allow each ATT operation to complete
+before the next command. The timestamps below are guest seconds:
+
+```
+1.0 ble connect
+1.1 ble discover
+2.0 ble read 0x002a
+2.1 ble write 0x002a 48656c6c6f
+```
