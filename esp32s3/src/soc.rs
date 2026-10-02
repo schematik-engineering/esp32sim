@@ -147,6 +147,7 @@ impl esp_soc::SocBus for SocBus {
         p.rtc.analog = old.rtc.analog;
         p.i2s0.rx_input = old.i2s0.rx_input; p.i2s1.rx_input = old.i2s1.rx_input;
         p.gpio.strap = old.gpio.strap;
+        p.gpio.restore_external(&old.gpio);
         p.misc.log_unknown = old.misc.log_unknown; p.spi1.log = old.spi1.log;
         p.spi0.jedec = old.spi0.jedec; p.spi1.jedec = old.spi1.jedec;   // the flash chip is not reset: its ID keeps the --flash-mb capacity
         p.rtc.ram = old.rtc.ram; p.rtc.slow_ticks = old.rtc.slow_ticks;

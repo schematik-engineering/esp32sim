@@ -50,6 +50,12 @@ impl Gpio {
         self.pull_down = (self.pull_down & !mask) | if down { mask } else { 0 };
         self.resolve(mask);
     }
+    pub fn restore_external(&mut self, old: &Self) {
+        self.external_mask = old.external_mask;
+        self.external_levels = old.external_levels;
+        self.resolve(self.external_mask);
+        self.input_changes.clear();
+    }
     fn resolve(&mut self, mask: u64) -> bool {
         let mask = mask & ((1u64 << 49) - 1);
         // Host-driven levels are ideal digital sources; opposing output drivers do not

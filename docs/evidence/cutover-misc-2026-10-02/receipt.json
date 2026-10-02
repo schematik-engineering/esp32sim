@@ -1,0 +1,433 @@
+{
+  "base": "6e562b863f4a5c94c5055747e8331452adaf2de1",
+  "addon": "b0f59f359ca46509f7a1a4c0dbad9066ca6bb7e8",
+  "fork": "221080ffccfa829106b398f896653535853c76c8",
+  "environment": {
+    "os": "Darwin",
+    "architecture": "arm64",
+    "rustc": "1.99.0 (b940084d7 2026-09-28)",
+    "cargo": "1.99.0 (5f94df478 2026-08-27)",
+    "node": "v22.23.1"
+  },
+  "candidateWasmSha256": "b397baf81d65ae91d94980f6aac841d97e9d9e75df01c3e8d5df579100c175f5",
+  "candidateWasmBytes": 2737326,
+  "forkWasmSha256": "a96a42a39695c820e69b2e4785e05a372eaf666bcb8444062ece2d459302de52",
+  "shiftSamples": [
+    {
+      "label": "candidate",
+      "chip": "esp32s3",
+      "requestedCycles": 1,
+      "minActual": 1,
+      "maxActual": 1,
+      "gpioWrites": 43,
+      "latchRises": 1,
+      "serial": "SHIFT:A:DONE"
+    },
+    {
+      "label": "fork",
+      "chip": "esp32s3",
+      "requestedCycles": 1,
+      "minActual": 64,
+      "maxActual": 64,
+      "gpioWrites": 43,
+      "latchRises": 1,
+      "serial": "SHIFT:A:DONE\n"
+    },
+    {
+      "label": "candidate",
+      "chip": "esp32c3",
+      "requestedCycles": 1,
+      "minActual": 1,
+      "maxActual": 1,
+      "gpioWrites": 43,
+      "latchRises": 1,
+      "serial": "SHIFT:A:DONE"
+    },
+    {
+      "label": "fork",
+      "chip": "esp32c3",
+      "requestedCycles": 1,
+      "minActual": 64,
+      "maxActual": 64,
+      "gpioWrites": 43,
+      "latchRises": 1,
+      "serial": "SHIFT:A:DONE\n"
+    },
+    {
+      "label": "candidate",
+      "chip": "esp32c6",
+      "requestedCycles": 1,
+      "minActual": 1,
+      "maxActual": 1,
+      "gpioWrites": 43,
+      "latchRises": 1,
+      "serial": "SHIFT:A:DONE"
+    },
+    {
+      "label": "fork",
+      "chip": "esp32c6",
+      "requestedCycles": 1,
+      "minActual": 64,
+      "maxActual": 64,
+      "gpioWrites": 43,
+      "latchRises": 1,
+      "serial": "SHIFT:A:DONE\n"
+    }
+  ],
+  "inputs": [
+    {
+      "fixture": "shift-register",
+      "chip": "esp32s3",
+      "artifactSha256": "feff9be77c1ac6646b33aca77d1c745601a894880d900dc102554a387e477be7",
+      "flashBytes": 8388608,
+      "psramBytes": 0,
+      "files": [
+        {
+          "filename": "bootloader.bin",
+          "offset": 0,
+          "sha256": "3a06e81d78e928687d7acd8abcd069543a4413de4398e2e2940a97b3fc739fd8"
+        },
+        {
+          "filename": "partitions.bin",
+          "offset": 32768,
+          "sha256": "1d9cca96de0fe07ad7fc0648b9878ddecd9ce565e38b589ad20fea698ed4c80c"
+        },
+        {
+          "filename": "boot_app0.bin",
+          "offset": 57344,
+          "sha256": "f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0"
+        },
+        {
+          "filename": "firmware.bin",
+          "offset": 65536,
+          "sha256": "1e68c752e3278f32fbdc9aeedbd4f58b993955be8b48aebd720620e44fa7d96f"
+        }
+      ]
+    },
+    {
+      "fixture": "shift-register",
+      "chip": "esp32c3",
+      "artifactSha256": "cd2b3ee5ccf043217b522d36bb418f8f0f83b4147d665c8574d2c34958d89f9d",
+      "flashBytes": 4194304,
+      "psramBytes": 0,
+      "files": [
+        {
+          "filename": "bootloader.bin",
+          "offset": 0,
+          "sha256": "47f8c05bd1a66e6dc4b196c618b4fd37a4de652f3096c27a1bb86adb5c6d969b"
+        },
+        {
+          "filename": "partitions.bin",
+          "offset": 32768,
+          "sha256": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1"
+        },
+        {
+          "filename": "boot_app0.bin",
+          "offset": 57344,
+          "sha256": "f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0"
+        },
+        {
+          "filename": "firmware.bin",
+          "offset": 65536,
+          "sha256": "06c08c62a7af2e383ca459ddda8f919eb5e7659e231f342e8e0456751258a5e8"
+        }
+      ]
+    },
+    {
+      "fixture": "shift-register",
+      "chip": "esp32c6",
+      "artifactSha256": "a92f90c4d3f58bf4eaf729ae1fdb0d143eb0cc3fe464cb793923645c5e93f06f",
+      "flashBytes": 4194304,
+      "psramBytes": 0,
+      "files": [
+        {
+          "filename": "bootloader.bin",
+          "offset": 0,
+          "sha256": "d8499f4367c3a8377d513a2fd0e94b5ad6974d2c13591b52bad56183aa7002e7"
+        },
+        {
+          "filename": "partitions.bin",
+          "offset": 32768,
+          "sha256": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1"
+        },
+        {
+          "filename": "boot_app0.bin",
+          "offset": 57344,
+          "sha256": "f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0"
+        },
+        {
+          "filename": "firmware.bin",
+          "offset": 65536,
+          "sha256": "d188d7487f291274ae34a913eff63ceee19dc30b20c7a0853af3eb872439afbe"
+        }
+      ]
+    },
+    {
+      "fixture": "memory-quad",
+      "chip": "esp32s3",
+      "artifactSha256": "a6566a18d10c9ef3ec19b3a33bac7cf9519e134555c7c139d8b3d8f7fb6c341a",
+      "flashBytes": 8388608,
+      "psramBytes": 2097152,
+      "files": [
+        {
+          "filename": "bootloader.bin",
+          "offset": 0,
+          "sha256": "3a06e81d78e928687d7acd8abcd069543a4413de4398e2e2940a97b3fc739fd8"
+        },
+        {
+          "filename": "partitions.bin",
+          "offset": 32768,
+          "sha256": "1d9cca96de0fe07ad7fc0648b9878ddecd9ce565e38b589ad20fea698ed4c80c"
+        },
+        {
+          "filename": "boot_app0.bin",
+          "offset": 57344,
+          "sha256": "f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0"
+        },
+        {
+          "filename": "firmware.bin",
+          "offset": 65536,
+          "sha256": "5f55576532d66640a2b46439b4299b222ffdf4654f01f510dbe1a4f282e4f5dd"
+        }
+      ]
+    },
+    {
+      "fixture": "memory-octal",
+      "chip": "esp32s3",
+      "artifactSha256": "7426356c64059b7e4e73533b9112416007e6abd34582a8243e0f7fdce842c8e4",
+      "flashBytes": 8388608,
+      "psramBytes": 8388608,
+      "files": [
+        {
+          "filename": "bootloader.bin",
+          "offset": 0,
+          "sha256": "3a06e81d78e928687d7acd8abcd069543a4413de4398e2e2940a97b3fc739fd8"
+        },
+        {
+          "filename": "partitions.bin",
+          "offset": 32768,
+          "sha256": "1d9cca96de0fe07ad7fc0648b9878ddecd9ce565e38b589ad20fea698ed4c80c"
+        },
+        {
+          "filename": "boot_app0.bin",
+          "offset": 57344,
+          "sha256": "f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0"
+        },
+        {
+          "filename": "firmware.bin",
+          "offset": 65536,
+          "sha256": "29ede9d5f327924b96d5cf1389c35f45f8f24142796b954d38a9e0ee116570be"
+        }
+      ]
+    },
+    {
+      "fixture": "gpio",
+      "chip": "esp32s3",
+      "artifactSha256": "741ae3abe1fd6a725b1cd3b3bb18e1b08ab9ae688fffbffa8d5f4a28948eb7b1",
+      "flashBytes": 8388608,
+      "psramBytes": 0,
+      "files": [
+        {
+          "filename": "bootloader.bin",
+          "offset": 0,
+          "sha256": "3a06e81d78e928687d7acd8abcd069543a4413de4398e2e2940a97b3fc739fd8"
+        },
+        {
+          "filename": "partitions.bin",
+          "offset": 32768,
+          "sha256": "1d9cca96de0fe07ad7fc0648b9878ddecd9ce565e38b589ad20fea698ed4c80c"
+        },
+        {
+          "filename": "boot_app0.bin",
+          "offset": 57344,
+          "sha256": "f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0"
+        },
+        {
+          "filename": "firmware.bin",
+          "offset": 65536,
+          "sha256": "e784b476f4c735fcc608f630ae8cb850489affe5dbf5e7f42b82c4203414bbad"
+        }
+      ]
+    }
+  ],
+  "panelSid": {
+    "previousInstructions": 398637173,
+    "ceilingInstructions": 398637113,
+    "console": "unchanged",
+    "wavSha256": "37b4961b189338e0977f283e2485080f5f8078380fac956f969283cc20ca2171"
+  },
+  "gates": {
+    "nativeClippy": "pass",
+    "wasmClippy": "pass",
+    "fetchDemoAssets": "pass",
+    "releaseWorkspace": {
+      "passed": 648,
+      "failed": 0,
+      "ignored": 0,
+      "externalFiltered": 51
+    },
+    "wasmBuild": "pass",
+    "wasmScenarios": [
+      "hello",
+      "c3-hello",
+      "c6-hello",
+      "c6-energy-scan",
+      "c6-contiki",
+      "c6-contiki-net",
+      "c6-rpl-net",
+      "panel"
+    ],
+    "nativeBatchRegression": "pass",
+    "privacy": "pass"
+  },
+  "logHashes": {
+    "clippy-native.log": "a4c3ed40981ee926e4e21853fa46e5770d8bd8a92cccbbea66d9b4e55f1ab858",
+    "clippy-native-final.log": "0eda6f60604b041533d560640dfaad1ccdd3f30aafa1ffce0392681398e79346",
+    "clippy-wasm-final.log": "a0b8c8167189b64fb779276c6b69ce4dd4c5952d38378ded0f86a93438cbc728",
+    "assets.log": "4f8cec562c3b5544bd51564773c5601c727f4107a2f0ccedb47f7db551ad4702",
+    "workspace.log": "51a7b131183f60e9bd4bcb90723747ecef3a7a7aca14e4b3cf56e878656a9b4d",
+    "workspace-retry.log": "b2ead170b359dc9d9026f2e9ca5de6fa2f35751ccdfdbf7d27d9a048a4a3791e",
+    "wasm-build-final.log": "a70d20b74c02fc88146c89cc42a92f9e0a5c095937f606d7291c1e5557592b8d",
+    "wasm-smoke-final.log": "399d5caa628547793314d7d9b159095574e79de38b081714877862d4a4887d3f",
+    "ceiling-batches.log": "5b8ba6646816dbe760bfec00772d627fc0205d2f6fc886f6c0a14317734586f1",
+    "addon-build.log": "7dedb4570eb9e8e9fbb3f5b23b6bfdab6d67812a78d6d7ff1c3039acce9290b3",
+    "addon-build-final.log": "1acab743c31a492014b31dcafeb42db071471b08d65e330ac6afc29ac9bfab3e",
+    "quad.log": "8b52a32bcccdcf1b7c44e9b898cc7e6cb5c84a90fb7069d439516e0e7bbafbb2",
+    "quad-retry.log": "e572b1072659771596543f409bd29c1cbda6b88df14dcd8e509b49ecf26a5405",
+    "quad-fork.log": "a4a92576b933214c6ce3e4ab9c71c85ada86faead0f0c6a19da4de119f5d32ec",
+    "octal-final.log": "1cd83dce8d6940e2f625f2c457b4bbbb3a55e3be2ee27921a3ab0f7b6965c0d9",
+    "octal-fork.log": "e7d31d257de3af572957cd172202540921871e0b96d4926bd28970f9833f4175",
+    "gpio-final.log": "69af3b84e4a79d2aef7057c4afee2194d557bd116772350e3e93ffad746d6f20",
+    "gpio-fork.log": "69af3b84e4a79d2aef7057c4afee2194d557bd116772350e3e93ffad746d6f20",
+    "shift-fixtures-final.log": "e8dcb065cf1849545b8cadece44950b45d9869038402088adfde448a857529e9",
+    "shift-fixtures-fork.log": "fe7f4186c2eefaadb1149b030a64087a94cd55e64f4bf34798d789fa0b94254c"
+  },
+  "sourceHashes": {
+    "esp-soc/src/machine.rs": "af5e48acb3763a4383b0d57aa5dd569bae15ebaf6eadb4244aa3bea2c9265f56",
+    "esp-periph/src/spi_mem.rs": "9e48020dd9be2d8d3711cfcd48a97bde7ba5bd968ce83bc65a113e029fdb89f7",
+    "esp-periph/src/gpio.rs": "e9405cfd9e555cfa9517349c392972592e7a557ec5788bb0a2fe21441b4ae75c",
+    "esp32s3/src/soc.rs": "463b99cc7900ea7cf0fc5183f7452e84e9c00c2fc636bcfe53a52435bbda3a64"
+  },
+  "c3C6ResetFollowup": {
+    "base": "8859951ee128f9dc832b1b14110d00fec5dba8c2",
+    "addon": "f0caca33f475ab335ac7eb04f3c50bb61f1b1c72",
+    "candidateWasmSha256": "c43c84526c45f34d15d063afe1731fd9661d19f9f21112281f498499f4b18c59",
+    "candidateWasmBytes": 2736681,
+    "gpio": {
+      "esp32s3": {
+        "result": "pass",
+        "artifactSha256": "741ae3abe1fd6a725b1cd3b3bb18e1b08ab9ae688fffbffa8d5f4a28948eb7b1",
+        "firmware": [
+          {
+            "filename": "bootloader.bin",
+            "offset": 0,
+            "sha256": "3a06e81d78e928687d7acd8abcd069543a4413de4398e2e2940a97b3fc739fd8"
+          },
+          {
+            "filename": "partitions.bin",
+            "offset": 32768,
+            "sha256": "1d9cca96de0fe07ad7fc0648b9878ddecd9ce565e38b589ad20fea698ed4c80c"
+          },
+          {
+            "filename": "boot_app0.bin",
+            "offset": 57344,
+            "sha256": "f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0"
+          },
+          {
+            "filename": "firmware.bin",
+            "offset": 65536,
+            "sha256": "e784b476f4c735fcc608f630ae8cb850489affe5dbf5e7f42b82c4203414bbad"
+          }
+        ]
+      },
+      "esp32c3": {
+        "result": "pass",
+        "artifactSha256": "2524364fea980e972a49f0c954d75389369ce71ea640b6233e75e87a9ced50b8",
+        "firmware": [
+          {
+            "filename": "bootloader.bin",
+            "offset": 0,
+            "sha256": "47f8c05bd1a66e6dc4b196c618b4fd37a4de652f3096c27a1bb86adb5c6d969b"
+          },
+          {
+            "filename": "partitions.bin",
+            "offset": 32768,
+            "sha256": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1"
+          },
+          {
+            "filename": "boot_app0.bin",
+            "offset": 57344,
+            "sha256": "f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0"
+          },
+          {
+            "filename": "firmware.bin",
+            "offset": 65536,
+            "sha256": "8d8c9f2cfe5218409dec7da1c3aa21ca2cc05d5bd327a86b414ce326df2132ae"
+          }
+        ]
+      },
+      "esp32c6": {
+        "result": "pass",
+        "artifactSha256": "27e2ff5bbe421584d139264a765da1988ce39ab61cc4be33102f666afb858431",
+        "firmware": [
+          {
+            "filename": "bootloader.bin",
+            "offset": 0,
+            "sha256": "d8499f4367c3a8377d513a2fd0e94b5ad6974d2c13591b52bad56183aa7002e7"
+          },
+          {
+            "filename": "partitions.bin",
+            "offset": 32768,
+            "sha256": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1"
+          },
+          {
+            "filename": "boot_app0.bin",
+            "offset": 57344,
+            "sha256": "f94c5d786a7a8fab06ac5d10e33bf37711a6697636dc037559ea19cc410a17f0"
+          },
+          {
+            "filename": "firmware.bin",
+            "offset": 65536,
+            "sha256": "3f43092e51d3c82f8f9503c15f9d7152acde49b11e04ca65ef29f6613f089e70"
+          }
+        ]
+      }
+    },
+    "sourceHashes": {
+      "esp32c3/src/soc.rs": "f31cc4aaa2f2c957d80d3e5e58e4cbf39da16a4572fb625c0091927f76e2d4f0",
+      "esp32c6/src/soc.rs": "28218fb49f151768e3f5c9d1b30a77d8497f7af5297b80359e0c02b7885d2f24"
+    },
+    "gates": {
+      "nativeClippy": "pass",
+      "wasmClippy": "pass",
+      "fetchDemoAssets": "pass",
+      "releaseWorkspace": {
+        "passed": 648,
+        "failed": 0,
+        "ignored": 0,
+        "externalFiltered": 51
+      },
+      "wasmBuild": "pass",
+      "wasmScenarios": [
+        "hello",
+        "c3-hello",
+        "c6-hello",
+        "c6-energy-scan",
+        "c6-contiki",
+        "c6-contiki-net",
+        "c6-rpl-net",
+        "panel"
+      ]
+    },
+    "logHashes": {
+      "clippy-native.log": "6b89cb36d59ff255ecdb815e63121d5ec627dd3f472b7f671d111707b33f28ce",
+      "clippy-wasm.log": "5397aafbdfd45cb5813c8db98e451a2b466d35cc53ffa477bc24cc639819a9b8",
+      "assets.log": "31586639213daf034ae171824ab4b03b6bb6d258952521086ccc46e51c709c87",
+      "workspace.log": "e65c8ab32acf7d1a4fa158cb90584d9081feffb67101b4fd71d1cc22f6bb8a9c",
+      "wasm-build.log": "373095d080effe029d861d19a29b9ef70796e58506ba4e98b2380252a82fa020",
+      "wasm-smoke.log": "3c9682286a44f00c5fdad5e3d4734cf5ecff6dea2fa999699cf664434aa59f65",
+      "addon-build.log": "dc90ec3147998dc920c3b2ffcb3bdb6142cce26891e4fc95b11389e363814f52",
+      "gpio.log": "8b9454c884e1b129484cb1560598698ebd4bb06aa2477a038380f7e40b304779"
+    }
+  }
+}

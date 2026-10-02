@@ -730,3 +730,47 @@ fn zero_display_rate_is_safe() {
     assert!(matches!(m.run(8192), Stop::MaxInsns));
     assert!(calls.load(Ordering::Relaxed) > 0);
 }
+
+#[test]
+fn busy_runs_honor_cycle_ceiling_with_virtual_and_batched_rounds() {
+    for peer in [false, true] {
+        for batching in [false, true] {
+            let mut m = machine();
+            m.quantum = 256;
+            for core in &mut m.cores { core.set_jit(false); }
+            m.vq_max = if batching { 16 } else { 1 };
+            m.bb_max = if batching { 16 } else { 1 };
+            park(&mut m, 0, IRAM, &SPIN);
+            if peer {
+                esp_soc::SocBus::load_bytes(&mut m.bus, RESET, &SPIN).unwrap();
+                m.bus.write32(0x600c_0000, 0b010).unwrap();
+            }
+            for cycles in [1, 255, 256, 257, 1025, 1] {
+                m.max_cycles = m.bus.cycles + cycles;
+                assert!(matches!(m.run(u64::MAX), Stop::Halted));
+                assert_eq!(m.bus.cycles, m.max_cycles);
+            }
+            if batching && esp_soc::SocBus::can_defer(&m.bus) {
+                assert!(if peer { m.bb_stats[0] } else { m.vq_stats[0] } > 0);
+            }
+        }
+    }
+}
+
+#[test]
+fn reboot_preserves_external_drives_but_not_released_inputs_or_pulls() {
+    let mut m = machine();
+    m.bus.periph.gpio.set_input(4, true);
+    m.bus.periph.gpio.set_input(5, false);
+    m.bus.periph.gpio.set_input(6, false);
+    m.bus.periph.gpio.release_input(6);
+    m.bus.periph.gpio.set_pulls(6, false, true);
+    m.reboot();
+    let gpio = &mut m.bus.periph.gpio;
+    gpio.set_pulls(4, false, true);
+    gpio.set_pulls(5, true, false);
+    assert_eq!(gpio.input & 0x70, 0x50);
+    gpio.set_pulls(6, false, true);
+    assert_eq!(gpio.input & 0x40, 0);
+    assert_eq!(gpio.enable, 0);
+}

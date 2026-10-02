@@ -123,6 +123,7 @@ impl esp_soc::SocBus for SocBus {
         p.spi0.0.jedec = old.spi0.0.jedec;
         p.spi1.0.jedec = old.spi1.0.jedec;
         p.gpio.strap = old.gpio.strap;      // strapping pins are board wiring, not chip state
+        p.gpio.restore_external(&old.gpio);
         // The access point and the network behind it are the world outside the chip.
         p.wifi_mac.ap = old.wifi_mac.ap; p.wifi_mac.net = old.wifi_mac.net; p.wifi_mac.log = old.wifi_mac.log; p.wifi_mac.relay = old.wifi_mac.relay;
         self.mmu = [0; MMU_ENTRIES];
