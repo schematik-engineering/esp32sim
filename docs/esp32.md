@@ -40,3 +40,8 @@ descriptors. It accepts host PCM inputs and routes physical I2S sources by the
 classic signal matrix. SPI routes are decoded only for boards that opt in.
 I2C is transaction-level; SPI excludes bit timing and multi-lane transfers;
 RMT excludes RX/carrier modulation; LEDC excludes fades and synthesized edges.
+
+AES, SHA-1/256/384/512 and RSA accelerators use classic register layouts and
+DPORT clock/reset/power controls. Arithmetic is shared with other chips.
+Operations complete synchronously; RSA MODEXP assumes valid preprocessing.
+Vector coverage alone does not establish WPA2 or TLS behavior.
