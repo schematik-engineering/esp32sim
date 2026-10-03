@@ -12,11 +12,28 @@ pub struct BoardEdge {
     pub level: bool,
 }
 
+/// Physical routes for a single-lane SPI transaction. Output masks allow mirrored routes.
+/// `cs` contains asserted active-low hardware selects and low, enabled software GPIO selects.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct SpiPins {
+    pub sclk: u64,
+    pub mosi: u64,
+    pub miso: Option<u8>,
+    pub cs: u64,
+}
+
 /// What a board does with the SoC's pin-level activity.
 pub trait BoardModel {
     fn name(&self) -> &'static str;
     /// GPIO output level changes, in order.
     fn gpio_changes(&mut self, _changes: &[(u8, bool)]) {}
+    /// Output changes in shared CPU-cycle time. The drive masks also expose output-enable
+    /// transitions (including releasing a low pin), needed by open-drain pulse protocols.
+    /// S3, C3 and C6 call this immediately after a GPIO output/enable write; other chips may use
+    /// `gpio_changes` until they implement timestamped output.
+    fn gpio_output_at(&mut self, _cycle: VirtualCycle, changes: &[(u8, bool)], _enabled: u64, _output: u64) {
+        if !changes.is_empty() { self.gpio_changes(changes); }
+    }
     /// A completed RMT transmission, decoded to bits by the peripheral model, with the pin the
     /// GPIO matrix has that channel routed to. Drivers that take a fresh channel per refresh
     /// (the Arduino NeoPixel one does) make the channel meaningless; the pin names the strip.
@@ -29,6 +46,19 @@ pub trait BoardModel {
         self.spi_tx(host, tx);
         vec![0xff; rx_len]
     }
+    /// Opt in to physical SPI routes. Fixed boards avoid route decoding.
+    fn uses_spi_pins(&self) -> bool { false }
+    /// Pin-aware boards select their devices using these routes and return MISO bytes.
+    /// The default preserves the controller-based callback.
+    fn spi_transfer_pins(&mut self, host: u8, _pins: SpiPins, tx: &[u8], rx_len: usize) -> Vec<u8> {
+        self.spi_transfer(host, tx, rx_len)
+    }
+    /// A completed UART byte, with the routing and baud at the FIFO write. Console output is
+    /// independent. Inverted signals and bit-level serial timing are not modelled here.
+    fn uart_tx(&mut self, _route: crate::uart::UartRoute, _byte: u8) {}
+    /// Completed device-to-chip bytes to deliver at the next device tick. Pin numbers name
+    /// chip GPIOs. Unrouted input is dropped; a baud mismatch raises UART FRM_ERR.
+    fn uart_rx(&mut self) -> Vec<crate::uart::UartInput> { Vec::new() }
     fn gpio_events(&self) -> u64 { 0 }
     /// Devices on the I2C buses: (bus, 7-bit address, device).
     fn i2c_devices(&mut self) -> Vec<(u8, u8, Box<dyn I2cDevice>)> { Vec::new() }
@@ -76,6 +106,7 @@ pub trait BoardModel {
     /// Advance monotonically through every board transition due by `cycle`.
     fn advance_to(&mut self, _cycle: VirtualCycle) {}
     /// Timestamped GPIO input edges emitted by the last advance.
+    fn released_inputs(&mut self) -> Vec<u8> { Vec::new() }
     fn take_edges(&mut self) -> Vec<BoardEdge> { Vec::new() }
     /// A pin by the name scripts and the UI use (`btn1`, `sw`, ...).
     fn named_pin(&self, _name: &str) -> Option<u8> { None }
