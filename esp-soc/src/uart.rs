@@ -29,4 +29,3 @@ pub struct UartInput {
     /// Completed characters; the ordinary 128-byte RX FIFO/overflow rules apply.
     pub data: Vec<u8>,
 }
-
