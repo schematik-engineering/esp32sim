@@ -45,6 +45,7 @@ pub trait Soc: 'static {
     type Bus: SocBus;
     const NAME: &'static str;
     /// The mask ROM ELF's file name in espressif/esp-rom-elfs.
+    const BOOTLOADER_OFFSET: usize = 0;
     const ROM_ELF: &'static str;
     const CPU_HZ: u64;
     const CORES: usize;
@@ -106,12 +107,20 @@ pub trait SocBus: Bus {
     fn serial_input(&mut self, data: &[u8]);
     /// Bytes from the host into UART `n`'s receive FIFO (a terminal on the chip's UART0 pins).
     fn uart_input(&mut self, n: usize, data: &[u8]);
+    fn pcm_sources(&mut self) -> Option<&mut esp_periph::i2s::PcmSources> { None }
+    fn i2s_selected_source(&self, _port: usize) -> Option<usize> { None }
+    fn i2s_input(&mut self, _port: usize) -> Option<&mut esp_periph::i2s::PcmInput> { None }
+    fn gpio_release_input(&mut self, _pin: u8) {}
     fn gpio_set_input(&mut self, pin: u8, level: bool);
     /// Drive an analog pad (script `adc` / `adcwave`); chips without an ADC model ignore it.
     fn analog_set(&mut self, _pin: u8, _src: esp_periph::AnalogSource) {}
     /// Deliver host touch at the bus's current time horizon.
     fn touch_input(&mut self, x: u16, y: u16, down: bool) { self.board().touch(x, y, down); }
     fn gpio_input(&self) -> u64;
+    /// Averaged PWM at a GPIO-matrix output: frequency in Hz and high-time fraction scaled to 0..65535.
+    /// `None` means no supported running PWM snapshot: unrouted, disabled, paused or unsupported.
+    /// It does not mean a low pin; a paused timer can hold a level. Running 0/100% duty is `Some`.
+    fn pwm_output(&self, _pin: u8) -> Option<(f64, u32)> { None }
     /// Start/stop recording GPIO edges (outputs as they reach the board, inputs as they are set).
     fn observe_gpio(&mut self, on: bool);
     /// (cycle, pin, level) edges recorded since the last call.

@@ -111,3 +111,16 @@ fn timing_cycle_values_report_usage_errors() {
         assert_eq!(timing_cycles("4294967295", name), Ok(u32::MAX));
     }
 }
+
+#[test]
+fn pwm_pins_are_observation_options() {
+    let o = parse(&["esp32sim".into(), "--pwm".into(), "4".into(), "--pwm".into(), "21".into()], "s3");
+    assert_eq!(o.pwm_pins, [4, 21]);
+}
+
+#[test]
+fn classic_defaults_to_its_own_board_and_keeps_explicit_board_names() {
+    let args = |values: &[&str]| values.iter().map(|s| s.to_string()).collect::<Vec<_>>();
+    assert_eq!(parse(&args(&["esp32sim", "--chip", "esp32"]), "s3").board, "esp32dev");
+    assert_eq!(parse(&args(&["esp32sim", "--chip", "esp32", "--board", "atech14"]), "s3").board, "atech14");
+}
