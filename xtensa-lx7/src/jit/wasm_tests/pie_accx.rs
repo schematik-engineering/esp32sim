@@ -82,7 +82,7 @@ pub(super) fn run_tests() -> u32 {
                         // Clear the packed marker: use the independent table executor.
                         instruction.r = 0;
                     }
-                    exec_insn(&mut reference, &mut reference_ram, &instruction).unwrap();
+                    exec_insn(&mut reference, &mut reference_ram, &instruction, 0).unwrap();
                 }
                 same(&reference, &actual);
 
@@ -138,7 +138,7 @@ fn whole_block(mut block: Vec<BlockInsn>, span: u32, setup: impl Fn(&mut Cpu)) -
     for bi in &block {
         let mut i = bi.insn;
         i.r = 0; // Independent table executor, rather than packed PIE operands.
-        exec_insn(&mut reference, &mut ra, &i).unwrap();
+        exec_insn(&mut reference, &mut ra, &i, 0).unwrap();
     }
     same(&reference, &actual);
     assert_eq!(ra.ram.mem, rb.ram.mem);

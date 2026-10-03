@@ -34,6 +34,8 @@ pub trait BoardModel {
     fn gpio_output_at(&mut self, _cycle: VirtualCycle, changes: &[(u8, bool)], _enabled: u64, _output: u64) {
         if !changes.is_empty() { self.gpio_changes(changes); }
     }
+    /// GPIO matrix/IO_MUX observation at the instruction performing the write.
+    fn gpio_waveform_at(&mut self, _cycle: VirtualCycle, _gpio: &esp_periph::gpio::Gpio, _mux: &esp_periph::RegRam, _signal: u32) {}
     /// A completed RMT transmission, decoded to bits by the peripheral model, with the pin the
     /// GPIO matrix has that channel routed to. Drivers that take a fresh channel per refresh
     /// (the Arduino NeoPixel one does) make the channel meaningless; the pin names the strip.
