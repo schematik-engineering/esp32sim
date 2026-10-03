@@ -1,7 +1,7 @@
 use esp_soc::board::BoardEdge;
 
 use esp32::bus::SocBus;
-use esp_soc::BoardModel;
+use esp_soc::{BoardModel, SocBus as _};
 use xtensa_lx7::bus::Bus;
 use std::sync::{Arc, Mutex};
 
@@ -64,4 +64,18 @@ fn uart_matrix_receive_does_not_require_gpio_output_mux() {
     assert_eq!(b.read32(0x3ff5_0000), Ok(b'G' as u32));
     b.write32(0x3ff5_0010, 0x195).unwrap();
     assert_eq!(b.periph.cpu_lines(0) & (1 << 6), 0);
+}
+
+#[test]
+fn timestamped_feedback_and_released_pull_survive_reboot() {
+    let mut b = bus(); let probe = Arc::new(Mutex::new(Probe::default())); b.board = Box::new(Board(probe.clone()));
+    b.write32(0x3ff4_9048, (2 << 12) | (1 << 9)).unwrap();
+    b.write32(0x3ff4_906c, (2 << 12) | (1 << 9) | (1 << 8)).unwrap();
+    b.begin_execution(100, 20); b.note_instruction(27);
+    b.write32(0x3ff4_4024, 1 << 4).unwrap(); b.write32(0x3ff4_4008, 1 << 4).unwrap();
+    assert_eq!(probe.lock().unwrap().writes.last(), Some(&107));
+    assert_ne!(b.read32(0x3ff4_403c).unwrap() & (1 << 5), 0);
+    b.gpio_set_input(5, false); b.reboot([0; 6]); assert_eq!(b.gpio_input() & (1 << 5), 0);
+    b.write32(0x3ff4_906c, (2 << 12) | (1 << 9) | (1 << 8)).unwrap();
+    b.gpio_release_input(5); assert_ne!(b.gpio_input() & (1 << 5), 0); assert!(b.gpio_state(5).unwrap().pull_up);
 }

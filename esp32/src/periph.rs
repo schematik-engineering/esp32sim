@@ -26,7 +26,7 @@ const SRC_FROM_CPU0: usize = 24;
 const SRC_UART0: usize = 34;
 const SRC_UART1: usize = 35;
 const SRC_UART2: usize = 36;
-const SRC_RTC_CORE: usize = 47;
+const SRC_RTC_CORE: usize = 46;
 // IDF soc.h: ETS_TIMER2 is 57; timer-group edge sources begin at 58.
 const SRC_TG0_T0_EDGE: usize = 58;
 const SRC_TG1_T0_EDGE: usize = 62;
@@ -198,7 +198,7 @@ impl ClassicGpio {
             _ => off,
         }
     }
-    fn mux(&self, pin: usize) -> u32 {
+    pub(crate) fn mux(&self, pin: usize) -> u32 {
         IOMUX_OFFSETS
             .get(pin)
             .filter(|&&off| off != u32::MAX)
@@ -309,6 +309,14 @@ impl ClassicGpio {
         } else if cfg & (1 << 7) != 0 {
             self.gpio.set_input(pin as u8, false);
         }
+    }
+    pub(crate) fn board_mux(&self) -> RegRam {
+        let mut mux = RegRam::new();
+        for pin in 0..40 {
+            let value = self.mux(pin);
+            mux.write(4 + pin as u32 * 4, (value & !(7 << 12)) | if self.matrix_pad(pin) { 1 << 12 } else { 0 });
+        }
+        mux
     }
     pub fn input_pin(&self, signal: usize) -> Option<u8> {
         let cfg = *self.gpio.func_in_sel.get(signal)?;

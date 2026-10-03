@@ -158,6 +158,14 @@ impl esp_soc::SocBus for SocBus {
         }
     }
     fn gpio_release_input(&mut self, pin: u8) { self.periph.gpio.release_input(pin); self.irq_dirty = true; }
+    fn gpio_state(&self, pin: u8) -> Option<esp_soc::GpioState> {
+        if pin >= 40 || (20..=24).contains(&pin) && pin != 21 && pin != 22 || (28..=31).contains(&pin) { return None; }
+        let gpio = &self.periph.gpio;
+        let mux = gpio.mux(pin as usize);
+        Some(esp_soc::GpioState { output: gpio.gpio.out & (1 << pin) != 0,
+            output_enable: gpio.gpio.enable & (1 << pin) != 0,
+            pull_up: pin < 34 && mux & (1 << 8) != 0, pull_down: pin < 34 && mux & (1 << 7) != 0 })
+    }
     fn gpio_set_input(&mut self, pin: u8, level: bool) {
         self.periph.gpio.set_input(pin, level);
         self.irq_dirty = true;
