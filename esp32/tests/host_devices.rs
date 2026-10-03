@@ -1,7 +1,7 @@
 use esp_soc::board::BoardEdge;
 
 use esp32::bus::SocBus;
-use esp_soc::{BoardModel, SocBus as _};
+use esp_soc::BoardModel;
 use xtensa_lx7::bus::Bus;
 use std::sync::{Arc, Mutex};
 
