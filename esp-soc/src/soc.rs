@@ -45,6 +45,7 @@ pub trait Soc: 'static {
     type Bus: SocBus;
     const NAME: &'static str;
     /// The mask ROM ELF's file name in espressif/esp-rom-elfs.
+    const BOOTLOADER_OFFSET: usize = 0;
     const ROM_ELF: &'static str;
     const CPU_HZ: u64;
     const CORES: usize;
