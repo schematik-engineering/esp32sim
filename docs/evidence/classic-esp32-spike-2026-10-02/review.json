@@ -1,0 +1,153 @@
+{
+  "baseline_core_revision": "71302a4",
+  "final_core_revision": "9d2158ddf45bbae50a1cad2dd0d966c40db63dff",
+  "cpu_baseline_revision": "a441c69",
+  "cpu_candidate_revision": "e2445f7",
+  "toolchain": "Rust 1.99.0",
+  "platform": "macOS AArch64",
+  "block_run_args": [
+    "--chip",
+    "esp32",
+    "--board",
+    "none",
+    "--boot",
+    "rom",
+    "--max-insns",
+    "242000",
+    "--no-dump"
+  ],
+  "blocks_built": {
+    "before": 42642,
+    "after": 1524
+  },
+  "instructions_each": 242040,
+  "cycles_each": 242048,
+  "console_sha256": "3ada3fc5169125b19af8b487ebc34b639a3d3ae67933a5b63d1a5f0a51b9f0c6",
+  "inputs_sha256": {
+    "rom": "920b70635440517866aab2230964a570d2cf2b676658d93c52fbac108c1cca31",
+    "arduino_merged_flash": "b0361619b04087f666fae5c5b7d6a00536062da1dd969d77f5171639f7d701a9",
+    "classic-hello-bootloader.bin": "40511ee8e0f25428ab5b5040b4ccf9c5ca70ea894a1a18e50198927e50d727ec",
+    "classic-hello-ptable.bin": "7f00b6c042a89b15b0cac534f82ed988caf29278ff5700b0c511eb1b5bb7c820",
+    "classic-hello_world.bin": "42b85bc6b5f5cd136b6b7d6257ad97697259d6e30c9c98dc7ba1b5a3f527e137"
+  },
+  "cpu": {
+    "samples": [
+      {
+        "pair": 1,
+        "revision": "before",
+        "cpu_seconds": 2.912639,
+        "wall_seconds": 3.1772243339801207,
+        "instructions": 4800000000,
+        "stdout_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd"
+      },
+      {
+        "pair": 1,
+        "revision": "after",
+        "cpu_seconds": 2.9217540000000004,
+        "wall_seconds": 2.9302464589709416,
+        "instructions": 4800000000,
+        "stdout_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd"
+      },
+      {
+        "pair": 2,
+        "revision": "before",
+        "cpu_seconds": 2.9149329999999996,
+        "wall_seconds": 2.921568042016588,
+        "instructions": 4800000000,
+        "stdout_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd"
+      },
+      {
+        "pair": 2,
+        "revision": "after",
+        "cpu_seconds": 2.9280610000000005,
+        "wall_seconds": 2.93466587504372,
+        "instructions": 4800000000,
+        "stdout_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd"
+      },
+      {
+        "pair": 3,
+        "revision": "before",
+        "cpu_seconds": 2.926169000000002,
+        "wall_seconds": 2.931297750095837,
+        "instructions": 4800000000,
+        "stdout_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd"
+      },
+      {
+        "pair": 3,
+        "revision": "after",
+        "cpu_seconds": 2.9257530000000007,
+        "wall_seconds": 2.9322156669804826,
+        "instructions": 4800000000,
+        "stdout_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd"
+      }
+    ],
+    "binaries": {
+      "before": "8cb538b7a98410f0b8989f96057fb50ef25290311fc592b8446f0226066a2442",
+      "after": "e853b605a1e109e77fa74a2602cde7af8747ee38e3ef48b7f5cb11ac890e5a57"
+    }
+  },
+  "initial_cpu_baseline": {
+    "source": "initial hooks build, before clean baseline reconstruction",
+    "binary_sha256": "7722c3dc80c55b654846a82047a8f1e425549f3ebf1ad8b80f8593b8512dbe6c",
+    "samples": [
+      {
+        "cpu_seconds": 2.598365,
+        "user_seconds": 2.592691,
+        "system_seconds": 0.005673999999999999,
+        "wall_seconds": 2.916007834021002,
+        "instructions": 4800000000,
+        "stdout_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd"
+      },
+      {
+        "cpu_seconds": 2.609003,
+        "user_seconds": 2.604568,
+        "system_seconds": 0.004435000000000001,
+        "wall_seconds": 2.612851292011328,
+        "instructions": 4800000000,
+        "stdout_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd"
+      },
+      {
+        "cpu_seconds": 2.5906969999999996,
+        "user_seconds": 2.58599,
+        "system_seconds": 0.004706999999999999,
+        "wall_seconds": 2.5946067089680582,
+        "instructions": 4800000000,
+        "stdout_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd"
+      }
+    ]
+  },
+  "mutations": [
+    {
+      "mutation": "234..=236 if self.lx6 => -> 234..=236 =>",
+      "test": "dfp_user_register_instructions_are_illegal_on_s3",
+      "exit": 101,
+      "killed": true
+    },
+    {
+      "mutation": "SRC_TG0_T0_EDGE: usize = 58 -> SRC_TG0_T0_EDGE: usize = 57",
+      "test": "timer_edges_use_idf_sources_58_and_62",
+      "exit": 101,
+      "killed": true
+    },
+    {
+      "mutation": "SRC_TG1_T0_EDGE: usize = 62 -> SRC_TG1_T0_EDGE: usize = 61",
+      "test": "timer_edges_use_idf_sources_58_and_62",
+      "exit": 101,
+      "killed": true
+    },
+    {
+      "mutation": "&mut self.page_ver[first..=last] -> &mut self.page_ver[..]",
+      "test": "stores_invalidate_only",
+      "exit": 101,
+      "killed": true
+    },
+    {
+      "mutation": "pin < 40 && self.input_enabled(pin) -> pin < 40 && self.matrix_pad(pin) && self.input_enabled(pin)",
+      "test": "uart_matrix_receive_does_not_require_gpio_output_mux",
+      "exit": 101,
+      "killed": true
+    }
+  ],
+  "conditions": "Other validation processes ran concurrently. CPU values are process user+system time, not wall time. No confidence interval or speedup claim. One deterministic block-count sample per original variant, plus a final candidate confirmation.",
+  "redactions": "Local input locations omitted; hashes and caller-supplied measurement arguments retain reproducibility. No private captures, process inventories or host identifiers retained."
+}
