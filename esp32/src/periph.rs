@@ -27,8 +27,8 @@ const SRC_UART0: usize = 34;
 const SRC_UART1: usize = 35;
 const SRC_UART2: usize = 36;
 const SRC_RTC_CORE: usize = 47;
-const SRC_TG0_T0_EDGE: usize = 57;
-const SRC_TG1_T0_EDGE: usize = 61;
+const SRC_TG0_T0_EDGE: usize = 58;
+const SRC_TG1_T0_EDGE: usize = 62;
 
 pub struct Dport {
     pub ram: RegRam,
@@ -877,4 +877,24 @@ mod tests {
                          0xb0, 0x03, 0x61, 0xa3, 0x96, 0x17, 0x7a, 0x9c,
                          0xb4, 0x10, 0xff, 0x61, 0xf2, 0x00, 0x15, 0xad]);
     }
+    #[test]
+    fn timer_edges_use_idf_sources_58_and_62_on_both_cores() {
+        for (group, source, base) in [(0, 58, 0x3ff5_f000), (1, 62, 0x3ff6_0000)] {
+            let mut p = Peripherals::new([0; 6]);
+            for (core, map) in [(0, 0x3ff0_0104), (1, 0x3ff0_0218)] {
+                p.write32(map + source * 4, 10);
+                p.write32(map + (source - 1) * 4, 11);
+                assert_eq!(p.cpu_lines(core), 0);
+            }
+            p.write32(base, (1 << 31) | (1 << 30) | (2 << 13) | (1 << 12) | (1 << 10));
+            p.write32(base + 0x10, 2);
+            p.write32(base + 0x98, 1);
+            p.tick(12);
+            assert_ne!(Device::irq_sources(&p.timg[group]) & (1 << 4), 0);
+            for core in 0..2 { assert_eq!(p.cpu_lines(core), 1 << 10); }
+            p.write32(base + 0xa4, 1);
+            for core in 0..2 { assert_eq!(p.cpu_lines(core), 0); }
+        }
+    }
+
 }

@@ -235,3 +235,14 @@ fn external_wifi_station_c6() {
     assert!(station.contains("GOT_IP ip=10.0.2.15") && station.contains("PING done sent=5 received=5"), "the station did not get through:\n{}\n{}", station, r.stderr);
     expect_text("wifi-station-c6.station.txt", &station);
 }
+
+/// Classic ECO3 ROM, stock IDF bootloader and hello_world application.
+#[test]
+fn hello_world_classic() {
+    let rom = rom("esp32_rev300");
+    let r = run(BIN, &["--chip", "esp32", "--rom", rom.to_str().unwrap(), "--board", "esp32dev", "--boot", "rom", "--no-dump", "--console", "uart0",
+        "--bootloader", &format!("{FW}/classic-hello-bootloader.bin"), "--ptable", &format!("{FW}/classic-hello-ptable.bin"), "--app", &format!("{FW}/classic-hello_world.bin"), "--max-seconds", "3"]);
+    for text in ["ets Jul 29 2019", "2nd stage bootloader", "Hello world!"] { assert!(r.stdout.contains(text), "missing {text}: {}", r.stdout); }
+    expect_text("hello-classic.console.txt", &r.stdout);
+    expect_u64("hello-classic.insns", r.insns);
+}

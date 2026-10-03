@@ -46,7 +46,7 @@ pub struct SocBus {
     pub irq_dirty: bool,
     pub gpio_events: Option<Vec<(u64, u8, bool)>>,
     pub debug: esp_soc::DebugFlags,
-    ver: u32,
+    page_ver: Vec<u32>,
 }
 
 impl SocBus {
@@ -70,7 +70,41 @@ impl SocBus {
             irq_dirty: true,
             gpio_events: None,
             debug: Default::default(),
-            ver: 0,
+            page_ver: vec![0; 0x10021],
+        }
+    }
+    // 256-byte decode pages. RTC FAST's data and instruction windows share backing bytes.
+    fn version_page(addr: u32) -> usize {
+        let addr = if (RTC_FAST_D..RTC_FAST_D + 0x2000).contains(&addr) { RTC_FAST_I + addr - RTC_FAST_D } else { addr };
+        match addr {
+            0x3f40_0000..=0x403f_ffff => ((addr - 0x3f40_0000) >> 8) as usize,
+            RTC_SLOW..=0x5000_1fff => 0x10000 + ((addr - RTC_SLOW) >> 8) as usize,
+            _ => 0x10020,
+        }
+    }
+    fn written(&mut self, addr: u32, len: usize) {
+        if len == 0 { return; }
+        let first = Self::version_page(addr);
+        let last = Self::version_page(addr + len as u32 - 1);
+        let first = if addr & 255 < emu_core::bus::PREV_PAGE_BYTES { first.saturating_sub(1) } else { first };
+        for version in &mut self.page_ver[first..=last] { *version = version.wrapping_add(1); }
+    }
+    fn flash_written(&mut self, off: usize, len: usize) {
+        if len == 0 { return; }
+        for slot in 0..128 {
+            let entry = self.mmu[0][slot];
+            if entry & MMU_INVALID != 0 { continue; }
+            let start = (entry as usize & 255) * PAGE;
+            if off < start + PAGE && start < off + len {
+                if let Some(addr) = Self::mmu_address(slot) { self.written(addr, PAGE); }
+            }
+        }
+    }
+    fn mmu_address(slot: usize) -> Option<u32> {
+        match slot {
+            0..=63 => Some(DBUS_LOW + slot as u32 * PAGE as u32),
+            77..=127 => Some(0x4000_0000 + (slot as u32 - 64) * PAGE as u32),
+            _ => None,
         }
     }
     fn flash_off(&self, addr: u32) -> Option<usize> {
@@ -155,7 +189,7 @@ impl SocBus {
     fn periph_write(&mut self, addr: u32, value: u32, size: u32) {
         if let Some((cpu, n)) = Self::mmu_slot(addr) {
             self.mmu[cpu][n] = value & 0x1ff;
-            self.ver = self.ver.wrapping_add(1);
+            if cpu == 0 { if let Some(addr) = Self::mmu_address(n) { self.written(addr, PAGE); } }
             return;
         }
         let a = addr & !3;
@@ -213,7 +247,7 @@ impl SocBus {
     fn run_spi(&mut self) {
         self.periph.spi_exec = false;
         self.periph.spi1.0.execute(&mut self.flash, &mut []);
-        self.periph.spi1.0.dirty.clear();
+        for (_, off, len) in std::mem::take(&mut self.periph.spi1.0.dirty) { self.flash_written(off, len); }
     }
     pub fn write_flash(&mut self, offset: usize, data: &[u8]) -> Result<(), String> {
         let target = self
@@ -222,7 +256,7 @@ impl SocBus {
             .and_then(|d| d.get_mut(..data.len()))
             .ok_or("flash image too large")?;
         target.copy_from_slice(data);
-        self.ver = self.ver.wrapping_add(1);
+        self.flash_written(offset, data.len());
         Ok(())
     }
     pub fn load_bytes(&mut self, addr: u32, data: &[u8]) -> Result<(), String> {
@@ -233,7 +267,7 @@ impl SocBus {
                 _ => return Err(format!("load: address {a:#010x} not mapped")),
             }
         }
-        self.ver = self.ver.wrapping_add(1);
+        self.written(addr, data.len());
         Ok(())
     }
 }
@@ -285,7 +319,7 @@ impl Bus for SocBus {
         match self.memory(a) {
             Some((b, o, true)) if o < b.len() => {
                 b[o] = v;
-                self.ver = self.ver.wrapping_add(1);
+                self.written(a, 1);
                 Ok(())
             }
             _ => {
@@ -302,7 +336,7 @@ impl Bus for SocBus {
         match self.memory(a) {
             Some((b, o, true)) if o + 2 <= b.len() => {
                 b[o..o + 2].copy_from_slice(&v.to_le_bytes());
-                self.ver = self.ver.wrapping_add(1);
+                self.written(a, 2);
                 Ok(())
             }
             _ => {
@@ -319,7 +353,7 @@ impl Bus for SocBus {
         match self.memory(a) {
             Some((b, o, true)) if o + 4 <= b.len() => {
                 b[o..o + 4].copy_from_slice(&v.to_le_bytes());
-                self.ver = self.ver.wrapping_add(1);
+                self.written(a, 4);
                 Ok(())
             }
             _ => {
@@ -346,10 +380,10 @@ impl Bus for SocBus {
         }
     }
     fn page_versions(&self) -> &[u32] {
-        std::slice::from_ref(&self.ver)
+        &self.page_ver
     }
-    fn code_page(&mut self, _pc: u32) -> u32 {
-        0
+    fn code_page(&mut self, pc: u32) -> u32 {
+        Self::version_page(pc) as u32
     }
     fn note_pc(&mut self, pc: u32) {
         self.periph.misc.cur_pc = pc;
@@ -403,4 +437,40 @@ mod tests {
         assert_eq!(b.read32(0x3ff4_80b8), Ok(hint));
         assert_eq!(b.read32(0x3ff4_8034), Ok(12 | (12 << 6)));
     }
+    #[test]
+    fn stores_invalidate_only_the_written_code_pages_and_rtc_alias() {
+        let mut b = SocBus::new(4 << 20, [0; 6]);
+        let rom = b.code_page(IROM_MASK_LOW) as usize;
+        let code = b.code_page(IRAM_LOW + 0x100) as usize;
+        b.write32(DRAM_LOW + 0x100, 42).unwrap();
+        assert_eq!(b.page_versions()[rom], 0);
+        assert_eq!(b.page_versions()[code], 0);
+        b.write16(IRAM_LOW + 0x1ff, 42).unwrap();
+        assert_eq!(b.page_versions()[code], 1);
+        assert_eq!(b.page_versions()[code + 1], 1);
+        b.write8(IRAM_LOW + 0x200, 42).unwrap();
+        assert_eq!(b.page_versions()[code], 2, "straddling instruction on previous page");
+        let rtc = b.code_page(RTC_FAST_I) as usize;
+        b.write32(RTC_FAST_D, 42).unwrap();
+        assert_eq!(b.code_page(RTC_FAST_D) as usize, rtc);
+        assert_eq!(b.page_versions()[rtc], 1);
+    }
+    #[test]
+    fn flash_remapping_and_programming_invalidate_aliases_without_touching_rom() {
+        let mut b = SocBus::new(4 << 20, [0; 6]);
+        let rom = b.code_page(IROM_MASK_LOW) as usize;
+        b.write32(MMU_PRO + 77 * 4, 1).unwrap();
+        b.write32(MMU_PRO + 78 * 4, 1).unwrap();
+        let code = b.code_page(IBUS_LOW + 0x100) as usize;
+        let alias = b.code_page(IBUS_LOW + PAGE as u32 + 0x100) as usize;
+        let before = b.page_versions()[code];
+        b.write_flash(PAGE + 0x100, &[42]).unwrap();
+        assert!(b.page_versions()[code] > before);
+        assert_eq!(b.page_versions()[code], b.page_versions()[alias]);
+        let before = b.page_versions()[code];
+        b.write32(MMU_PRO + 77 * 4, 2).unwrap();
+        assert!(b.page_versions()[code] > before);
+        assert_eq!(b.page_versions()[rom], 0);
+    }
+
 }
