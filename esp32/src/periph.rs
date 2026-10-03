@@ -42,6 +42,7 @@ const SRC_TG0_T0_EDGE: usize = 58;
 const SRC_TG1_T0_EDGE: usize = 62;
 const I2C_SIGNALS: [(usize, usize); 2] = [(29, 30), (95, 96)];
 
+// DPORT maps peripheral sources independently onto the PRO and APP CPU lines.
 pub struct Dport {
     pub ram: RegRam,
     pub map: [[u32; NUM_SOURCES]; 2],
@@ -84,7 +85,7 @@ impl Device for Dport {
         match off {
             0x104..=0x214 => self.map[0][((off - 0x104) / 4) as usize] = v & 31,
             0x218..=0x328 => self.map[1][((off - 0x218) / 4) as usize] = v & 31,
-            0x40 | 0x58 => {
+            0x40 | 0x58 => { // PRO/APP CACHE_CTRL1: invalidate completes synchronously
                 if v & (1 << 4) != 0 {
                     v = (v & !(1 << 4)) | (1 << 5);
                 }
@@ -199,6 +200,7 @@ impl ClassicGpio {
             signal_oe: [false; 256],
         }
     }
+    // Classic PINn and matrix select banks precede the shared S3 offsets.
     fn gpio_off(off: u32) -> u32 {
         match off {
             0x88..=0x124 => off - 0x14,
@@ -448,6 +450,7 @@ impl Device for ClassicGpio {
     }
 }
 
+// RTC_CNTL uses the classic register layout; the shared device owns watchdog state.
 pub struct ClassicRtc(pub RtcCntl);
 impl ClassicRtc {
     fn new() -> Self {
@@ -534,6 +537,7 @@ impl Device for ClassicUart {
     }
 }
 
+// Read-only factory eFuses include revision bits and the MAC address.
 pub struct ClassicEfuse {
     pub ram: RegRam,
     cmd: u32,
