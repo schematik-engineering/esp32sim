@@ -1,7 +1,7 @@
 #!/bin/sh
 # Everything the page's demos need that is not committed, fetched into web/ exactly as the Pages
 # workflow does (it runs this script):
-#   - the ESP32-S3, C3 and C6 mask ROM ELFs (Apache-2.0, espressif/esp-rom-elfs, latest release)
+#   - the classic ESP32, S3, C3 and C6 mask ROM ELFs (Apache-2.0, espressif/esp-rom-elfs, latest release)
 #     into web/wasm/fw/ — every demo boots from the ROM;
 #   - xterm.js for the Terminal tab (MIT, pinned; tools/fetch-web-vendor.sh);
 #   - the Linux-on-esp32-S3 flash image (GPL-3.0, svermigo/Linux-on-esp32-S3, release 0.7, pinned by
@@ -33,7 +33,7 @@ url=$(curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 https://api.github
 get "$url" "$tmp/rom.tar.gz"
 mkdir "$tmp/rom"
 tar -xzf "$tmp/rom.tar.gz" -C "$tmp/rom"
-for rom in esp32s3_rev0_rom.elf esp32c3_rev3_rom.elf esp32c6_rev0_rom.elf; do
+for rom in esp32_rev300_rom.elf esp32s3_rev0_rom.elf esp32c3_rev3_rom.elf esp32c6_rev0_rom.elf; do
   f=$(find "$tmp/rom" -name "$rom" | head -n 1)
   [ -n "$f" ] || { echo "$rom is not in $url" >&2; exit 1; }
   cp "$f" "$FW/$rom"
