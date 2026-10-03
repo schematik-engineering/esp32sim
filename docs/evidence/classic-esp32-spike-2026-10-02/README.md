@@ -1122,4 +1122,3 @@ the completed model passed the gates above. Raw logs and firmware remain outside
 Git. Retained evidence omits personal paths and unrelated process/session data;
 log hash pairs record path normalization without changing measured values. Manual
 review and the privacy checker found no retained personal information.
-

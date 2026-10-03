@@ -20,4 +20,3 @@ mod tests {
         for name in ["waveshare-amoled18-v2", "waveshare-lcd4b", "atech14"] { assert!(super::make_board(name).is_none()); }
     }
 }
-
