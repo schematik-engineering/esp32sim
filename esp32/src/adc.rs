@@ -3,6 +3,8 @@ use esp_periph::{AnalogInputs, RegRam};
 
 const ADC1_PINS: [u8; 8] = [36, 37, 38, 39, 32, 33, 34, 35];
 const ADC2_PINS: [u8; 10] = [4, 0, 2, 15, 13, 12, 14, 27, 25, 26];
+pub fn valid_pin(pin: u8) -> bool { ADC1_PINS.contains(&pin) || ADC2_PINS.contains(&pin) }
+
 const TOUCH_PINS: [u8; 10] = [4, 0, 2, 15, 13, 12, 14, 27, 33, 32];
 // GPIO, RTC_IO register, RTC mux bit (ESP-IDF rtc_io_desc).
 const PADS: [(u8, u32, u32); 18] = [
@@ -175,10 +177,11 @@ impl ClassicAdc {
             ];
             let offsets = [[75, 78, 107, 142], [63, 66, 89, 128]];
             let slope = 1100 * scales[unit][attenuation] / 4096;
-            let volts = self.analog.volts(pins[channel], self.now_cycles);
+            raw = self.analog.convert(pins[channel], self.now_cycles, |volts| {
             let mv = ((volts.clamp(0.0, 3.3) * 1000.0).round() as u32)
                 .saturating_sub(offsets[unit][attenuation]);
-            raw = ((mv * 65536 + slope / 2) / slope).min(4095) >> (12 - width);
+            ((mv * 65536 + slope / 2) / slope).min(4095)
+            }) >> (12 - width);
             if control & (1 << (28 + unit)) == 0 {
                 raw ^= (1 << width) - 1;
             }

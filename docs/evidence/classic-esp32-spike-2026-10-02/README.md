@@ -1194,3 +1194,180 @@ and command (`--wifi ssid=esp32sim,psk=classic-wifi-pass --net nat`) completes t
 handshake and connects: `WIFI_WPA2_STATUS 3 millis=1839 ip=10.0.2.15`. The SHA-1 blocker above
 is resolved by that extension, not by any Wi-Fi change.
 
+
+## ADC1/ADC2, DAC and touch extension
+
+Revision `c6ed024` extends EX199 on the same ECO3 ROM and unchanged Arduino-ESP32
+3.3.8 platform. The new correctness contract covers both SAR ADCs, calibration, both
+DACs and ten capacitive touch pads. This is functional evidence, not timing or speed
+measurement. [The ADC receipt](adc-validation.md) preserves both sketches, exact inputs,
+commands, output checks, hashes, source references and the initial failed run.
+
+`analogRead` uses `adc_oneshot_read`; continuous ADC is not needed. The classic-local
+`esp32/src/adc.rs` models SENS at `0x3ff48800` and RTC_IO at `0x3ff48400`, one-shot
+START/DONE/data, channel selection, 9-12 bit width, attenuation and inversion. ADC1
+channels map to GPIO36, 37, 38, 39, 32, 33, 34, 35; ADC2 maps to GPIO4, 0, 2, 15, 13,
+12, 14, 27, 25, 26. DAC codes and power controls expose GPIO25/26 voltages in the CLI
+report. Touch covers software-triggered scans, timer-mode polling and the classic T8/T9
+result swap. IDF provides the touch software filter.
+
+The initial model wrongly required RTC GPIO mux selection for analog input. The first
+firmware run returned raw ADC and touch zeros and no DAC output. IDF 5.5's
+`gpio_config_as_analog` actually calls `rtc_gpio_deinit`, leaving digital and RTC input,
+output and pulls disabled. One correction removed that gate: analog converters connect
+directly to their physical pads. RTC mux selection still disconnects digital GPIO and
+its edge detection. The unchanged images then passed. Register tests cover both mux
+states, conversion control, attenuation/width/inversion, DAC power/DC gating, touch
+channel selection, and host-input persistence across reboot.
+
+Arduino's millivolt API leaves `default_vref` unset, so blank calibration eFuses would
+fail initialization. The model supplies the documented nominal 1100 mV Vref through
+nonzero sign-magnitude encoding `0x10` at eFuse block 0 word 4 bits 12:8. No two-point
+values are claimed. At default 11 dB attenuation, ADC1 uses IDF's nominal line fit:
+`a = floor(1100 * 196602 / 4096) = 52798`, offset 142 mV. The model computes
+`raw = clamp(round((mV - 142) * 65536 / a), 0, 4095)` with subtraction floored at zero.
+At 1650 mV this gives **1872**, which IDF calibrates to **1650 mV**. ADC2 uses slope
+52950 and offset 128, giving **1884** and **1650 mV**. DAC voltage is
+`round(code * 3300 / 255)`, so code 128 reports **1656 mV**.
+
+This port of `6c855cc` and its receipt `1fd9c06` uses PR #165's host API from
+`0ef8390`, preserved unchanged in history. `adc` and `adcwave` both dispatch through
+`SocBus::analog_set` and `AnalogInputs`; the classic ADC samples at the current bus
+cycle, clamps to 0..3.3 V and rounds to millivolts. No shared analog API extension
+or S3 behavior change was needed. The original separate ADC action, setter and
+parser are absent. `touchpad <gpio> <0|1>` and its default bus method remain.
+See the receipt's port revalidation section for new results and retained history.
+
+The main script `/tmp/esp32-classic-adc-input.txt` was:
+
+```text
+0 adc 34 1.650
+0 adc 27 1.650
+0.30 adc 34 0.800
+0.40 touchpad 4 1
+0.80 touchpad 4 0
+```
+
+Run the unchanged sketch from the linked receipt:
+
+```sh
+pio run -d /tmp/esp32sim-classic-adc-pio
+target/release/esp32sim --chip esp32 --boot rom \
+  --rom "$HOME/.platformio/packages/tool-esp-rom-elfs/esp32_rev300_rom.elf" \
+  --flash-image /tmp/esp32sim-classic-adc-pio/.pio/build/esp32dev/firmware.factory.bin \
+  --elf /tmp/esp32sim-classic-adc-pio/.pio/build/esp32dev/firmware.elf \
+  --board none --script /tmp/esp32-classic-adc-input.txt \
+  --max-seconds 1.2 --no-reboot --no-dump
+```
+
+Relevant serial output and observer result:
+
+```text
+DAC pin=25 code=128 written=1
+ADC sample=0 millis=3 pin34_raw=1872 pin34_mv=1650 pin27_raw=1884 pin27_mv=1650
+TOUCH sample=0 millis=6 pin=4 value=1000
+ADC sample=3 millis=305 pin34_raw=817 pin34_mv=800 pin27_raw=1884 pin27_mv=1650
+TOUCH sample=4 millis=405 pin=4 value=475
+TOUCH sample=5 millis=505 pin=4 value=301
+TOUCH sample=8 millis=805 pin=4 value=826
+TOUCH sample=9 millis=905 pin=4 value=1000
+[dac] GPIO25: 1656 mV
+```
+
+The main run completed 1.2 modeled seconds, 288,000,000 cycles. A separate two-second
+sketch checked all 18 ADC pads with distinct voltages, every 9-12 bit/attenuation
+combination, all ten touch pads with alternating contact states, and DAC2 code 64 at
+828 mV. All outputs matched. The touch model supplies raw 1000/300; IDF's filter
+settles at 301 after a press and returns to 1000 after release.
+
+Gates passed: `cargo build --release`, `cargo test -p esp32 -p esp32sim`,
+`cargo test --workspace`, `tools/wasm-build.sh`, `node tools/check-evidence-privacy.mjs`
+and `git diff --check`. The port workspace passed 524 tests with 22 ignored and
+zero failures. Existing S3/C3/C6 suites remain green. Limits are immediate
+ADC conversion, a linear transfer without the 11 dB nonlinear LUT above raw 2880,
+fixed touch counts, no touch threshold interrupt/wakeup, no ADC continuous/DMA/ULP or
+Wi-Fi arbitration, and no electrical contention/noise or variable DAC supply model.
+
+## Modeled behavior and known gaps
+
+The target models the classic memory/cache windows, both MMU tables, mask ROM and SRAM,
+SPI0/1 flash commands, three UARTs and their FIFO aliases, boot strap `0x13`, classic
+LEDC, RMT TX, SPI2/SPI3 with classic SPI DMA, TIMG0/1 general timers and main watchdogs, TIMG0 LACT, RTC watchdog behavior, ECO3
+eFuse identity, AES, SHA-1/256/384/512, RSA/MPI, random input, ADC1/ADC2 one-shot conversions fed by host analog sources, DAC1/DAC2,
+touch pads T0-T9 and APP CPU control. I2C0 and I2C1 execute classic
+master command lists against attached board devices and deliver their interrupts through
+DPORT. GPIO0-39 include output/enable aliases, pad input, supported pulls, matrix
+input/output routing and PRO/APP edge and level interrupts; GPIO34-39 remain input-only.
+The Wi-Fi MAC and PHY adapters support the open and WPA2-PSK station paths described above.
+DPORT routes Wi-Fi MAC, GPIO, UART0-2, LEDC, RMT, I2C0/1, RSA, SPI2/3 and their DMA, TIMG0/1 timer and watchdog, RTC watchdog and
+CPU-to-CPU sources through the per-core maps. Other unmodeled peripheral blocks use the
+existing round-trip register RAM: reads start at zero and writes persist, but there is no
+device behavior or interrupt generation.
+
+Direct IO_MUX function selection bypasses the GPIO matrix. SPI2/3 drive their fixed
+clock, data-idle and hardware-CS levels through those pads. LEDC uses the classic-local
+output hook, although individual PWM edges are not generated. Other direct peripheral pad
+waveforms remain unmodeled. LACT sleep-time RTC stepping is not modeled. The reused T0/T1
+implementation has the newer chips' 54-bit counter width rather than the classic
+hardware's full 64 bits; short Arduino alarms are covered. A watchdog CPU-reset action
+currently reboots the whole emulated chip while publishing the CPU-reset cause because the
+runner has no per-core reset operation. External GPIO drive is an absolute host level,
+matching the existing script API; there is no separate release-to-pull command.
+
+The boot run first touched these register-RAM stubs:
+
+- IO_MUX: `0x3ff49088`, `0x3ff49060`, `0x3ff49064`, `0x3ff49068`, `0x3ff49054`,
+  `0x3ff49058`, `0x3ff4905c`, `0x3ff49084`, and `0x3ff49040`.
+- SYSCON: `0x3ff6607c`, `0x3ff66000`, `0x3ff66008`, `0x3ff66004`,
+  `0x3ff6602c`, `0x3ff66030`, `0x3ff66034`, `0x3ff66038`, `0x3ff66010`, and
+  `0x3ff66018`.
+- Unnamed register blocks: `0x3ff4f0b0`, `0x3ff4f0a8`, `0x3ff4f008`,
+  `0x3ff4f0ac`, and `0x3ff6d0ac`.
+
+The shared LX7-named core matches the LX6 run's 64 physical registers, windowed ABI,
+32 interrupt inputs and levels, exception vectors, CCOUNT/three CCOMPARE timers,
+loops, MAC16, multiply/divide, and scalar single-precision FPU. Classic configuration
+IDs are reported. The principal ISA gap is LX6 double-precision accelerator arithmetic:
+the core now preserves F64R_LO/F64R_HI/F64S user-register state because FreeRTOS restores
+it, but does not execute the accelerator operations. An external objdump comparison over
+217,585 decoded ROM/application instructions found 1,020 mismatches, dominated by
+`f64addc1`, `f64cmph91`, `f64cmpl4`, `f64iter27`, `f64norm13`, `f64rnd24`,
+`f64sexp2`, and `f64subc22`; `lsi` had 830 mismatches in 1,245 instances because its
+encoding overlaps those LX6-only instructions. LX7 PIE remains irrelevant to this LX6
+target. LX6 has a three-byte maximum instruction length; LX7 PIE can use four bytes.
+
+## Negative and diagnostic results
+
+- An attempted separate merge named `boot_app0.bin` failed with `No such file or
+  directory`; the produced `firmware.factory.bin` already contains that segment and was
+  used instead.
+- One direct `esptool image_info` attempt failed with `ModuleNotFoundError:
+  rich_click`; image offsets were checked through the successful PlatformIO build and
+  ROM boot instead.
+- A later supplemental `pio pkg list` failed because the sandbox could not initialize
+  `$HOME/.platformio/.cache/uv`. The earlier successful build had already reported the
+  platform and framework versions.
+- The validation sketch rebuild initially failed with `PermissionError: [Errno 1]
+  Operation not permitted: '$HOME/.platformio/platforms.lock'`. Repeating it with
+  explicit access to the existing PlatformIO package cache succeeded.
+- The first Serial-input run returned the injected bytes followed by zero padding.
+  Arduino reads the classic `UART_MEM_RX_STATUS` FIFO pointers at offset `0x60`; the
+  shared newer-chip UART layout returned storage there. The classic adapter now reports
+  pointers from the actual FIFO depth, and the rerun returned exactly `5a` and `0a`.
+- A supplemental `cargo fmt --check -p esp32` exited 1 because it requested unrelated
+  reflow of inherited compact code at `periph.rs` lines 3, 44, 492 and 872 and `soc.rs`
+  line 52. No formatting was applied; `git diff --check` passed. This was not one of the
+  requested correctness gates.
+- Before preserving LX6 F64 user registers, `wur.f64r_lo` at `0x4008f497` entered the
+  double-exception vector. Before DPORT CPU-to-CPU interrupts were connected, FreeRTOS
+  did not schedule the application task. Before the UART FIFO aliases were mapped, the
+  store at `uart_hal_write_txfifo` (`0x400d9036` to `0x60000000`) raised
+  StoreProhibited. Each root cause was corrected in the implementation revisions above.
+
+## Evidence curation
+
+No raw disassembly, build tree, VCD, private capture, or backup is committed. They remain
+temporary and can be reproduced by the commands above. User and host identifiers were
+removed; home paths are normalized to `$HOME`. This removes no measured values, input
+hashes, source revisions, or correctness observations. The repository privacy checker
+and manual review cover this retained Markdown receipt.

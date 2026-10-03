@@ -50,3 +50,9 @@ Wi-Fi adds the classic MAC, TSF, RX descriptors and calibration handshakes on
 top of the shared virtual AP/network. The preserved Arduino checks cover scan,
 DHCP, DNS and HTTP; the combined crypto lane connected with WPA2. RF/channel
 filtering, chained TX and physical timing remain outside the model.
+
+ADC/DAC/touch depends on the original PR #165 commit `0334d42`, not its copied
+commit from #168. It adds ADC1/ADC2 one-shot inputs, raw conversion observations,
+DAC output reports and touch-pad input. The host-input reboot test runs in CI.
+Continuous ADC/DMA/ULP, electrical contention, high-range 11 dB calibration and
+touch IRQ/wakeup are not modeled.

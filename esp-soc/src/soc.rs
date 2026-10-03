@@ -113,6 +113,8 @@ pub trait SocBus: Bus {
     fn gpio_release_input(&mut self, _pin: u8) {}
     fn gpio_set_input(&mut self, pin: u8, level: bool);
     /// Drive an analog pad (script `adc` / `adcwave`); chips without an ADC model ignore it.
+    fn adc_set_raw(&mut self, _pin: u8, _raw: u16) -> bool { false }
+    fn adc_observation(&self, _pin: u8) -> Option<esp_periph::AdcObservation> { None }
     fn analog_set(&mut self, _pin: u8, _src: esp_periph::AnalogSource) {}
     /// Touch or release a capacitive GPIO pad, separate from the board's touch panel.
     fn set_touch_input(&mut self, _pin: u8, _touched: bool) {}

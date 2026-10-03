@@ -108,3 +108,13 @@ fn physical_spi_excludes_released_and_high_selects() {
     }
 }
 
+
+#[test]
+fn raw_adc_conversions_are_observed() {
+    let mut b = bus(); assert!(b.adc_set_raw(34, 1234)); assert!(!b.adc_set_raw(31, 1));
+    b.write32(0x3ff4_8800, 1 << 28).unwrap();
+    b.write32(0x3ff4_8854, (1 << 31) | (1 << 25) | (1 << 18) | (1 << 17)).unwrap();
+    assert_eq!(b.read32(0x3ff4_8854).unwrap() & 0xffff, 1234);
+    assert_eq!(b.adc_observation(34).unwrap().generation, 1);
+    assert_eq!(b.adc_observation(34).unwrap().raw, 1234);
+}

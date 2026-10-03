@@ -174,6 +174,8 @@ impl esp_soc::SocBus for SocBus {
     fn gpio_input(&self) -> u64 {
         self.periph.gpio.gpio.input
     }
+    fn adc_set_raw(&mut self, pin: u8, raw: u16) -> bool { crate::adc::valid_pin(pin) && self.periph.adc.analog.set_raw(pin, raw) }
+    fn adc_observation(&self, pin: u8) -> Option<esp_periph::AdcObservation> { crate::adc::valid_pin(pin).then(|| self.periph.adc.analog.observation(pin)) }
     fn analog_set(&mut self, pin: u8, src: esp_periph::AnalogSource) {
         self.periph.adc.analog.set(pin, src);
     }
