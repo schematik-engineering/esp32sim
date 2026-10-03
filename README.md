@@ -2,9 +2,9 @@
   <img src="docs/assets/esp32sim-logo-icon.png" alt="esp32sim — a smiling chip in an emulator window" width="320">
 </p>
 
-# esp32sim — an ESP32 emulator in Rust: **Xtensa (S3) and RISC-V (C3, C6)**
+# esp32sim — an ESP32 emulator in Rust: **Xtensa (ESP32, S3) and RISC-V (C3, C6)**
 
-Instruction-level emulation of three ESP32 SoCs, across **both of Espressif's CPU architectures**.
+Instruction-level emulation of four ESP32 SoCs, across **both of Espressif's CPU architectures**.
 Each boots the **real mask ROM**, the real 2nd-stage bootloader and an unmodified application
 image — no patched firmware, no stubs in the way — with enough of the SoC modelled to run real
 projects end to end. No cloud, no accounts. MIT.
@@ -29,6 +29,9 @@ tests. The Xtensa objdump test excludes PIE operand comparisons. Hardware trace 
 normalizes window exceptions and resynchronizes delay loops, so it is not uninterrupted
 cycle-by-cycle agreement. See the [test scope](tests/README.md), [CI workflow](.github/workflows/ci.yml),
 [Xtensa decoder test](xtensa-lx7/tests/objdump_diff.rs) and [hardware comparator](hw/compare.py).
+
+The [classic ESP32](docs/esp32.md) adds two LX6 cores, the ECO3 ROM, classic flash MMUs,
+DPORT, UART, GPIO and timers. Run it with `esp32sim --chip esp32 --board esp32dev`.
 
 Most of the SoC is shared: the C3 reuses the S3's UART, USB-Serial/JTAG, systimer, timer groups,
 GPIO, SPI flash controller, GDMA and SHA/AES/RSA models unchanged, and adds its own memory map,
@@ -331,6 +334,11 @@ shows `real time`, `⚠ N s behind` and the resync count.
 instruction counts and PCs. `hw/wsdrive.py [port] [seconds]` drives the UI protocol without a
 browser (button presses + knob turns) and reports push gaps, lag and audio delivered — use it
 to measure changes to the scheduler.
+
+## Contributing
+
+Contributions are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) lists the checks a pull request needs
+(the same ones CI runs) and the conventions for tests, experiments and evidence.
 
 ## License
 
