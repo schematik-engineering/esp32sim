@@ -454,4 +454,3 @@ their shared timer code. `node tools/check-evidence-privacy.mjs` passed after th
 1,472 tracked evidence files and 15 gzip files checked, with no configured patterns
 found. Manual review found no retained user name, host name, device identifier, raw
 capture or unrelated process data in the timer extension.
-
