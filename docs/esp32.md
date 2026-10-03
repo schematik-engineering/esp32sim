@@ -45,3 +45,8 @@ AES, SHA-1/256/384/512 and RSA accelerators use classic register layouts and
 DPORT clock/reset/power controls. Arithmetic is shared with other chips.
 Operations complete synchronously; RSA MODEXP assumes valid preprocessing.
 Vector coverage alone does not establish WPA2 or TLS behavior.
+
+Wi-Fi adds the classic MAC, TSF, RX descriptors and calibration handshakes on
+top of the shared virtual AP/network. The preserved Arduino checks cover scan,
+DHCP, DNS and HTTP; the combined crypto lane connected with WPA2. RF/channel
+filtering, chained TX and physical timing remain outside the model.
