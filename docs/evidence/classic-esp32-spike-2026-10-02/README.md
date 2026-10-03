@@ -1014,4 +1014,3 @@ single CPU tick can share a timestamp; the raw item-duration report is authorita
 No analog waveform, oscillator drift or hardware timing claim is made. Manual review
 retained no user/host identifiers, private captures or unrelated process data; raw logs
 remain outside Git and home paths in the receipt use `$HOME`.
-
