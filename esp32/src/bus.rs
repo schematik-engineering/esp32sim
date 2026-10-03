@@ -198,6 +198,8 @@ impl SocBus {
         }
         if let Some(n) = UART_FIFO_AHB.iter().position(|&fifo| fifo == a) {
             self.periph.uart[n].write(0, value);
+            self.board.uart_tx(self.periph.uart_route(n), value as u8);
+            self.irq_dirty = true;
             return;
         }
         if (0x6000_e000..0x6000_f000).contains(&a) {
@@ -229,7 +231,14 @@ impl SocBus {
                 (old & !(0xffff << sh)) | ((value & 0xffff) << sh)
             }
         };
+        let old_enable = self.periph.gpio.gpio.enable;
         self.periph.write32(a, v);
+        if let Some(port) = [0x3ff4_0000, 0x3ff5_0000, 0x3ff6_e000].iter().position(|&base| a == base) {
+            self.board.uart_tx(self.periph.uart_route(port), v as u8);
+        }
+        if old_enable != self.periph.gpio.gpio.enable && self.periph.gpio.gpio.changes.is_empty() {
+            self.board.gpio_output_at(self.cycles, &[], self.periph.gpio.gpio.enable, self.periph.gpio.gpio.out);
+        }
         if self.periph.spi_exec {
             self.run_spi();
         }
@@ -240,9 +249,19 @@ impl SocBus {
                     events.push((self.cycles, pin, level));
                 }
             }
-            self.board.gpio_changes(&changes);
+            self.board.gpio_output_at(self.cycles, &changes, self.periph.gpio.gpio.enable, self.periph.gpio.gpio.out);
+            self.deliver_board_inputs();
         }
         self.irq_dirty = true;
+    }
+    fn deliver_board_inputs(&mut self) {
+        self.board.advance_to(self.cycles);
+        for edge in self.board.take_edges() {
+            self.periph.gpio.set_input(edge.pin, edge.level);
+            self.irq_dirty = true;
+            if let Some(events) = &mut self.gpio_events { events.push((edge.cycle, edge.pin, edge.level)); }
+        }
+        for pin in self.board.released_inputs() { esp_soc::SocBus::gpio_release_input(self, pin); }
     }
     fn run_spi(&mut self) {
         self.periph.spi_exec = false;
@@ -393,6 +412,8 @@ impl Bus for SocBus {
     }
     fn tick(&mut self, cycles: u32) -> u32 {
         self.cycles += cycles as u64;
+        self.deliver_board_inputs();
+        for input in self.board.uart_rx() { self.periph.uart_pin_input(&input); self.irq_dirty = true; }
         self.periph.tick(cycles as u64);
         1
     }

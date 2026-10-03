@@ -23,6 +23,7 @@ impl Soc for Esp32 {
     type Core = Cpu;
     type Bus = SocBus;
     const NAME: &'static str = "esp32";
+    const BOOTLOADER_OFFSET: usize = 0x1000;
     const ROM_ELF: &'static str = "esp32_rev300_rom.elf";
     const CPU_HZ: u64 = periph::CPU_HZ;
     const CORES: usize = 2;
@@ -63,10 +64,11 @@ impl esp_soc::SocBus for SocBus {
         self.cycles
     }
     fn next_deadline(&self) -> Option<u64> {
-        match self.periph.cycles_until_timer() {
+        let timer = match self.periph.cycles_until_timer() {
             u32::MAX => None,
             n => Some(n.max(1) as u64),
-        }
+        };
+        timer.into_iter().chain(self.board.next_deadline().map(|n| n.saturating_sub(self.cycles).max(1))).min()
     }
     fn irq_dirty(&mut self) -> &mut bool {
         &mut self.irq_dirty
@@ -113,6 +115,7 @@ impl esp_soc::SocBus for SocBus {
     fn reboot(&mut self, mac: [u8; 6]) -> u32 {
         let cause = self.periph.rtc.0.reset_cause;
         let old = std::mem::replace(&mut self.periph, Peripherals::new(mac));
+        self.periph.gpio.restore_inputs(&old.gpio);
         self.periph.efuse = old.efuse;
         self.periph.misc.log_unknown = old.misc.log_unknown;
         self.periph.gpio.gpio.strap = old.gpio.gpio.strap;
@@ -154,6 +157,7 @@ impl esp_soc::SocBus for SocBus {
             self.irq_dirty = true;
         }
     }
+    fn gpio_release_input(&mut self, pin: u8) { self.periph.gpio.release_input(pin); self.irq_dirty = true; }
     fn gpio_set_input(&mut self, pin: u8, level: bool) {
         self.periph.gpio.set_input(pin, level);
         self.irq_dirty = true;

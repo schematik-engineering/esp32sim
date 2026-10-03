@@ -287,6 +287,15 @@ impl ClassicGpio {
         self.external |= 1 << pin;
         self.gpio.set_input(pin, level)
     }
+    pub fn release_input(&mut self, pin: u8) {
+        if pin >= 40 { return; }
+        self.external &= !(1 << pin);
+        self.gpio.set_input(pin, true);
+        self.sync_pull(pin as usize);
+    }
+    pub fn restore_inputs(&mut self, old: &Self) {
+        for pin in 0..40 { if old.external & (1 << pin) != 0 { self.set_input(pin, old.gpio.input & (1 << pin) != 0); } }
+    }
     fn sync_pull(&mut self, pin: usize) {
         if pin >= 34 || self.external & (1 << pin) != 0 {
             return;
@@ -297,6 +306,14 @@ impl ClassicGpio {
         } else if cfg & (1 << 7) != 0 {
             self.gpio.set_input(pin as u8, false);
         }
+    }
+    pub fn input_pin(&self, signal: usize) -> Option<u8> {
+        let cfg = *self.gpio.func_in_sel.get(signal)?;
+        if cfg & 0xc0 == 0x80 {
+            let pin = (cfg & 63) as usize;
+            return (pin < 40 && self.input_enabled(pin)).then_some(pin as u8);
+        }
+        None
     }
     /// Resolve a peripheral input routed through GPIO_FUNCm_IN_SEL_CFG.
     pub fn signal_input(&self, signal: usize) -> Option<bool> {
@@ -575,7 +592,7 @@ impl Peripherals {
         };
         let mut gpio = ClassicGpio::new();
         gpio.gpio.strap = 0x13; // normal SPI-fast-flash boot, with ROM messages enabled
-        Self {
+        let mut p = Self {
             dport: Dport::new(),
             uart: [
                 ClassicUart(Uart::new(uart)),
@@ -592,6 +609,27 @@ impl Peripherals {
             misc: Misc::new(),
             spi_exec: false,
             clock: Self::new_clock(),
+        };
+        for uart in &mut p.uart { uart.write(0x20, 1 << 27); }
+        p
+    }
+    pub fn uart_route(&self, port: usize) -> esp_soc::uart::UartRoute {
+        let signal = [14, 17, 198][port];
+        let native = [(1, 3), (10, 9), (17, 16)][port];
+        let mut tx_pins = (0..34).filter(|&pin| self.gpio.matrix_pad(pin) && self.gpio.gpio.func_out_sel[pin] & 0x3ff == signal as u32 && self.gpio.gpio.enable & (1 << pin) != 0).fold(0, |mask, pin| mask | (1 << pin));
+        if self.gpio.mux(native.0) >> 12 & 7 == 0 { tx_pins |= 1 << native.0; }
+        let rx_pin = self.gpio.input_pin(signal).or_else(||
+            (self.gpio.mux(native.1) >> 12 & 7 == 0 && self.gpio.input_enabled(native.1)).then_some(native.1 as u8));
+        esp_soc::uart::UartRoute { port, tx_pins, rx_pin,
+            baud: self.uart[port].classic_baud() }
+    }
+    pub fn uart_pin_input(&mut self, input: &esp_soc::uart::UartInput) {
+        for port in 0..3 {
+            let route = self.uart_route(port);
+            if route.rx_pin == Some(input.pin) {
+                if route.matches_baud(input.baud) { self.uart[port].host_input(&input.data); }
+                else { self.uart[port].int_raw |= 1 << 3; }
+            }
         }
     }
     pub fn block_name(block: u32) -> &'static str {
