@@ -109,11 +109,13 @@ mod native {
     /// Stores return bit 0 = fault, bit 1 = block must end.
     macro_rules! write_helper {
         ($name:ident, $f:ident, $t:ty) => {
-            extern "C" fn $name<B: Bus>(bus: *mut B, addr: u32, v: u32, pc: u32) -> u32 {
+            extern "C" fn $name<B: Bus>(bus: *mut B, addr: u32, v: u32, pc: u32, cpu: *const Cpu, done: u32) -> u32 {
                 // SAFETY: Compiled blocks pass the exclusive bus pointer supplied to `run`, and
                 // the helper returns before generated code resumes.
                 let bus = unsafe { &mut *bus };
                 bus.note_pc(pc);
+                // SAFETY: the caller exclusively owns this CPU throughout the helper.
+                bus.note_instruction(unsafe { (*cpu).insn_count } + u64::from(done));
                 match bus.$f(addr, v as $t) { Ok(()) => (bus.block_break() as u32) << 1, Err(_) => 1 }
             }
         };
@@ -122,7 +124,7 @@ mod native {
     write_helper!(h_write16, write16, u16);
     write_helper!(h_write32, write32, u32);
     /// Run one instruction through the interpreter. Bit 0 = trap (stored in `cpu.jit_trap`), bit 1 = block must end.
-    extern "C" fn h_exec<B: Bus>(cpu: *mut Cpu, bus: *mut B, insn: *const BlockInsn, pc: u32) -> u32 {
+    extern "C" fn h_exec<B: Bus>(cpu: *mut Cpu, bus: *mut B, insn: *const BlockInsn, pc: u32, done: u32) -> u32 {
         // SAFETY: The CPU and bus pointers are the exclusive pointers supplied to `run`, and the
         // instruction points into the stable block arena for the duration of that call.
         // Copy before borrowing Cpu: its owned arena must not remain shared through i.
@@ -130,17 +132,18 @@ mod native {
         let (cpu, bus) = unsafe { (&mut *cpu, &mut *bus) };
         cpu.pc = pc;
         bus.note_pc(pc);
-        match exec_insn(cpu, bus, &i.insn) { Ok(()) => (bus.block_break() as u32) << 1, Err(t) => { cpu.jit_trap = Some(t); 1 } }
+        match exec_insn(cpu, bus, &i.insn, done) { Ok(()) => (bus.block_break() as u32) << 1, Err(t) => { cpu.jit_trap = Some(t); 1 } }
     }
     /// A PIE instruction straight into `pie::exec`, skipping `exec_insn`'s dispatch. PIE never
     /// transfers control, so its tail is `exec_insn`'s fall-through tail: the zero-overhead loop
     /// back-edge, then the PC. Same calling convention and result bits as `h_exec`.
-    extern "C" fn h_pie<B: Bus>(cpu: *mut Cpu, bus: *mut B, insn: *const BlockInsn, pc: u32) -> u32 {
+    extern "C" fn h_pie<B: Bus>(cpu: *mut Cpu, bus: *mut B, insn: *const BlockInsn, pc: u32, done: u32) -> u32 {
         // SAFETY: as for h_exec: exclusive CPU and bus pointers from `run`, and an instruction in
         // the stable block arena, copied before the CPU is borrowed.
         let i = unsafe { *insn };
         let (cpu, bus) = unsafe { (&mut *cpu, &mut *bus) };
         cpu.pc = pc;
+        bus.note_instruction(cpu.insn_count + u64::from(done));
         bus.note_pc(pc);
         match crate::pie::exec(cpu, bus, &i.insn) {
             Ok(()) => {
@@ -469,6 +472,7 @@ mod native {
                     g.stubs.push(Box::new(move |a: &mut Asm| {
                         a.bind(slow);
                         a.mov_x(0, BUS); a.mov32(3, pc);
+                        a.mov_x(4, CPU); a.ldr(5, 31, BUDGET_SLOT); a.sub(5, 5, LEFT); a.sub_imm(5, 5, 1);
                         a.ldr_x(9, HELP, h); a.blr(9);
                         let fault = a.label();
                         a.tbnz(0, 0, fault);
@@ -514,6 +518,7 @@ mod native {
                     g.a.mov_x(0, CPU); g.a.mov_x(1, BUS);
                     g.a.mov64(2, (&raw const *block_insn) as u64);
                     g.a.mov32(3, pc);
+                    g.a.ldr(4, 31, BUDGET_SLOT); g.a.sub(4, 4, LEFT); g.a.sub_imm(4, 4, 1);
                     g.call(if i.op == crate::decode::Op::Pie { H_PIE } else { H_EXEC });
                     let tr = g.exit_trap;
                     g.a.tbnz(0, 0, tr);

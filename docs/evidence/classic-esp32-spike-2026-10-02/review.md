@@ -12,3 +12,9 @@ One deterministic block-count sample each; wall time is not used as speed eviden
 The review's 27,817 figure used an unspecified input/stop setup and is not a baseline here.
 No existing golden was regenerated. New classic hello_world goldens cover the app.
 Local paths are omitted; the input hashes in README.md retain artifact identity.
+
+The host-device port reuses the instruction-position mechanism retained in EX215
+at integration revision ffaa4a4. This extends it to LX6; it does not repeat the
+S3/C3 timing experiment. The original rejected broad hooks are not reintroduced.
+Classic UART tests retain ffaa4a4 and 7ae2af4's APB/AHB and matrix-input cases;
+the GPIO test checks instruction-position feedback and host pulls across reboot.
