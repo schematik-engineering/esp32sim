@@ -1,6 +1,6 @@
 # Classic ESP32
 
-The `esp32` crate models the dual-core LX6 ESP32-D0WD ECO3. It boots the real
+The `esp32` crate models the dual-core LX6 classic ESP32 and loads the ECO3 mask ROM. It boots the real
 rev-3 mask ROM through the second-stage bootloader into an unchanged application.
 The shared Xtensa core enables DFP context registers only for this target.
 Double-precision arithmetic and PSRAM are not modeled.
