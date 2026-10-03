@@ -20,11 +20,13 @@ pub const IBUS_HIGH: u32 = 0x4040_0000;
 const RTC_FAST_D: u32 = 0x3ff8_0000;
 const RTC_FAST_I: u32 = 0x400c_0000;
 const RTC_SLOW: u32 = 0x5000_0000;
+// DPORT cache-MMU tables: 64 KiB flash pages, bit 8 marks an invalid entry.
 const MMU_PRO: u32 = 0x3ff1_0000;
 const MMU_APP: u32 = 0x3ff1_2000;
 const MMU_INVALID: u32 = 1 << 8;
 const PAGE: usize = 0x1_0000;
 const WDEV_RND: u32 = 0x6003_5144;
+// FIFO AHB windows are aliases, not separate UART register banks.
 const UART_FIFO_AHB: [u32; 3] = [0x6000_0000, 0x6001_0000, 0x6002_e000];
 
 pub struct SocBus {

@@ -161,6 +161,7 @@ pub fn parse(args: &[String], default_chip: &str) -> Opts {
         }
         i += 1;
     }
+    if matches!(o.chip.as_str(), "esp32" | "classic") && !args.iter().any(|a| a == "--board") { o.board = "esp32dev".into(); }
     o
 }
 
@@ -286,7 +287,7 @@ fn setup_esp32(o: &Opts) -> esp32::Machine {
     let mut m = esp32::machine(o.mac.unwrap_or([0x24, 0x6f, 0x28, 0x00, 0x11, 0x22]), o.flash_mb.unwrap_or(4) << 20);
     m.bus.set_flash_size(o.flash_mb.unwrap_or(4) << 20);
     if !o.debug.is_empty() { let mut f = esp_soc::DebugFlags::from_env(); for d in &o.debug { f.parse(d); } m.set_debug(&f); }
-    let board = if o.board == "atech14" { "esp32dev" } else { &o.board };
+    let board = &o.board;
     m.bus.board = esp32::board::make_board(board).unwrap_or_else(|| usage_error(&format!("unknown classic ESP32 board '{board}' (none, bare, esp32dev)")));
     for (flag, on) in [("--wifi", o.wifi.is_some()), ("--cam-image", o.cam_image.is_some()), ("--psram-mb", o.psram_mb.is_some()), ("--efuse-regs", o.efuse_regs.is_some()), ("--regs-init", o.regs_init.is_some()), ("--regstat", o.regstat.is_some())] {
         if on { eprintln!("{} is not available on the classic ESP32 spike", flag); std::process::exit(2); }
