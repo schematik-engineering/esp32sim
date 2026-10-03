@@ -33,6 +33,8 @@ struct Ram {
     noted: u32,
     slow: [u8; 256],
     slow_writes: u32,
+    instruction: u64,
+    write_times: Vec<u64>,
     slow_reads: u32,
     defer_armed: bool,
     deferred: bool,
@@ -72,6 +74,8 @@ impl Ram {
             noted: 0,
             slow: [0x5a; 256],
             slow_writes: 0,
+            instruction: 0,
+            write_times: Vec::new(),
             slow_reads: 0,
             defer_armed: false,
             deferred: false,
@@ -140,6 +144,7 @@ impl Bus for Ram {
         }
         if (SLOW..SLOW + 253).contains(&a) {
             self.slow_writes += 1;
+            self.write_times.push(self.instruction);
             self.slow[(a - SLOW) as usize..(a - SLOW) as usize + 4].copy_from_slice(&v.to_le_bytes());
             return Ok(());
         }
@@ -163,6 +168,7 @@ impl Bus for Ram {
             page_ver: self.versions.as_mut_ptr(),
         })
     }
+    fn note_instruction(&mut self, instruction: u64) { self.instruction = instruction; }
     fn note_pc(&mut self, pc: u32) {
         self.noted = pc;
     }
@@ -350,7 +356,7 @@ fn compare_hinted(block: &mut [BlockInsn], case: Case, configure: &impl Fn(&mut 
         }
         let pc = a.pc;
         ra.note_pc(pc);
-        let r = exec_insn(&mut a, &mut ra, &instruction.insn);
+        let r = exec_insn(&mut a, &mut ra, &instruction.insn, 0);
         count += 1;
         if priced && r.is_ok() {
             // The same accounting boundary as the ordinary block interpreter.
@@ -423,7 +429,7 @@ pub fn run_tests() -> u32 {
     scheduler::event_writers();
     tests += 5;
     tests += memory::extension_deferral() + memory::flat_ram_bounds() + regions::regions() + pie_accx::run_tests() + pie_accx::held_and_coalesced();
-    tests += memory::code_page_flag();
+    tests += memory::code_page_flag() + memory::instruction_timestamps();
     scheduler::retention();
     tests += 1;
     loops::hardware_loop_scheduler();

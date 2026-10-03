@@ -159,7 +159,7 @@ pub(super) fn regions() -> u32 {
                     if dst == BASE + 0x2000 && copies.is_none() && done < budget { assert_eq!((result >> 16) & 7, CODE_SHORT); }
                     for _ in 0..done {
                         let i = crate::decode::decode(a.pc, ra.fetch(a.pc).unwrap());
-                        exec_insn(&mut a, &mut ra, &i).unwrap();
+                        exec_insn(&mut a, &mut ra, &i, 0).unwrap();
                     }
                     same(&a, &b);
                     assert_eq!(ra.ram.mem, rb.ram.mem);
@@ -188,7 +188,7 @@ pub(super) fn regions() -> u32 {
                     if copies.is_some_and(|c| c.len() == 40) { assert_eq!(done, budget); }
                     for _ in 0..done {
                         let i = crate::decode::decode(a.pc, ra.fetch(a.pc).unwrap());
-                        exec_insn(&mut a, &mut ra, &i).unwrap();
+                        exec_insn(&mut a, &mut ra, &i, 0).unwrap();
                     }
                     same(&a, &b);
                     assert_eq!(ra.ram.mem, rb.ram.mem);
@@ -610,7 +610,7 @@ pub(super) fn regions() -> u32 {
             assert_eq!(result & 0xffff, 2, "held ACCX body must execute");
             for _ in 0..2 {
                 let i = crate::decode::decode(a.pc, ra.fetch(a.pc).unwrap());
-                exec_insn(&mut a, &mut ra, &i).unwrap();
+                exec_insn(&mut a, &mut ra, &i, 0).unwrap();
             }
             same(&a, &b);
             assert_eq!(ra.ram.mem, rb.ram.mem);

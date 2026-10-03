@@ -466,6 +466,7 @@ extern "C" fn h_exec<B: Bus>(
     bus: *mut B,
     instruction: *const BlockInsn,
     pc: u32,
+    done: u32,
 ) -> u32 {
     // SAFETY: The compiled caller passes the exclusive live CPU/bus and an instruction
     // owned by its live CodeCache. No Rust execution overlaps generated access.
@@ -496,8 +497,9 @@ extern "C" fn h_exec<B: Bus>(
         cpu.jit_trap = None;
         return 1;
     }
+    let position = cpu.blocks.instruction_prefix + done;
     bus.note_pc(pc);
-    match exec_insn(cpu, bus, &instruction.insn) {
+    match exec_insn(cpu, bus, &instruction.insn, position) {
         Ok(()) => {
             if cpu.price_control {
                 let taken = crate::exec::control_taken(cpu, &instruction.insn);
@@ -595,6 +597,7 @@ pub unsafe fn run<B: Bus>(
     cpu.jit_helped = false;
     cpu.blocks.chain_ei = NONE;
     cpu.blocks.bridged = 0;
+    cpu.blocks.instruction_prefix = 0;
     // inner-s1: the helper table and the fast-memory pointers hold for the whole chain (it stops
     // once a helper ran), so each hop's run_inner no longer re-derives them.
     decorate!(bus, h);
@@ -652,6 +655,7 @@ unsafe fn chain_on<B: Bus>(cc: &CodeCache, cpu: &mut Cpu, bus: &mut B, h: &Helpe
         let slot = cc.recs[next as usize].slot.get();
         if slot == NONE || slot == 0 { break; }
         total = sofar;
+        cpu.blocks.instruction_prefix = total;
         cpu.blocks.chain_ei = ei;
         #[cfg(feature = "wasm-jit-profile")]
         { let st = &cc.region_stats.ex153; st[11].set(st[11].get() + 1); }
@@ -699,6 +703,7 @@ pub unsafe fn resume<B: Bus>(cc: &CodeCache, cpu: &mut Cpu, bus: &mut B, h: &Hel
     cpu.jit_helped = false;
     cpu.blocks.chain_ei = NONE;
     cpu.blocks.bridged = 0;
+    cpu.blocks.instruction_prefix = 0;
     decorate!(bus, h);
     let (tlb, versions) = tables(fm);
     let (slot, sites, nsites) = (hot.slot, hot.sites, hot.nsites);
