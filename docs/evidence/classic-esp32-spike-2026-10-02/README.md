@@ -1193,4 +1193,3 @@ On the combined branch, after the AES, SHA and RSA extension, the same unchanged
 and command (`--wifi ssid=esp32sim,psk=classic-wifi-pass --net nat`) completes the 4-way
 handshake and connects: `WIFI_WPA2_STATUS 3 millis=1839 ip=10.0.2.15`. The SHA-1 blocker above
 is resolved by that extension, not by any Wi-Fi change.
-
