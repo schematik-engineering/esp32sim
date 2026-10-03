@@ -98,6 +98,18 @@ impl Default for FastCacheLine {
     fn default() -> Self { Self { tag: u32::MAX, dirty: 0, valid: 0 } }
 }
 
+/// Shared-time anchor for instruction-position GPIO observations. Device ticks remain batched.
+#[derive(Default)]
+pub struct ExecutionClock { cycle: u64, instruction: u64, pub now: u64 }
+impl ExecutionClock {
+    pub fn begin(&mut self, cycle: u64, instruction: u64) {
+        self.cycle = cycle; self.instruction = instruction; self.now = cycle;
+    }
+    pub fn note(&mut self, instruction: u64) {
+        self.now = self.cycle + instruction.saturating_sub(self.instruction);
+    }
+}
+
 pub trait Bus {
     fn read8(&mut self, addr: u32) -> Result<u8, Fault>;
     fn read16(&mut self, addr: u32) -> Result<u16, Fault>;
@@ -105,6 +117,10 @@ pub trait Bus {
     fn write8(&mut self, addr: u32, v: u8) -> Result<(), Fault>;
     fn write16(&mut self, addr: u32, v: u16) -> Result<(), Fault>;
     fn write32(&mut self, addr: u32, v: u32) -> Result<(), Fault>;
+    /// CPU stores can supply their instruction position without burdening ordinary RAM writes.
+    fn write8_at(&mut self, addr: u32, v: u8, instruction: u64) -> Result<(), Fault> { self.note_instruction(instruction); self.write8(addr, v) }
+    fn write16_at(&mut self, addr: u32, v: u16, instruction: u64) -> Result<(), Fault> { self.note_instruction(instruction); self.write16(addr, v) }
+    fn write32_at(&mut self, addr: u32, v: u32, instruction: u64) -> Result<(), Fault> { self.note_instruction(instruction); self.write32(addr, v) }
     /// DMA and host accesses retain functional effects but bypass CPU cache timing.
     /// Buses without CPU-specific accounting can use the ordinary accessors.
     fn read8_unpriced(&mut self, addr: u32) -> Result<u8, Fault> { self.read8(addr) }
@@ -136,6 +152,10 @@ pub trait Bus {
     /// implement this. Wrappers must forward it; buses that always bump explicitly do nothing.
     /// Requiring the method prevents wrappers from silently disabling invalidation.
     fn note_code_page(&mut self, vidx: u32);
+    /// Anchor instruction-position timestamps to shared time for a one-cycle/instruction batch.
+    fn begin_execution(&mut self, _cycle: u64, _instruction: u64) {}
+    /// Position of the instruction performing an access, before it retires.
+    fn note_instruction(&mut self, _instruction: u64) {}
     /// The pc of the instruction about to execute, for buses that attribute accesses to code.
     #[inline(always)]
     fn note_pc(&mut self, pc: u32) { let _ = pc; }
