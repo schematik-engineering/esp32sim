@@ -86,7 +86,7 @@ pub(super) fn extension_deferral() -> u32 {
     let i = crate::decode::decode(BASE, bytes);
     let bi = BlockInsn { insn: i, max_ar: crate::exec::max_ar(&i), straddle: false, off: 0 };
     ram.deferred = false;
-    assert_eq!(h_exec::<Ram>(&mut c, &mut ram, &bi, BASE), 1);
+    assert_eq!(h_exec::<Ram>(&mut c, &mut ram, &bi, BASE, 0), 1);
     assert!(ram.deferred);
     assert_eq!(c.accx, [9, 0]);
     assert!(c.jit_trap.is_none());
@@ -364,4 +364,48 @@ pub(super) fn loads_and_stores() -> u32 {
         }
     }
     tests
+}
+
+
+pub(super) fn instruction_timestamps() -> u32 {
+    let mut tests = 0;
+    for fast in [false, true] {
+        for entry in [0, 1, 2] {
+            let mut ram = Ram::new(fast, false);
+            let mut c = cpu(0);
+            c.insn_count = 1000;
+            c.pc = BASE + entry * 3;
+            c.set_ar(4, SLOW - 3);
+            let mut block = [insn(Op::Nop), insn(Op::Nop), insn(Op::S32i)];
+            let mut cc = CodeCache::new(0).unwrap();
+            let code = queue(&mut cc, &mut block, BASE, fast);
+            for _ in 0..HOT { ready(&cc, code, 0); }
+            assert!(ready(&cc, code, 0));
+            let fm = ram.fast_mem();
+            // SAFETY: the cache owns ready code and the exclusive CPU and bus live through run.
+            let result = unsafe { run(&cc, code, &mut c, &mut ram, &Helpers::new::<Ram>(), 32, entry, fm) };
+            assert_eq!(result & 0xffff, 3 - entry);
+            assert_eq!(ram.write_times, [1002 - u64::from(entry)]);
+            tests += 1;
+        }
+    }
+    let (mut a, mut b) = (cpu(0), cpu(0));
+    let (mut ra, mut rb) = (Ram::new(true, false), Ram::new(true, false));
+    for ram in [&mut ra, &mut rb] {
+        ram.ram.mem[..7].copy_from_slice(&[0x3d, 0xf0, 0x3d, 0xf0, 0xa0, 0x04, 0x00]);
+        ram.ram.mem[64..72].copy_from_slice(&[0x3d, 0xf0, 0x22, 0x61, 0, 0xa0, 0x05, 0]);
+    }
+    for c in [&mut a, &mut b] {
+        c.pc = BASE; c.ps = 0;
+        c.set_ar(1, SLOW); c.set_ar(2, 0xa5); c.set_ar(4, BASE + 64); c.set_ar(5, BASE);
+    }
+    for turn in 0..400 {
+        let (done, trap) = crate::block::run_block(&mut b, &mut rb, 1 + turn % 64);
+        assert!(trap.is_none());
+        for _ in 0..done { crate::step(&mut a, &mut ra).unwrap(); }
+        same(&a, &b);
+        assert_eq!(ra.write_times, rb.write_times, "chained/resumed store positions");
+    }
+    assert!(b.blocks.jit_instructions > 100);
+    tests + 1
 }

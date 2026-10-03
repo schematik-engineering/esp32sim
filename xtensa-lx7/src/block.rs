@@ -118,6 +118,8 @@ pub struct BlockCache {
     /// EX171: instructions the chain loop interpreted in place during the current wrapper call.
     #[cfg(target_arch = "wasm32")]
     pub(crate) bridged: u32,
+    #[cfg(target_arch = "wasm32")]
+    pub(crate) instruction_prefix: u32,
     /// lane-s1: a region exit that ended a quantum: (PC, block code it entered through, region
     /// parameter resuming at that PC, region epoch); PC 1 when none. See `jit::resume`.
     #[cfg(target_arch = "wasm32")]
@@ -151,6 +153,8 @@ impl BlockCache {
                      chain_ei: u32::MAX,
                      #[cfg(target_arch = "wasm32")]
                      bridged: 0,
+                     #[cfg(target_arch = "wasm32")]
+                     instruction_prefix: 0,
                      #[cfg(target_arch = "wasm32")]
                      memo: (1, 0, 0, 0, 1),
                      entries: vec![Entry::EMPTY; ENTRIES], arena: Vec::with_capacity(ARENA_MAX + MAX_LEN), extras: Vec::new(), resume: (0, 0, 1), alias_pc: 1, alias_head: (1, 1), aliases: vec![(1, 0, 0, 0); if ALIAS { ALIASES } else { 0 }], builds: 0, flushes: 0,
@@ -269,7 +273,7 @@ pub(crate) fn bridge<B: Bus>(cpu: &mut Cpu, bus: &mut B, start: u32, n: u32) -> 
         if let Some(t) = cpu.check_overflow(e.max_ar) { cpu.jit_trap = Some(t); cpu.blocks.bridged += done; return done | crate::jit::CODE_TRAP_PRE << 16; }
         let at = cpu.pc;
         bus.note_pc(at);
-        let r = exec_insn(cpu, bus, &e.insn);
+        let r = exec_insn(cpu, bus, &e.insn, 0);
         done += 1;
         if let Err(t) = r { cpu.jit_trap = Some(t); cpu.blocks.bridged += done; return done | crate::jit::CODE_TRAP << 16; }
         // a hardware loop-back inside the block ends it, as it ends an interpreted dispatch
@@ -758,7 +762,7 @@ fn run_decoded_once<B: Bus>(cpu: &mut Cpu, bus: &mut B, budget: u32, ei: u32, mu
             cpu.touch_fetch_lines(at, at.wrapping_add(e.insn.len.max(1) as u32 - 1));
         }
         let expected = at.wrapping_add(e.insn.len as u32);
-        let r = exec_insn(cpu, bus, &e.insn);
+        let r = exec_insn(cpu, bus, &e.insn, done);
         seq = cpu.pc == expected;
         done += 1; k += 1;
         if cpu.price_control && r.is_ok() {

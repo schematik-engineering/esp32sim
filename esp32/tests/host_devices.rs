@@ -118,3 +118,17 @@ fn raw_adc_conversions_are_observed() {
     assert_eq!(b.adc_observation(34).unwrap().generation, 1);
     assert_eq!(b.adc_observation(34).unwrap().raw, 1234);
 }
+
+#[test]
+fn timestamped_feedback_and_released_pull_survive_reboot() {
+    let mut b = bus(); let probe = Arc::new(Mutex::new(Probe::default())); b.board = Box::new(Board(probe.clone()));
+    b.write32(0x3ff4_9048, (2 << 12) | (1 << 9)).unwrap();
+    b.write32(0x3ff4_906c, (2 << 12) | (1 << 9) | (1 << 8)).unwrap();
+    b.begin_execution(100, 20); b.note_instruction(27);
+    b.write32(0x3ff4_4024, 1 << 4).unwrap(); b.write32(0x3ff4_4008, 1 << 4).unwrap();
+    assert_eq!(probe.lock().unwrap().writes.last(), Some(&107));
+    assert_ne!(b.read32(0x3ff4_403c).unwrap() & (1 << 5), 0);
+    b.gpio_set_input(5, false); b.reboot([0; 6]); assert_eq!(b.gpio_input() & (1 << 5), 0);
+    b.write32(0x3ff4_906c, (2 << 12) | (1 << 9) | (1 << 8)).unwrap();
+    b.gpio_release_input(5); assert_ne!(b.gpio_input() & (1 << 5), 0); assert!(b.gpio_state(5).unwrap().pull_up);
+}

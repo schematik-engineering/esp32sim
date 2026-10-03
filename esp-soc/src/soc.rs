@@ -110,6 +110,7 @@ pub trait SocBus: Bus {
     fn pcm_sources(&mut self) -> Option<&mut esp_periph::i2s::PcmSources> { None }
     fn i2s_selected_source(&self, _port: usize) -> Option<usize> { None }
     fn i2s_input(&mut self, _port: usize) -> Option<&mut esp_periph::i2s::PcmInput> { None }
+    fn gpio_state(&self, _pin: u8) -> Option<GpioState> { None }
     fn gpio_release_input(&mut self, _pin: u8) {}
     fn gpio_set_input(&mut self, pin: u8, level: bool);
     /// Drive an analog pad (script `adc` / `adcwave`); chips without an ADC model ignore it.
@@ -149,3 +150,7 @@ pub trait SocBus: Bus {
     /// Chip-specific end-of-run statistics (audio, WiFi, crypto, DMA engines).
     fn report(&self) -> String { String::new() }
 }
+
+/// Digital pad state exposed to host devices.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct GpioState { pub output: bool, pub output_enable: bool, pub pull_up: bool, pub pull_down: bool }

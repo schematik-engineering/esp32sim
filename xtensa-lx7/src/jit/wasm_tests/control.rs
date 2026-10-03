@@ -269,7 +269,7 @@ pub(super) fn window_masks() -> u32 {
                                     trap = Some(t);
                                     break;
                                 }
-                                exec_insn(&mut a, &mut ra, &bi.insn).unwrap();
+                                exec_insn(&mut a, &mut ra, &bi.insn, 0).unwrap();
                                 done += 1;
                             }
                             assert_eq!(actual & 0xffff, done);

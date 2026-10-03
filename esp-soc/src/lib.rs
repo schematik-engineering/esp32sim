@@ -31,3 +31,5 @@ pub use observe::{Ctx, Observer, Wants};
 pub use soc::{CoreState, RunUntil, Soc, SocBus, Stop};
 
 pub mod uart;
+
+pub use soc::GpioState;
