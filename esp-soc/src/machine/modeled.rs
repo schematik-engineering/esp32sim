@@ -66,6 +66,8 @@ impl<B: Bus> Bus for RecordingBus<'_, B> {
     fn page_versions(&self) -> &[u32] { self.bus.page_versions() }
     fn code_page(&mut self, pc: u32) -> u32 { self.bus.code_page(pc) }
     fn note_code_page(&mut self, vidx: u32) { self.bus.note_code_page(vidx); }
+    fn begin_execution(&mut self, cycle: u64, instruction: u64) { self.bus.begin_execution(cycle, instruction); }
+    fn note_instruction(&mut self, instruction: u64) { self.bus.note_instruction(instruction); }
     fn note_pc(&mut self, pc: u32) { self.bus.note_pc(pc); }
     fn block_break(&self) -> bool { self.bus.block_break() }
     fn fast_mem(&mut self) -> Option<emu_core::bus::FastMem> { None }
@@ -114,6 +116,7 @@ impl<S: Soc> Machine<S> {
             let (mut retired, mut spent, mut extras) = (0u32, 0u64, 0u32);
             let penalty = loop {
                 self.bus.begin_timing_batch(core, now + spent);
+                self.bus.begin_execution(now + spent, self.cores[core].insn_count());
                 if solo { self.bus.set_defer(spent > 0); }
                 let left = (cycles.saturating_sub(spent).div_ceil(u64::from(cpi)).max(1) as u32).min(budget);
                 let (done, stop) = if blocks { self.step_blocks(core, left) } else {
@@ -309,6 +312,7 @@ impl<S: Soc> Machine<S> {
             }
         }
 
+        self.bus.begin_execution(self.bus.cycles(), self.cores[core].insn_count());
         self.bus.note_pc(pc);
         let (outcome, accesses) = {
             let mut bus = RecordingBus::new(&mut self.bus, std::mem::take(&mut self.model_accesses));
