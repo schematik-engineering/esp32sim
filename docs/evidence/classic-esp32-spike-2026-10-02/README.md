@@ -455,3 +455,563 @@ their shared timer code. `node tools/check-evidence-privacy.mjs` passed after th
 found. Manual review found no retained user name, host name, device identifier, raw
 capture or unrelated process data in the timer extension.
 
+
+## I2C controller extension
+
+Revision `caabeb7` extends EX199 again. It keeps the classic ECO3 target, mask ROM and
+Arduino-ESP32 3.3.8 platform. The mechanism and correctness contract differ from the
+earlier GPIO work. Both classic I2C controllers now execute the classic command encoding,
+use their FIFO aliases and DPORT interrupt sources, resolve SDA and SCL through the
+classic GPIO matrix, and transact with the existing board-device models. The workload is
+an I2C scanner, a repeated-start register read, and an address-NACK check. This is
+functional evidence, not a bus-timing or execution-speed measurement.
+
+The implementation reuses the shared I2C command engine and adds only its classic layout:
+16 command registers and the older RSTART, READ, and STOP opcode values. The classic adapter
+maps I2C0 at `0x3ff53000`, I2C1 at `0x3ff67000`, the APB FIFO write aliases at
+`0x6001301c` and `0x6002701c`, GPIO-matrix SCL and SDA signals 29, 30, 95, and 96, and
+DPORT sources 49 and 50. The model handles START, STOP, repeated START, address and data
+ACK and NACK, and 32-byte transmit and receive FIFOs. It raises END_DETECT,
+TRANS_COMPLETE, NACK, and TIMEOUT interrupts. A transaction times out if either routed
+input is absent or low when `TRANS_START` is written.
+
+Classic `--board` accepts the existing S3 board names for their reusable board-device
+models. The validation used `waveshare-amoled18-v2`, whose I2C0 devices are CST820 at
+`0x15`, TCA9554 at `0x20`, AXP2101 at `0x34`, PCF85063A at `0x51`, and QMI8658 at
+`0x6b`. Device attachment is repeated after a chip reset.
+
+Register-level tests cover both controllers, all 16 classic command slots, FIFO aliases,
+END and STOP completion, repeated-start register reads, address NACK, held-SCL timeout,
+GPIO-matrix input and output hooks, PRO DPORT delivery from sources 49 and 50, board-device
+attachment and reset reattachment. At the implementation revision, these touched-crate
+checks passed:
+
+```text
+cargo test -p esp-periph -p esp32
+  esp-periph: 59 passed; esp32: 14 passed; 0 failed
+
+cargo test -p esp32sim
+  28 passed; 0 failed; 15 external-firmware tests ignored by their contracts
+```
+
+The temporary PlatformIO project used the same `platformio.ini` as the earlier checks.
+Its fixed sketch was:
+
+```cpp
+#include <Arduino.h>
+#include <Wire.h>
+
+void setup() {
+  Serial.begin(115200);
+  Wire.begin(21, 22);
+
+  unsigned found = 0;
+  for (uint8_t address = 1; address < 127; ++address) {
+    Wire.beginTransmission(address);
+    if (Wire.endTransmission() == 0) {
+      Serial.printf("found=0x%02x\n", address);
+      ++found;
+    }
+  }
+  Serial.printf("count=%u\n", found);
+
+  Wire.beginTransmission(0x6b);
+  Wire.write(0x00);
+  uint8_t write_error = Wire.endTransmission(false);
+  uint8_t received = Wire.requestFrom(0x6b, static_cast<uint8_t>(1));
+  int who_am_i = received ? Wire.read() : -1;
+  Serial.printf("qmi write=%u received=%u who=0x%02x\n", write_error, received, who_am_i);
+
+  Wire.beginTransmission(0x7e);
+  Serial.printf("missing=%u\n", Wire.endTransmission());
+}
+
+void loop() {
+  delay(1000);
+}
+```
+
+Build and run commands were:
+
+```sh
+cd /tmp/esp32sim-classic-i2c-validation
+pio run
+
+# From the repository root:
+cargo build --release
+target/release/esp32sim --chip esp32 --boot rom \
+  --rom "$HOME/.platformio/packages/tool-esp-rom-elfs/esp32_rev300_rom.elf" \
+  --flash-image /tmp/esp32sim-classic-i2c-validation/.pio/build/esp32dev/firmware.factory.bin \
+  --elf /tmp/esp32sim-classic-i2c-validation/.pio/build/esp32dev/firmware.elf \
+  --board waveshare-amoled18-v2 \
+  --max-seconds 1.2 --no-reboot --no-dump
+```
+
+PlatformIO reported platform `55.3.38+sha.fbdfc29`, Arduino-ESP32 3.3.8 and framework
+libraries `5.5.4+sha.735507283d`. The relevant UART output was:
+
+```text
+found=0x15
+found=0x20
+found=0x34
+found=0x51
+found=0x6b
+count=5
+qmi write=0 received=1 who=0x05
+missing=2
+
+[emu] stop: Halted; core0 6595449 + core1 2857161 insns;
+emulated 1.200s (288000000 cycles); 14419 exceptions, 2600 interrupts
+```
+
+The five scanner hits exactly match the attached board devices. The QMI8658 WHO_AM_I
+register returned `0x05` after a no-STOP write and repeated-start read. Arduino Wire
+returned error 2, address NACK, for unattached address `0x7e`.
+
+SHA-256 inputs and temporary artifacts:
+
+| Item | SHA-256 |
+| --- | --- |
+| `$HOME/.platformio/packages/tool-esp-rom-elfs/esp32_rev300_rom.elf` | `920b70635440517866aab2230964a570d2cf2b676658d93c52fbac108c1cca31` |
+| `/tmp/esp32sim-classic-i2c-validation/platformio.ini` | `b86c69259be417474b2dfef705f80db5720beff2f80b471ef5762f2a65651500` |
+| `/tmp/esp32sim-classic-i2c-validation/src/main.cpp` | `a0b0a9b1a56bc27034bba45bef996ee18f8d2ce1fc07f3969ff4b494539bd9ed` |
+| `bootloader.bin` | `a227e3ab93f15f1155efb3144810cc06ff7a259e9bc9b4542417afcc6c238214` |
+| `partitions.bin` | `148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1` |
+| `firmware.bin` | `b329a331ea762f27f7d5ccc0e44363aa0befcd641c6858a92acd4a7f5eaaec7c` |
+| `firmware.factory.bin` | `1f2266ba4b66a14393eba45dc7b093a5d94bc07d105609c9aee12afa773aff69` |
+| `firmware.elf` | `bf76bbc3bf99ea7b1a47a0b09f0616938a548dcd1dbfb5558a1ea4571539e642` |
+
+Host tools were Rust and Cargo 1.96.0 and PlatformIO Core 6.1.19 on Darwin arm64, macOS
+26.6.2 build 25G83. The first sandboxed PlatformIO build failed with
+`PermissionError: [Errno 1] Operation not permitted: '$HOME/.platformio/platforms.lock'`;
+repeating it with access to the existing package cache succeeded. A repository-wide
+`cargo fmt --check` exited 1 on pre-existing formatting differences. The first difference
+was at `cli/src/bin/esp32sim-c3.rs:1`. The command changed no files and was not a requested
+gate.
+
+The controller executes each command list atomically when `TRANS_START` is written. It
+does not generate bit-level SDA and SCL waveforms, model clock-stretch duration, arbitration,
+10-bit addressing or slave mode. The GPIO matrix must resolve both inputs high, and its
+output hooks hold the open-drain lines released between transactions. Board devices are
+functional transaction models rather than electrical bus models.
+
+The final source tree passed `cargo build --release`, touched-crate tests,
+`cargo test --workspace`, `tools/wasm-build.sh`, `git diff --check`, and
+`node tools/check-evidence-privacy.mjs`. Existing tests that require external firmware
+remained ignored by their stated contracts. The privacy check and a manual review found
+no retained login name, host name, device identifier, unrelated command line, raw capture
+or backup. Temporary paths use generic names and home paths are normalized to `$HOME`.
+
+## Classic LEDC extension
+
+Implementation revision `8836b87` extends EX199 again. The chip, ECO3 ROM, Arduino
+version and functional boot workload are unchanged. The material difference is the
+mechanism and correctness contract: the classic LEDC register layout now drives PWM
+through the GPIO matrix and source 43 through DPORT. This is not a retry of the newer
+S3/C3/C6 work preserved at `7f8df79` and `9cc58f1`. That model has only the newer
+low-speed register layout; classic ESP32 has separate banks of eight high-speed and
+eight low-speed channels, four timers per bank and explicit low-speed `PARA_UP` latches.
+
+The model covers 20-bit timer resolution, 18-bit 10.8 fixed-point clock dividers,
+APB/REF_TICK/nominal RC_FAST sources, pause/reset, DPORT clock/reset gating, timer
+selection, static duty updates and duty-readback. High-speed updates take effect without
+`PARA_UP`; low-speed channel and timer shadow registers wait for their update bits, which
+self-clear. Timer-overflow and static-duty-complete raw/status/enable/W1TC registers feed
+the existing DPORT source 43. GPIO-matrix signals 71-78 and 79-86 carry high-speed and
+low-speed channel output-enable state respectively. The shared CLI observer added by the
+preserved newer-chip work is reused as `--pwm PIN`.
+
+Register tests cover both channel and timer banks, 5 kHz at 8-bit
+resolution, 25% duty, duty latching at wrap, low-speed `PARA_UP`, timer and duty-complete
+interrupts, W1TC, GPIO output selection/inversion and DPORT delivery. They also prove
+that GPIO observation resolves the LEDC signal selected by the classic matrix.
+
+### Firmware inputs
+
+Both temporary projects used this configuration:
+
+```ini
+[env:esp32dev]
+platform = https://github.com/pioarduino/platform-espressif32.git#55.03.38-1
+board = esp32dev
+framework = arduino
+monitor_speed = 115200
+```
+
+The LEDC/tone source is the unchanged Arduino sketch used by the preserved newer-chip
+PWM experiment, now compiled for `esp32dev`:
+
+```cpp
+#include <Arduino.h>
+
+constexpr uint8_t kPin = 4;
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+
+  const bool attached = ledcAttach(kPin, 5000, 8);
+  const bool written = ledcWrite(kPin, 64);
+  Serial.printf("LEDC pin=%u attach=%u write=%u requested_hz=5000 requested_duty=64\n",
+                kPin, attached, written);
+
+  delay(10000);
+  ledcDetach(kPin);
+  tone(kPin, 440);
+  Serial.printf("TONE pin=%u requested_hz=440\n", kPin);
+}
+
+void loop() { delay(1000); }
+```
+
+The separate analog-write check used:
+
+```cpp
+#include <Arduino.h>
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+  analogWrite(5, 128);
+  Serial.println("ANALOG_WRITE pin=5 duty=128");
+}
+
+void loop() { delay(1000); }
+```
+
+The builds used PlatformIO Core 6.1.19, pioarduino platform
+`55.3.38+sha.fbdfc29`, Arduino-ESP32 3.3.8 and framework libraries
+`5.5.4+sha.735507283d`. The host tools were Rust/Cargo 1.96.0 on Darwin arm64,
+macOS 26.6.2 build 25G83.
+
+SHA-256 inputs and temporary artifacts:
+
+| Item | SHA-256 |
+| --- | --- |
+| `$HOME/.platformio/packages/tool-esp-rom-elfs/esp32_rev300_rom.elf` | `920b70635440517866aab2230964a570d2cf2b676658d93c52fbac108c1cca31` |
+| `/tmp/esp32sim-classic-ledc-validation/ledc-tone/platformio.ini` | `b86c69259be417474b2dfef705f80db5720beff2f80b471ef5762f2a65651500` |
+| `/tmp/esp32sim-classic-ledc-validation/ledc-tone/src/main.cpp` | `3a67a3a50f4744edc931bd5fd8f8870ee280944476dbd1408c7dc0e40fc4e734` |
+| LEDC/tone `firmware.factory.bin` | `8a3feabce15aea750499b2bdd28f7236e9b5e75a1486df2ebeb2f8d2c7d727a7` |
+| LEDC/tone `firmware.elf` | `a0243302c7aeb6358e4402ae295a65f2d34046d6b3037e799025fa1c8e279b8a` |
+| `/tmp/esp32sim-classic-ledc-validation/analogwrite/platformio.ini` | `b86c69259be417474b2dfef705f80db5720beff2f80b471ef5762f2a65651500` |
+| `/tmp/esp32sim-classic-ledc-validation/analogwrite/src/main.cpp` | `2c96d76c248690b6c66776d91a9a8e29bd38912bc520a8b4c2cc7cfef4cdfcac` |
+| analog-write `firmware.factory.bin` | `76b010f8c9789b4d0928d1abcd744f66e36e7f8fe2da623388baf994e556e927` |
+| analog-write `firmware.elf` | `496762dc7d08d9fa58573a85cb57289ca09236e70e8e99f2ffe73ecdafe3a412` |
+
+Build the artifacts with:
+
+```sh
+pio run -d /tmp/esp32sim-classic-ledc-validation/ledc-tone
+pio run -d /tmp/esp32sim-classic-ledc-validation/analogwrite
+```
+
+The sandboxed first LEDC/tone build could not create
+`$HOME/.platformio/platforms.lock` and reported
+`PermissionError: [Errno 1] Operation not permitted`. Repeating it with access to the
+existing PlatformIO cache succeeded. A diagnostic test command used the nonexistent
+Cargo package name `cli` and reported
+`error: package ID specification 'cli' did not match any packages`; the corrected
+package name `esp32sim` passed.
+
+### Firmware runs
+
+The LEDC and tone observations used the same artifact at two bounded stop times:
+
+```sh
+target/release/esp32sim --chip esp32 --boot rom \
+  --rom "$HOME/.platformio/packages/tool-esp-rom-elfs/esp32_rev300_rom.elf" \
+  --flash-image /tmp/esp32sim-classic-ledc-validation/ledc-tone/.pio/build/esp32dev/firmware.factory.bin \
+  --elf /tmp/esp32sim-classic-ledc-validation/ledc-tone/.pio/build/esp32dev/firmware.elf \
+  --board none --max-seconds 5 --console all --pwm 4 --no-reboot --no-dump
+
+# Repeat with --max-seconds 15 to observe tone after the sketch's 10-second delay.
+```
+
+The 5-second run printed:
+
+```text
+LEDC pin=4 attach=1 write=1 requested_hz=5000 requested_duty=64
+[emu] stop: Halted; emulated 5.000s (1200000000 cycles)
+[pwm] GPIO4: 5000.000 Hz, 25.00% duty
+```
+
+The 15-second run printed:
+
+```text
+LEDC pin=4 attach=1 write=1 requested_hz=5000 requested_duty=64
+TONE pin=4 requested_hz=440
+[emu] stop: Halted; emulated 15.000s (3600000000 cycles)
+[pwm] GPIO4: 440.141 Hz, 49.90% duty
+```
+
+The analog-write run used:
+
+```sh
+target/release/esp32sim --chip esp32 --boot rom \
+  --rom "$HOME/.platformio/packages/tool-esp-rom-elfs/esp32_rev300_rom.elf" \
+  --flash-image /tmp/esp32sim-classic-ledc-validation/analogwrite/.pio/build/esp32dev/firmware.factory.bin \
+  --elf /tmp/esp32sim-classic-ledc-validation/analogwrite/.pio/build/esp32dev/firmware.elf \
+  --board none --max-seconds 3 --console all --pwm 5 --no-reboot --no-dump
+```
+
+It printed:
+
+```text
+ANALOG_WRITE pin=5 duty=128
+[emu] stop: Halted; emulated 3.000s (720000000 cycles)
+[pwm] GPIO5: 1000.000 Hz, 50.00% duty
+```
+
+These are functional checks against the requested Arduino APIs. They do not claim
+silicon cycle accuracy or host speed. `--pwm` derives a steady-state frequency and duty
+from the active timer/channel registers after GPIO-matrix routing and inversion. The GPIO
+hook carries output-enable and a representative level, but the model does not synthesize
+every PWM edge into the board or VCD. Hardware fade sequences remain unmodeled; a channel
+with a nonzero fade scale does not claim completion or a valid observed output. Hpoint
+phase, RC_FAST calibration and light-sleep behavior were not validated.
+
+At implementation revision `8836b87`, these gates passed:
+
+```sh
+cargo test -p esp32 -p esp-soc -p esp32sim
+cargo test --workspace
+cargo build --release
+tools/wasm-build.sh
+node tools/check-evidence-privacy.mjs
+```
+
+The workspace run kept the S3, C3 and C6 suites green. Tests requiring external firmware
+remained ignored by their existing contracts. No raw build tree, console capture or VCD
+is committed. Home paths are normalized to `$HOME`; manual review removed no measured
+value, input hash or correctness observation.
+
+## SPI2/SPI3 and display extension
+
+Revision `773679b` extends EX199 with a wider correctness contract on the same classic
+target, ECO3 ROM and Arduino-ESP32 3.3.8 platform. It models the classic SPI2/HSPI and
+SPI3/VSPI register blocks, CPU FIFO transfers, command/address/data phases, the original
+ESP32 in-controller DMA descriptor links, normal and DMA interrupt sources, CS selection
+and polarity, and the mode control registers used by `spi_master`. Transfers use the
+classic-local GPIO hooks for fixed IO_MUX and GPIO-matrix signals, then enter the shared
+`BoardModel::spi_transfer` and `DcsPanel` path already used by later chips.
+
+Register tests cover CPU TX/RX words, separate transfer lengths, command/address phases,
+DMA readiness and completion, CS selection, retained mode bits, normal and DMA interrupt
+clearing, native TX/RX descriptor walking, and direct IO_MUX and matrix signal routing.
+
+Both temporary projects used board `esp32dev` and this pinned platform:
+
+```ini
+[env:esp32dev]
+platform = https://github.com/pioarduino/platform-espressif32.git#55.03.38-1
+board = esp32dev
+framework = arduino
+monitor_speed = 115200
+```
+
+The loopback source was:
+
+```cpp
+#include <Arduino.h>
+#include <SPI.h>
+
+void setup() {
+  Serial.begin(115200);
+  SPI.begin(18, 19, 23, 5);
+  pinMode(5, OUTPUT);
+  digitalWrite(5, LOW);
+  SPI.beginTransaction(SPISettings(10000000, MSBFIRST, SPI_MODE0));
+  const uint8_t sent[] = {0x00, 0x5a, 0xa5, 0xff};
+  uint8_t received[sizeof(sent)];
+  for (size_t i = 0; i < sizeof(sent); ++i) received[i] = SPI.transfer(sent[i]);
+  SPI.endTransaction();
+  digitalWrite(5, HIGH);
+  Serial.printf("SPI_LOOPBACK %02x %02x %02x %02x %s\n",
+                received[0], received[1], received[2], received[3],
+                memcmp(sent, received, sizeof(sent)) == 0 ? "PASS" : "FAIL");
+}
+
+void loop() { delay(1000); }
+```
+
+The display source was:
+
+```cpp
+#include <Arduino.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_ST7789.h>
+#include <SPI.h>
+
+Adafruit_ST7789 tft(&SPI, 5, 16, 17);
+
+void setup() {
+  Serial.begin(115200);
+  SPI.begin(18, 19, 23, 5);
+  tft.init(240, 320);
+  tft.fillScreen(ST77XX_RED);
+  tft.fillRect(20, 30, 80, 60, ST77XX_GREEN);
+  tft.drawPixel(239, 319, ST77XX_BLUE);
+  Serial.println("ST7789_FRAME PASS 240x320");
+}
+
+void loop() { delay(1000); }
+```
+
+The display project additionally selected
+`adafruit/Adafruit ST7735 and ST7789 Library@^1.11.0`. PlatformIO resolved version
+1.11.0 with Adafruit GFX 1.12.6 and Arduino-ESP32 3.3.8. The loopback sketch used the
+unchanged Arduino calls `SPI.begin(18, 19, 23, 5)` and four `SPI.transfer` calls in
+mode 0 at 10 MHz. The display sketch used `Adafruit_ST7789`, initialized a 240x320
+panel, filled it red, drew a green rectangle and set the lower-right pixel blue.
+
+SHA-256 inputs and temporary artifacts:
+
+| Item | SHA-256 |
+| --- | --- |
+| `/Users/alice/.platformio/packages/tool-esp-rom-elfs/esp32_rev300_rom.elf` | `920b70635440517866aab2230964a570d2cf2b676658d93c52fbac108c1cca31` |
+| `/tmp/esp32sim-classic-spi-loopback/platformio.ini` | `b86c69259be417474b2dfef705f80db5720beff2f80b471ef5762f2a65651500` |
+| `/tmp/esp32sim-classic-spi-loopback/src/main.cpp` | `d6bb505d789636c200bc32e84f31ebe475f5eb244fa477168ecd68e87072802b` |
+| Loopback `firmware.factory.bin` | `63e6408723742cfb324f66fefbab94613986d30a4a29c18bb75c922e0b4513fb` |
+| Loopback `firmware.elf` | `4bc3230de2dafb5ea7c9f975f3c3579e4a8164fbe8f4d75d980a5aecaf263cee` |
+| `/tmp/esp32sim-classic-spi-display/platformio.ini` | `ca994d4e553ed3dfac7a8f76d3f0a199e03603c230ca582ca31e7164910e6e94` |
+| `/tmp/esp32sim-classic-spi-display/src/main.cpp` | `345ea47b4139c080d8bb865c511478a9e72ba4e0e84692e71fa96013004d1104` |
+| Display `firmware.factory.bin` | `69e373919e1fc2b86f18930288d2c0eb927a00d095e1be21ac94e663da9aa3ea` |
+| Display `firmware.elf` | `4e82e6793ea9c4597db2573a0842886984a8dddcbeddd72089000c762f7c5757` |
+
+Build and run commands were:
+
+```sh
+cd /tmp/esp32sim-classic-spi-loopback
+pio run
+cd /tmp/esp32sim-classic-spi-display
+pio run
+
+# From the repository root:
+cargo build --release
+target/release/esp32sim --chip esp32 --boot rom \
+  --rom "$HOME/.platformio/packages/tool-esp-rom-elfs/esp32_rev300_rom.elf" \
+  --flash-image /tmp/esp32sim-classic-spi-loopback/.pio/build/esp32dev/firmware.factory.bin \
+  --elf /tmp/esp32sim-classic-spi-loopback/.pio/build/esp32dev/firmware.elf \
+  --board esp32dev-loopback --max-seconds 0.8 --no-reboot --no-dump
+
+target/release/esp32sim --chip esp32 --boot rom \
+  --rom "$HOME/.platformio/packages/tool-esp-rom-elfs/esp32_rev300_rom.elf" \
+  --flash-image /tmp/esp32sim-classic-spi-display/.pio/build/esp32dev/firmware.factory.bin \
+  --elf /tmp/esp32sim-classic-spi-display/.pio/build/esp32dev/firmware.elf \
+  --board esp32dev-st7789 --max-seconds 1.5 --no-reboot --no-dump
+```
+
+Relevant loopback output:
+
+```text
+SPI_LOOPBACK 00 5a a5 ff PASS
+[emu] stop: Halted; emulated 0.800s (192000000 cycles)
+[emu] spi3: 4 transfers
+[emu] esp32dev SPI loopback: MOSI connected to MISO
+```
+
+Relevant display output and observer report:
+
+```text
+ST7789_FRAME PASS 240x320
+[emu] stop: Halted; emulated 1.500s (360000000 cycles)
+[emu] spi3: 2587 transfers
+[emu] esp32dev ST7789: 240x320, 3 RAMWR, 81601 pixels, on=true bbox=Some((0, 0, 239, 319)); gpio events 94
+```
+
+The model delivers complete transactions rather than individual clock edges. It does not
+model bit-level SPI timing, dual/quad data lanes, DMA contention or malformed descriptor
+recovery beyond a bounded chain walk. The display fixture uses the sketch's manual GPIO5
+CS, while hardware CS selection and polarity are covered at register level. Add those
+details only when a real firmware workload requires them.
+
+The first sandboxed PlatformIO invocation failed with `PermissionError: [Errno 1]
+Operation not permitted: '/Users/alice/.platformio/platforms.lock'`. One rerun with
+access to the installed package cache succeeded; the firmware hashes above identify the
+artifacts actually executed.
+
+The final source tree passed these commands:
+
+```sh
+cargo build --release
+cargo test -p esp32
+cargo test --workspace
+tools/wasm-build.sh
+node tools/check-evidence-privacy.mjs
+```
+
+The ESP32 crate ran 16 tests. The workspace command passed all enabled tests for the
+classic target and the unchanged S3, C3, C6, shared peripheral, shared SoC, CLI and WASM
+crates. Tests that need external firmware remained ignored under their existing rules.
+The privacy checker inspected 1,472 tracked evidence files and found no configured
+patterns. Manual review found no user name, host name, email address, device identifier
+or unrelated command in this extension.
+
+## RMT and WS2812 extension
+
+Revision `916e856` extends EX199 from `4ff7f45` with the original ESP32 RMT layout,
+shared RAM and streamed TX correctness contract. The ECO3 ROM and Arduino-ESP32 3.3.8
+platform are unchanged. This is functional evidence, with no speed or cycle-accuracy
+claim. [Firmware sources, configurations, hashes and exact commands](rmt-firmware.md)
+are retained separately to keep this receipt below 50 KB.
+
+The classic-local model at `0x3ff56000` implements eight channels and 512 shared words
+at `0x3ff56800`, 64 words per block. Allocations borrow following blocks and wrap the
+physical RAM address. It handles both item halves, zero-duration EOF, FIFO and direct
+RAM access, pointer resets, memory-owner state and invalid RX ownership, APB or 1 MHz
+REF_TICK with divider zero meaning 256, continuous loops with a one-tick idle gap,
+global RAM wrap, threshold refill, TX-end/error status and W1C interrupts. DPORT bit 9
+controls clock/reset. GPIO-matrix signals 87-94 deliver pulse levels and idle level.
+RMT uses source 47; this also corrects the inherited RTC source from 47 to 46, with
+literal-source tests for independent PRO/APP routing.
+
+The implementation follows the [ESP32 TRM, chapter 30](https://www.espressif.com/sites/default/files/documentation/esp32_technical_reference_manual_en.pdf)
+and the pinned [IDF 5.5 RMT LL](https://github.com/espressif/esp-idf/blob/v5.5/components/hal/esp32/include/hal/rmt_ll.h).
+Classic hardware has continuous looping but no finite loop counter or TX_STOP register.
+The IDF stop path clears continuous mode and writes EOF into RAM. No later-chip register
+adapter or shared model was changed.
+
+The observer validates WS2812 high/low pulse ranges from the
+[Worldsemi WS2812B timing table](https://cdn-shop.adafruit.com/datasheets/WS2812B.pdf),
+then reuses `Ws2812Chain` for GRB-to-RGB conversion and `BoardModel::rmt_frame` for
+board delivery. The ordinary CLI report identifies the routed GPIO, raw pulse durations
+and decoded colors. No new CLI option is needed.
+
+All three unchanged Arduino API/library checks passed through real-ROM boot:
+
+```text
+RGB_LED gpio=4 rgb=255,0,64 completed=1
+[emu] rmt GPIO4 channel0: 48 pulses
+[emu] rmt GPIO4 WS2812 RGB [[255, 0, 64]]
+
+NEOPIXEL gpio=5 count=8 ff0000 00ff00 0000ff ffffff 010203 112233 ff0040 000000
+[emu] rmt GPIO5 channel0: 384 pulses
+[emu] rmt GPIO5 WS2812 RGB [[255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 255], [1, 2, 3], [17, 34, 51], [255, 0, 64], [0, 0, 0]]
+
+RMT_RAW gpio=18 hz=1000000 init=1 write=1 completed=1
+[emu] rmt GPIO18 channel0: 6 pulses
+[emu] rmt GPIO18 level:APB-ticks (12.5ns): 1:800 0:1600 1:2400 0:3200 0:4000 1:4800
+```
+
+Each run reached 0.800 modeled seconds and 192,000,000 cycles. Adafruit NeoPixel 1.15.5
+sent 192 items through one 64-word block and delivered six source-47 interrupts, covering
+refill across wrap and completion. The raw halves are exactly 10, 20, 30, 40, 50 and
+60 microseconds. Raw IR-style pulses are not misreported as pixels.
+
+Validation passed: `cargo build --release`; `cargo test -p esp32` with 40 tests;
+`cargo test --workspace` with 503 passed, 0 failed and 22 existing ignored tests;
+`tools/wasm-build.sh`; `node tools/check-evidence-privacy.mjs`; `git diff --check`.
+The workspace includes unchanged S3/C3/C6 suites. Only `esp32/src/rmt.rs` was formatted.
+The initial smoke runs also passed; review then added pointer-restart, allocation-shrink
+and reset-output checks before the committed-source reruns. No validation command failed.
+
+RX capture and carrier modulation are not implemented. Owner bits and the invalid-RX-owner
+error are modeled, but this is not an RX engine. The observer retains at most 8,192
+pulse halves per frame and rejects truncated frames as LED data. It reports the latest
+frame on the first matching output pad, and recognizes frames at TX completion rather
+than waiting for a separate 50 microsecond latch interval. GPIO/VCD events within a
+single CPU tick can share a timestamp; the raw item-duration report is authoritative.
+No analog waveform, oscillator drift or hardware timing claim is made. Manual review
+retained no user/host identifiers, private captures or unrelated process data; raw logs
+remain outside Git and home paths in the receipt use `$HOME`.
+

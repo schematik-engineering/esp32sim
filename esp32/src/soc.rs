@@ -114,7 +114,8 @@ impl esp_soc::SocBus for SocBus {
     }
     fn reboot(&mut self, mac: [u8; 6]) -> u32 {
         let cause = self.periph.rtc.0.reset_cause;
-        let old = std::mem::replace(&mut self.periph, Peripherals::new(mac));
+        let mut old = std::mem::replace(&mut self.periph, Peripherals::new(mac));
+        for port in 0..2 { self.periph.i2s[port].inner.rx_input = std::mem::take(&mut old.i2s[port].inner.rx_input); }
         self.periph.gpio.restore_inputs(&old.gpio);
         self.periph.efuse = old.efuse;
         self.periph.misc.log_unknown = old.misc.log_unknown;
@@ -187,6 +188,9 @@ impl esp_soc::SocBus for SocBus {
     fn board_ref(&self) -> &dyn BoardModel {
         &*self.board
     }
+    fn pcm_sources(&mut self) -> Option<&mut esp_periph::i2s::PcmSources> { Some(&mut self.pcm_sources) }
+    fn i2s_selected_source(&self, port: usize) -> Option<usize> { self.periph.i2s.get(port).and_then(|i| i.inner.rx_source) }
+    fn i2s_input(&mut self, port: usize) -> Option<&mut esp_periph::i2s::PcmInput> { self.periph.i2s.get_mut(port).map(|i| &mut i.inner.rx_input) }
     fn audio(&self) -> (&[i16], u32) {
         (&[], 44_100)
     }

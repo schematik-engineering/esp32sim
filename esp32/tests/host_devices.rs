@@ -1,7 +1,7 @@
 use esp_soc::board::BoardEdge;
 
 use esp32::bus::SocBus;
-use esp_soc::BoardModel;
+use esp_soc::{BoardModel, SocBus as _};
 use xtensa_lx7::bus::Bus;
 use std::sync::{Arc, Mutex};
 
@@ -65,3 +65,46 @@ fn uart_matrix_receive_does_not_require_gpio_output_mux() {
     b.write32(0x3ff5_0010, 0x195).unwrap();
     assert_eq!(b.periph.cpu_lines(0) & (1 << 6), 0);
 }
+
+#[test]
+fn i2s_native_dma_packs_pcm_and_raises_eof() {
+    let mut b = bus(); let base = 0x3ff4_f000;
+    b.write32(0x3ff0_00c0, 1 << 4).unwrap();
+    for (address, value) in [(0x3ffb_0100, 0x8000_0008), (0x3ffb_0104, 0x3ffb_0200), (0x3ffb_0108, 0)] { b.write32(address, value).unwrap(); }
+    b.i2s_input(0).unwrap().push(&[[123, -456], [789, -123]]);
+    b.write32(base + 0xac, 25 | (1 << 20)).unwrap();
+    b.write32(base + 0xb0, (25 << 6) | (16 << 18)).unwrap();
+    b.write32(base + 0x14, 1 << 9).unwrap();
+    b.write32(base + 0x34, (1 << 29) | 0xb0100).unwrap(); b.write32(base + 8, 1 << 5).unwrap();
+    b.tick(60_000);
+    assert_eq!(b.read32(0x3ffb_0200), Ok(123 | ((-456i16 as u16 as u32) << 16)));
+    assert_eq!(b.read32(base + 0x3c), Ok(0x3ffb_0100));
+    assert_ne!(b.read32(base + 0x10).unwrap() & (1 << 9), 0);
+    assert_eq!(b.read32(0x3ffb_0100).unwrap() >> 31, 0);
+}
+
+#[test]
+fn physical_spi_excludes_released_and_high_selects() {
+    struct SpiBoard(Arc<Mutex<Vec<esp_soc::board::SpiPins>>>);
+    impl BoardModel for SpiBoard {
+        fn name(&self) -> &'static str { "spi-pins" }
+        fn uses_spi_pins(&self) -> bool { true }
+        fn spi_transfer_pins(&mut self, _: u8, pins: esp_soc::board::SpiPins, _: &[u8], len: usize) -> Vec<u8> {
+            self.0.lock().unwrap().push(pins); vec![0xa5; len]
+        }
+    }
+    let mut b = bus(); let routes = Arc::new(Mutex::new(Vec::new())); b.board = Box::new(SpiBoard(routes.clone()));
+    // SPI2 native clock/MOSI GPIO14/13, software CS GPIO4.
+    for addr in [0x3ff4_9030, 0x3ff4_9038] { b.write32(addr, (1 << 12) | (1 << 9)).unwrap(); }
+    b.write32(0x3ff4_9048, (2 << 12) | (1 << 9)).unwrap();
+    b.write32(0x3ff4_4024, 1 << 4).unwrap();
+    for high in [false, true] {
+        b.write32(if high { 0x3ff4_4008 } else { 0x3ff4_400c }, 1 << 4).unwrap();
+        b.write32(0x3ff6_401c, (1 << 27) | (1 << 28) | 1).unwrap();
+        b.write32(0x3ff6_4028, 7).unwrap(); b.write32(0x3ff6_402c, 7).unwrap(); b.write32(0x3ff6_4000, 1 << 18).unwrap();
+        let p = *routes.lock().unwrap().last().unwrap();
+        assert_ne!(p.sclk & (1 << 14), 0); assert_ne!(p.mosi & (1 << 13), 0);
+        assert_eq!(p.cs & (1 << 4) != 0, !high);
+    }
+}
+

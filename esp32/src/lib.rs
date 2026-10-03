@@ -12,3 +12,5 @@ pub use esp_soc::Stop;
 pub use soc::{machine, Esp32, Machine};
 
 pub mod board;
+
+pub mod i2s;

@@ -175,7 +175,6 @@ impl ClassicRmt {
             }
             let c = &mut self.ch[n];
             c.remaining = duration;
-            // ponytail: retain at most 4096 symbols per frame; stream the observer if larger strips need it.
             if c.pulses.len() < 8192 {
                 c.pulses.push((c.level, duration));
             } else {

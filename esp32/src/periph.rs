@@ -353,7 +353,17 @@ impl ClassicGpio {
             let pin = (cfg & 63) as usize;
             return (pin < 40 && self.input_enabled(pin)).then_some(pin as u8);
         }
-        None
+        Self::direct_pin(signal).filter(|&pin| (self.mux(pin) >> 12) & 7 == 1 && self.input_enabled(pin)).map(|p| p as u8)
+    }
+    pub(crate) fn low_outputs(&self) -> u64 {
+        (0..34).filter(|&pin| self.driven(pin) == Some(false)).fold(0, |mask, pin| mask | (1 << pin))
+    }
+    pub fn output_pins(&self, signal: usize) -> u64 {
+        (0..34).filter(|&pin| {
+            let cfg = self.gpio.func_out_sel[pin];
+            (self.matrix_pad(pin) && cfg & 0x3ff == signal as u32 && self.driven(pin).is_some())
+                || ((self.mux(pin) >> 12) & 7 == 1 && Self::direct_signal(pin) == Some(signal))
+        }).fold(0, |mask, pin| mask | (1 << pin))
     }
     /// Resolve a peripheral input routed through GPIO_FUNCm_IN_SEL_CFG.
     pub fn signal_input(&self, signal: usize) -> Option<bool> {
@@ -603,6 +613,7 @@ pub struct Peripherals {
     pub rtc: ClassicRtc,
     pub efuse: ClassicEfuse,
     pub sha: ClassicSha,
+    pub i2s: [crate::i2s::ClassicI2s; 2],
     pub timg: [ClassicTimer; 2],
     pub i2c: [crate::i2c::I2c; 2],
     pub misc: Misc,
@@ -617,6 +628,8 @@ device_set! { Peripherals; clock: (clock) CPU_HZ, [(ClockDomain::Apb, 3), (Clock
     0x42 "SPI1" (spi1) => [];
     0x43 "SPI0" (spi0) => [];
     0x44 "GPIO" (gpio) => [];
+    0x4f "I2S0" (i2s[0]) => [32];
+    0x6d "I2S1" (i2s[1]) => [33];
     0x48 "RTCCNTL" (rtc) => [SRC_RTC_CORE];
     0x49 "IO_MUX" alias (gpio) delta 0x1000 => [];
     0x50 "UART1" (uart[1]) => [SRC_UART1];
@@ -670,6 +683,7 @@ impl Peripherals {
             rtc: ClassicRtc::new(),
             efuse: ClassicEfuse::new(mac),
             sha: ClassicSha::new(),
+            i2s: std::array::from_fn(|_| crate::i2s::ClassicI2s::new()),
             timg: [ClassicTimer::new(0), ClassicTimer::new(1)],
             i2c: [crate::i2c::I2c::new(), crate::i2c::I2c::new()],
             misc: Misc::new(),
@@ -763,6 +777,17 @@ impl Peripherals {
                 && self.dport.ram.read(0xc4) & (1 << 11) == 0;
             self.rmt.clock_enabled = self.dport.ram.read(0xc0) & (1 << 9) != 0
                 && self.dport.ram.read(0xc4) & (1 << 9) == 0;
+        }
+        for port in 0..2 {
+            let bit = if port == 0 { 4 } else { 21 };
+            if addr == 0x3ff0_00c4 && v & (1 << bit) != 0 {
+                let input = std::mem::take(&mut self.i2s[port].inner.rx_input);
+                self.i2s[port] = crate::i2s::ClassicI2s::new();
+                self.i2s[port].inner.rx_input = input;
+            }
+            for signal in if port == 0 { [27, 28] } else { [164, 165] } {
+                self.gpio.set_output_signal(signal, false, self.i2s[port].inner.rx_running());
+            }
         }
         self.sync_ledc_outputs();
         self.sync_rmt_outputs();

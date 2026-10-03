@@ -28,3 +28,15 @@ S3 board names are rejected. WASM accepts the `esp32` chip identifier.
 Timer-group T0/T1 reuse the shared 54-bit counter model; the classic hardware
 has 64-bit counters. LACT sleep-time RTC stepping and per-core watchdog resets
 are not modeled. Peripheral extensions are separate changes in the stack.
+
+I2C, LEDC, SPI2/3, RMT TX and I2S RX extend the core. This part depends on
+PR #167's `ledc-mcpwm` branch for shared PWM observation and CLI parsing.
+`esp32dev-i2c` supplies QMI8658 address 0x6b on I2C0, SDA21/SCL22;
+`esp32dev-loopback` loops SPI MOSI back to MISO; `esp32dev-st7789` uses VSPI
+with CS5, DC16 and RESET17. These are classic boards, not S3 aliases.
+
+I2S RX translates classic clock/configuration registers and walks native DMA
+descriptors. It accepts host PCM inputs and routes physical I2S sources by the
+classic signal matrix. SPI routes are decoded only for boards that opt in.
+I2C is transaction-level; SPI excludes bit timing and multi-lane transfers;
+RMT excludes RX/carrier modulation; LEDC excludes fades and synthesized edges.
