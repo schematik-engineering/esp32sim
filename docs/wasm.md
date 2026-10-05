@@ -259,3 +259,15 @@ batch remains readable until the next `ethernet_take` or emulator deletion.
 
 The [Arduino relay check](evidence/ethernet-c3-2026-10-02/relay.mjs) shows the ABI
 with a host DHCP responder.
+
+### C3 full BLE observation
+
+Call `esp32sim_ble_full(emu)` before boot (0 = enabled, 1 = wrong chip or already
+booted). This runs the guest link controller without HCI substitution. After each
+run slice, call `esp32sim_ble_take(emu)` until it returns zero. Each nonzero return
+is the UTF-8 byte length at `esp32sim_ble_ptr(emu)`, valid until the next take or
+emulator deletion. `[ble-air]` contains modeled half-microsecond time, channel,
+PDU type, AdvA, decoded name/service AD fields and the raw PDU. `[ble-config]`
+contains configured scan-response data, not a transmitted packet. The bounded
+1024-entry queue reports lost observations as `[ble-observer] dropped=N`.
+No RX, SCAN_REQ or connection handling is implemented.

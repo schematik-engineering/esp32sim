@@ -57,13 +57,13 @@ fn full_ble_mode_is_c3_only_and_excludes_hci() {
 
 #[test]
 #[ignore = "set ESP32SIM_BLE_SERVER_DIR to the unchanged Arduino 3.3.11 C3 Server build and ESP32SIM_ROM_DIR to the ROM directory"]
-fn external_full_ble_server_programs_first_event() {
+fn external_full_ble_server_advertises_repeatedly() {
     let build = PathBuf::from(std::env::var_os("ESP32SIM_BLE_SERVER_DIR").expect("set ESP32SIM_BLE_SERVER_DIR to the Arduino C3 Server build"));
     let rom = PathBuf::from(std::env::var_os("ESP32SIM_ROM_DIR").expect("set ESP32SIM_ROM_DIR to the C3 rev3 ROM directory")).join("esp32c3_rev3_rom.elf");
     assert!(rom.is_file(), "missing C3 rev3 ROM input");
     let mut command = Command::new(env!("CARGO_BIN_EXE_esp32sim-c3"));
-    command.args(["--boot", "rom", "--rom"]).arg(rom).args(["--ble", "full", "--flash-mb", "4", "--max-seconds", "1", "--no-dump", "--irq-latency",
-        "--trace-fn", "r_sch_prog_ble_push", "--trace-fn", "r_lld_adv_evt_start_cbk", "--peek", "0x60031100,1"]);
+    command.args(["--boot", "rom", "--rom"]).arg(rom).args(["--ble", "full", "--flash-mb", "4", "--max-seconds", "2", "--no-dump", "--irq-latency", "--ble-observe",
+        "--trace-fn", "r_sch_prog_ble_push", "--trace-fn", "r_lld_adv_evt_start_cbk", "--trace-fn", "r_sch_prog_end_isr_handler"]);
     for (flag, suffix) in [("--bootloader", "bootloader.bin"), ("--ptable", "partitions.bin"), ("--app", "bin"), ("--elf", "elf")] {
         let file = build.join(format!("Server.ino.{suffix}"));
         assert!(file.is_file(), "missing Arduino Server input {}", file.display());
@@ -74,8 +74,27 @@ fn external_full_ble_server_programs_first_event() {
     let trace = String::from_utf8_lossy(&result.stderr);
     assert!(result.status.success(), "{trace}");
     assert!(console.contains("Characteristic defined! Now you can read it in your phone!"), "{console}");
-    for expected in ["r_sch_prog_ble_push_hack(a0=", "r_lld_adv_evt_start_cbk(a0=", "sources [8]", "60031100: 80000000", "0 exceptions"] {
+    for expected in ["r_sch_prog_ble_push_hack(a0=", "r_lld_adv_evt_start_cbk(a0=", "sources [8]", "r_sch_prog_end_isr_handler(a0=", "0 exceptions"] {
         assert!(trace.contains(expected), "missing {expected}: {trace}");
     }
     assert!(!console.contains("assert"), "{console}");
+    assert!(!trace.contains("[ble-error]"), "{trace}");
+    // The unchanged sketch puts the name in the conditional SCAN_RSP descriptor.
+    assert!(trace.contains("[ble-config] SCAN_RSP name=\"BLE Server Example\""), "{trace}");
+    let packets: Vec<_> = trace.lines().filter(|line| line.starts_with("[ble-air]")).collect();
+    assert!(packets.len() >= 15, "{trace}");
+    let mut previous = None;
+    for event in packets.as_chunks::<3>().0 {
+        for (line, channel) in event.iter().zip([37, 38, 39]) {
+            assert!(line.contains(&format!("channel={channel} type=ADV_IND AdvA=60:55:f9:00:11:24")), "{line}");
+            assert!(line.contains("service=4fafc201-1fb5-459e-8fcc-c5c9c331914b"), "{line}");
+            assert!(!line.contains("name="), "{line}");
+        }
+        let hus: u64 = event[0].split_whitespace().find_map(|v| v.strip_prefix("hus=")).unwrap().parse().unwrap();
+        if let Some(prior) = previous {
+            // Guest interval at lld_adv_env[0]+100 is 0x60 * 625 us, plus 0..10 ms delay.
+            assert!((120_000..=140_000).contains(&(hus - prior)), "interval={} half-us", hus - prior);
+        }
+        previous = Some(hus);
+    }
 }

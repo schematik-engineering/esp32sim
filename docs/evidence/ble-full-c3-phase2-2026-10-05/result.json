@@ -1,0 +1,65 @@
+{
+  "checks": "pass",
+  "modeled_seconds": 2,
+  "events": 27,
+  "packets": 81,
+  "first_five_event_hus": [
+    516875,
+    654375,
+    786875,
+    918125,
+    1053125
+  ],
+  "interval_us": {
+    "min": 60625.0,
+    "max": 70000.0,
+    "median": 67187.5
+  },
+  "configured_interval_units_625us": 96,
+  "sample": "[ble-air] hus=516875 channel=37 type=ADV_IND AdvA=60:55:f9:00:11:24 service=4fafc201-1fb5-459e-8fcc-c5c9c331914b flags=0x06 connection_interval_units=6:18 pdu=2021241100f9556002010611074b9131c3c9c5cc8f9e45b51f01c2af4f051206001200",
+  "configured": "[ble-config] SCAN_RSP name=\"BLE Server Example\" data=1309424c4520536572766572204578616d706c65",
+  "functions": {
+    "r_sch_prog_end_isr_handler": 27,
+    "r_lld_adv_frm_isr_eco": 27,
+    "r_sch_prog_ble_push_hack": 27
+  },
+  "stop": "[emu] stop: Halted \u2014 320000000 insns in 0.3s wall = 1001.2 Minsn/s; emulated 2.000s (320000000 cycles); 0 exceptions, 2153 interrupts",
+  "source_8": [
+    "core0 int9         54  sources [8]"
+  ],
+  "inputs": {
+    "rom": {
+      "sha256": "19ac22e08707df926fb0cf4c54795d4067b983fae8635f396ded173a6d78fc3c",
+      "bytes": 556332
+    },
+    "bootloader": {
+      "sha256": "d4a87d86e17457c5d9e6d9b6c83f1af5ab0122a58545aaab392af1135a01f00a",
+      "bytes": 19536
+    },
+    "ptable": {
+      "sha256": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1",
+      "bytes": 3072
+    },
+    "app": {
+      "sha256": "7da24e7446aa4f16344accc436f5d187e2057819582f2b37226c437cde8f377a",
+      "bytes": 606320
+    },
+    "elf": {
+      "sha256": "862b7e1b1a58ced342091aa37e59efef6ba269ba1861a03302fde9b4616996a0",
+      "bytes": 11045524
+    }
+  },
+  "binary_sha256": "7816e22e7d81b31a9d771af379fb618a94eda6ff4a8ead11aa15eed8b5402138",
+  "captures": {
+    "stdout": {
+      "original_sha256": "032b75a4288b822e9722d8f7e5a9a3184ebb28e01cf96eab2d3a471b1893467f",
+      "sanitized_sha256": "032b75a4288b822e9722d8f7e5a9a3184ebb28e01cf96eab2d3a471b1893467f",
+      "bytes": 316
+    },
+    "stderr": {
+      "original_sha256": "280cac7a6e6e54faa756c65842d3b9e7692d2e786a6e00f2d0d1eeada421f2ea",
+      "sanitized_sha256": "280cac7a6e6e54faa756c65842d3b9e7692d2e786a6e00f2d0d1eeada421f2ea",
+      "bytes": 33353
+    }
+  }
+}

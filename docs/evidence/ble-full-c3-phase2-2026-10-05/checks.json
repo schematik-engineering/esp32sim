@@ -1,0 +1,55 @@
+{
+  "base": "3827ad3f5215e61a1e1c43b3aa505f054bfcf41a",
+  "main": "29dd4623307853d8c036b65c5bb3249fa131758c",
+  "environment": {
+    "os": "Darwin",
+    "os_version": "27.0.1",
+    "architecture": "arm64",
+    "rust": "rustc 1.99.0 (b940084d7 2026-09-28)\nbinary: rustc\ncommit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4\ncommit-date: 2026-09-28\nhost: aarch64-apple-darwin\nrelease: 1.99.0\nLLVM version: 23.1.1",
+    "node": "v22.23.1",
+    "python": "3.14.7"
+  },
+  "checks": {
+    "clippy_native": "pass: --workspace --all-targets -- -D warnings",
+    "clippy_wasm": "pass: --release --target wasm32-unknown-unknown -p esp32sim-wasm --features jit-tests -- -D warnings",
+    "release_workspace_include_ignored_skip_external": {
+      "passed": 603,
+      "failed": 0
+    },
+    "release_workspace_plain": {
+      "passed": 588,
+      "failed": 0,
+      "ignored": 32
+    },
+    "external_specimen": "pass",
+    "wasm_demos": "pass: hello c3-hello c6-hello c6-energy-scan c6-contiki c6-contiki-net c6-rpl-net panel",
+    "wasm_specimen": "pass",
+    "jit_tests": "not applicable: no JIT code changed",
+    "goldens": "unchanged; no regeneration",
+    "evidence_privacy": "pass: 1655 tracked evidence files, 20 gzip files; manual review completed"
+  },
+  "source_sha256": {
+    "cli/src/lib.rs": "ab4df0bf2346b77720353caedacb8f603a83562b39d50cd8389295f0c546fbd5",
+    "cli/tests/ble.rs": "93445a2b9f1477c932499ab733b07499b7ab4263a0e7ce4ab20447256421f9e5",
+    "esp-soc/src/ble/peer.rs": "2fa7f65eb1627af6bb83c385b153b8fbe2678a01d0cfb5121e909ef15204c538",
+    "esp32c3/src/ble_lc.rs": "bc0f86eca7cf7f88a7cf0b47ecd8409081b0fd3878f7b36b755dfd36f5835d54",
+    "esp32c3/src/bus.rs": "610832306cbc5de0f432f4027bb0444badfa1a1cf87da04ee0c63e6b27f6a7eb",
+    "esp32c3/src/periph.rs": "02da158f216bbcd6f42f25ca8a6dbfd20b8dedbae24e83b0ca09a11ed0435209",
+    "esp32c3/src/soc.rs": "3413e24955d30249f02da9e808d952526126d078c3c1818f3b75d048e8dc556e",
+    "wasm/src/ble.rs": "6392e5727222a8c3f4876a062cbd907a783a3329ad211f2fd9c0dca115c2b5f7",
+    "wasm/src/lib.rs": "e9b128e86aebbc356c11352fbbd3e3949403e9853c8d1a3a021863b06ceaf158",
+    "Cargo.lock": "df4225bc1fc95eb67be6dccfe8a0be0eda694ca58fed737b20405d5938c93056"
+  },
+  "log_sha256": {
+    "wasm-tests.log": "bf492c25c6937325f16a71017a3ca901b5b04472df3f5b30d4d2dd619f99bfc8",
+    "test-ci.log": "ba41ed8b84f0bdee05e5b01ea63f8791189ac68179b52a80e72cfc3e80aa27bc",
+    "wasm-build.log": "8abada129edf4c3796f393a2a83efebcfb14488b28da6535db97ed80d2c263fc",
+    "test-specimen.log": "00d196b5001fc390769edfb503002f1d43020a1dab96711bb9014ba5bec4a483",
+    "clippy-wasm.log": "eabcdac53687bbf238fbff28b424fc631b4c1be9c8a7a0f3efef2fdc43c6ad05",
+    "clippy-native.log": "2f9b65416cb0ac6e2fc919c5638a5359028126a17d1c7535b427781f47e633b7",
+    "test-plain.log": "ba9b915f6989f201b069e18884796d5634b967fec0f2ac4d7428cc466345aace",
+    "main-build.log": "d8d0d6de623ab23d4ea2125079cda298c55c4e87b79621fd7b0f4949678d7c78",
+    "build.log": "9af1dda98a2dd6cca9d73facd7129e26f022ca98e978be8be431e1a04854df0d",
+    "privacy.log": "4598ba7660c69b314aed510000fb948b1ec66bd6e84f860da68d13c3eff7bdda"
+  }
+}
