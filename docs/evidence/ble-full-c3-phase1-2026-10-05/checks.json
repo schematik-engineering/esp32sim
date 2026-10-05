@@ -1,0 +1,48 @@
+{
+  "toolchain": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "default_toolchain_changed": false,
+  "implementation_revision": "609e7e0cfe9179f7bbb03857a36e903f232159e5",
+  "commands": [
+    {
+      "command": "cargo +1.99.0 clippy --workspace --all-targets -- -D warnings",
+      "result": "pass"
+    },
+    {
+      "command": "cargo +1.99.0 clippy --release --target wasm32-unknown-unknown -p esp32sim-wasm --features jit-tests -- -D warnings",
+      "result": "pass"
+    },
+    {
+      "command": "ESP32SIM_ROM_DIR=\"$PWD/web/wasm/fw\" cargo +1.99.0 test --release --workspace -- --include-ignored --skip external_",
+      "result": "600 passed, 0 failed"
+    },
+    {
+      "command": "cargo +1.99.0 test --release --workspace",
+      "result": "585 passed, 0 failed, 32 ignored"
+    },
+    {
+      "command": "RUSTUP_TOOLCHAIN=1.99.0 tools/wasm-build.sh && node tools/wasm-test.mjs hello c3-hello c6-hello c6-energy-scan c6-contiki c6-contiki-net c6-rpl-net panel",
+      "result": "pass, eight demos"
+    },
+    {
+      "command": "ESP32SIM_BLE_SERVER_DIR=\"$BUILD\" ESP32SIM_ROM_DIR=\"$PWD/web/wasm/fw\" cargo +1.99.0 test --release -p esp32sim external_full_ble_server_programs_first_event -- --ignored",
+      "result": "1 passed"
+    },
+    {
+      "command": "python3 docs/evidence/ble-full-c3-phase1-2026-10-05/replay.py --emulator target/release/esp32sim-c3 --build \"$BUILD\" --rom web/wasm/fw/esp32c3_rev3_rom.elf --output \"$OUTPUT\"",
+      "result": "pass"
+    },
+    {
+      "command": "node tools/check-evidence-privacy.mjs",
+      "result": "pass; manual review also required and performed"
+    }
+  ],
+  "jit_test": "not applicable: no JIT code changed",
+  "goldens": "unchanged; UPDATE_GOLDENS was not set",
+  "open_pull_requests": "gh pr list --repo mikroverk/esp32sim --state open --json number,title,files returned [] before implementation",
+  "test_scratch": "TMPDIR set to worktree-local .ble1 for checks; no default toolchain change",
+  "limitations": [
+    "No hardware oracle",
+    "No radio event completion or transmitted PDU",
+    "No GitHub writes"
+  ]
+}

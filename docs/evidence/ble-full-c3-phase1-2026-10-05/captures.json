@@ -1,0 +1,91 @@
+{
+  "retention": "Local notes ble1-artifacts; not uploaded",
+  "redaction": "Replace worktree/home labels; numeric values and ordering unchanged",
+  "files": {
+    "test-full.log": {
+      "original_sha256": "4dd9194e3f4eec61408c02bcb367daf0e4eb3db511c4e4088847e517bf25fe99",
+      "sanitized_sha256": "7f5a39f8138b6cfc8f652b6205199c13300a536a651ae90ea4522f618262ae51",
+      "bytes": 55046
+    },
+    "privacy.log": {
+      "original_sha256": "802003cb458ddfc7461f5fe94f4712d610ae9e80edc919beb468a996e321b772",
+      "sanitized_sha256": "802003cb458ddfc7461f5fe94f4712d610ae9e80edc919beb468a996e321b772",
+      "bytes": 130
+    },
+    "wasm-build.log": {
+      "original_sha256": "be7fefda36ecb71bda8862953be1945b773852c48acafd13a69e0eb35422c592",
+      "sanitized_sha256": "66446cde70684cbc2b26ee6f1c3a074dfb143faa215541e0ab1dd20a8121965f",
+      "bytes": 721
+    },
+    "build-final.log": {
+      "original_sha256": "3e21f68f5db0a6128f89c27da2bd210a3bdc5cde062b5f2abc73bd703ada9351",
+      "sanitized_sha256": "ddabbe0a061196e6475c64889ce83d419bbe7972dd0a8483c51fc52ff8e17dec",
+      "bytes": 224
+    },
+    "clippy-wasm.log": {
+      "original_sha256": "c6fba60107dec9fca3702e7e22b326e550318a6a266a6e4de7e82bb20183df21",
+      "sanitized_sha256": "59a1327a0319f9bf355a4f3b77d3d18aa57b296e00c6b1380264ead660b60990",
+      "bytes": 598
+    },
+    "unit.log": {
+      "original_sha256": "b8acdae821865111395084b2cd7aec424296b9c945820ff36698e46f7975d3aa",
+      "sanitized_sha256": "abe7eb3d24a4512e7b629ad14061ceba439744c810d20284ca4a5f958c8f2bb7",
+      "bytes": 1554
+    },
+    "clippy-native.log": {
+      "original_sha256": "e99b514105a0bb3921800384f05436a8a7566c6c6f0db347d779ba758d323ca0",
+      "sanitized_sha256": "9e20e1c929de3655174769abba429e256e0b34c5e27d20623dd8a61fd5827925",
+      "bytes": 642
+    },
+    "test-server.log": {
+      "original_sha256": "fe2b1c9b83192929ac2075e6a17b0f86257fc33621568454e0abbb41368d7432",
+      "sanitized_sha256": "9679092b18d205ca1b8ad5eb309e220c28da69c8aa0a45b274827916d88eb452",
+      "bytes": 2889
+    },
+    "test-plain.log": {
+      "original_sha256": "5262c9990e0e4a01abbf7a3552fcac937b6faa17b2b71d3e8b6e565cb7e1b551",
+      "sanitized_sha256": "5262c9990e0e4a01abbf7a3552fcac937b6faa17b2b71d3e8b6e565cb7e1b551",
+      "bytes": 57707
+    },
+    "main-build.log": {
+      "original_sha256": "114db3ffbc604aec2496d3a192dc2fe9efedb31cfd7ce3cd083cc4617e27a00a",
+      "sanitized_sha256": "fe2894cf84e121bf71c2f776c073a1a50e824d3b0d2efd4170d77713cb4e793e",
+      "bytes": 632
+    },
+    "wasm-test.log": {
+      "original_sha256": "7346eeb4f10847f22792b8d3455d4a390edd35dd810f6409e8d49109d5246183",
+      "sanitized_sha256": "7346eeb4f10847f22792b8d3455d4a390edd35dd810f6409e8d49109d5246183",
+      "bytes": 968
+    },
+    "build.log": {
+      "original_sha256": "ca6949123040297d9c715205442f6f671108e991bfe12bcd142a5b7039d9b435",
+      "sanitized_sha256": "5d3fff5e077f76fbb595aa245165bb327d1598d7f32177d5e768588dcb9aa1d7",
+      "bytes": 170
+    },
+    "server.stdout": {
+      "original_sha256": "032b75a4288b822e9722d8f7e5a9a3184ebb28e01cf96eab2d3a471b1893467f",
+      "sanitized_sha256": "032b75a4288b822e9722d8f7e5a9a3184ebb28e01cf96eab2d3a471b1893467f",
+      "bytes": 316
+    },
+    "server.stderr": {
+      "original_sha256": "5b0ea21bcd4a28fce208b09a31a94483285245aa848576d2d1e836694c063919",
+      "sanitized_sha256": "5b0ea21bcd4a28fce208b09a31a94483285245aa848576d2d1e836694c063919",
+      "bytes": 30888863
+    },
+    "event.regtrace": {
+      "original_sha256": "a9408c39daf5b3b910854ed941119f8d5e3bd516d0cac5b3e89c5d824264f868",
+      "sanitized_sha256": "a9408c39daf5b3b910854ed941119f8d5e3bd516d0cac5b3e89c5d824264f868",
+      "bytes": 237600
+    },
+    "final-server.stderr": {
+      "original_sha256": "ed5a815af9183ff85ef922028ea0b25d7570f90988956d75483da0876164c35b",
+      "sanitized_sha256": "ed5a815af9183ff85ef922028ea0b25d7570f90988956d75483da0876164c35b",
+      "bytes": 18213601
+    },
+    "final-server.stdout": {
+      "original_sha256": "032b75a4288b822e9722d8f7e5a9a3184ebb28e01cf96eab2d3a471b1893467f",
+      "sanitized_sha256": "032b75a4288b822e9722d8f7e5a9a3184ebb28e01cf96eab2d3a471b1893467f",
+      "bytes": 316
+    }
+  }
+}

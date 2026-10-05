@@ -1,0 +1,227 @@
+403868c6:	7179                	addi	sp,sp,-48
+403868c8:	ce4e                	sw	s3,28(sp)
+403868ca:	3fce09b7          	lui	s3,0x3fce0
+403868ce:	96c98793          	addi	a5,s3,-1684 # 3fcdf96c <sdk_cfg_priv_opts>
+403868d2:	0457c783          	lbu	a5,69(a5)
+403868d6:	d606                	sw	ra,44(sp)
+403868d8:	d422                	sw	s0,40(sp)
+403868da:	d226                	sw	s1,36(sp)
+403868dc:	d04a                	sw	s2,32(sp)
+403868de:	cc52                	sw	s4,24(sp)
+403868e0:	ca56                	sw	s5,20(sp)
+403868e2:	c85a                	sw	s6,16(sp)
+403868e4:	c65e                	sw	s7,12(sp)
+403868e6:	96c98993          	addi	s3,s3,-1684
+403868ea:	c7d9                	beqz	a5,40386978 <r_rwble_isr_hack+0xb2>
+403868ec:	600317b7          	lui	a5,0x60031
+403868f0:	4b80                	lw	s0,16(a5)
+403868f2:	00400737          	lui	a4,0x400
+403868f6:	8f61                	and	a4,a4,s0
+403868f8:	cf15                	beqz	a4,40386934 <r_rwble_isr_hack+0x6e>
+403868fa:	2d878693          	addi	a3,a5,728 # 600312d8 <GPSPI2+0xd2d8>
+403868fe:	4298                	lw	a4,0(a3)
+40386900:	80000637          	lui	a2,0x80000
+40386904:	8f51                	or	a4,a4,a2
+40386906:	c298                	sw	a4,0(a3)
+40386908:	00800737          	lui	a4,0x800
+4038690c:	177d                	addi	a4,a4,-1 # 7fffff <CSR_UINTSTATUS+0x7ff34e>
+4038690e:	cf98                	sw	a4,24(a5)
+40386910:	00b41793          	slli	a5,s0,0xb
+40386914:	83ad                	srli	a5,a5,0xb
+40386916:	4705                	li	a4,1
+40386918:	24e79a63          	bne	a5,a4,40386b6c <r_rwble_isr_hack+0x2a6>
+4038691c:	3fce0737          	lui	a4,0x3fce0
+40386920:	9f472703          	lw	a4,-1548(a4) # 3fcdf9f4 <g_bt_plf_log_level>
+40386924:	00e7d863          	bge	a5,a4,40386934 <r_rwble_isr_hack+0x6e>
+40386928:	55418513          	addi	a0,gp,1364 # 3fc94b54 <__c.5>
+4038692c:	ffc79097          	auipc	ra,0xffc79
+40386930:	714080e7          	jalr	1812(ra) # 40000040 <esp_rom_printf>
+40386934:	00200537          	lui	a0,0x200
+40386938:	8c69                	and	s0,s0,a0
+4038693a:	cc1d                	beqz	s0,40386978 <r_rwble_isr_hack+0xb2>
+4038693c:	60031737          	lui	a4,0x60031
+40386940:	2d870793          	addi	a5,a4,728 # 600312d8 <GPSPI2+0xd2d8>
+40386944:	438c                	lw	a1,0(a5)
+40386946:	4390                	lw	a2,0(a5)
+40386948:	4f1c                	lw	a5,24(a4)
+4038694a:	ffe006b7          	lui	a3,0xffe00
+4038694e:	16fd                	addi	a3,a3,-1 # ffdfffff <SYSTEM+0x9fd3ffff>
+40386950:	8ff5                	and	a5,a5,a3
+40386952:	8fc9                	or	a5,a5,a0
+40386954:	cf1c                	sw	a5,24(a4)
+40386956:	3fce07b7          	lui	a5,0x3fce0
+4038695a:	9f47a703          	lw	a4,-1548(a5) # 3fcdf9f4 <g_bt_plf_log_level>
+4038695e:	4785                	li	a5,1
+40386960:	00e7dc63          	bge	a5,a4,40386978 <r_rwble_isr_hack+0xb2>
+40386964:	8205                	srli	a2,a2,0x1
+40386966:	8195                	srli	a1,a1,0x5
+40386968:	8a3d                	andi	a2,a2,15
+4038696a:	89fd                	andi	a1,a1,31
+4038696c:	56818513          	addi	a0,gp,1384 # 3fc94b68 <__c.4>
+40386970:	ffc79097          	auipc	ra,0xffc79
+40386974:	6d0080e7          	jalr	1744(ra) # 40000040 <esp_rom_printf>
+40386978:	00082ab7          	lui	s5,0x82
+4038697c:	fffc0b37          	lui	s6,0xfffc0
+40386980:	83828bb7          	lui	s7,0x83828
+40386984:	e89a8a93          	addi	s5,s5,-375 # 81e89 <CSR_UINTSTATUS+0x811d8>
+40386988:	3fce04b7          	lui	s1,0x3fce0
+4038698c:	1b7d                	addi	s6,s6,-1 # fffbffff <SYSTEM+0x9fefffff>
+4038698e:	180b8b93          	addi	s7,s7,384 # 83828180 <SYSTEM+0x23768180>
+40386992:	3fce0a37          	lui	s4,0x3fce0
+40386996:	0459c783          	lbu	a5,69(s3)
+4038699a:	1e078763          	beqz	a5,40386b88 <r_rwble_isr_hack+0x2c2>
+4038699e:	60031737          	lui	a4,0x60031
+403869a2:	2d870713          	addi	a4,a4,728 # 600312d8 <GPSPI2+0xd2d8>
+403869a6:	431c                	lw	a5,0(a4)
+403869a8:	00179413          	slli	s0,a5,0x1
+403869ac:	8395                	srli	a5,a5,0x5
+403869ae:	8bfd                	andi	a5,a5,31
+403869b0:	802d                	srli	s0,s0,0xb
+403869b2:	1e078063          	beqz	a5,40386b92 <r_rwble_isr_hack+0x2cc>
+403869b6:	431c                	lw	a5,0(a4)
+403869b8:	0017e793          	ori	a5,a5,1
+403869bc:	c31c                	sw	a5,0(a4)
+403869be:	dc61                	beqz	s0,40386996 <r_rwble_isr_hack+0xd0>
+403869c0:	015477b3          	and	a5,s0,s5
+403869c4:	cb89                	beqz	a5,403869d6 <r_rwble_isr_hack+0x110>
+403869c6:	3fce07b7          	lui	a5,0x3fce0
+403869ca:	f887a783          	lw	a5,-120(a5) # 3fcdff88 <r_modules_funcs_p>
+403869ce:	8522                	mv	a0,s0
+403869d0:	2a87a783          	lw	a5,680(a5)
+403869d4:	9782                	jalr	a5
+4038738c:	715d                	addi	sp,sp,-80
+4038738e:	c0ca                	sw	s2,64(sp)
+40387390:	3fce07b7          	lui	a5,0x3fce0
+40387394:	c686                	sw	ra,76(sp)
+40387396:	c4a2                	sw	s0,72(sp)
+40387398:	c2a6                	sw	s1,68(sp)
+4038739a:	de4e                	sw	s3,60(sp)
+4038739c:	dc52                	sw	s4,56(sp)
+4038739e:	da56                	sw	s5,52(sp)
+403873a0:	d85a                	sw	s6,48(sp)
+403873a2:	d65e                	sw	s7,44(sp)
+403873a4:	d462                	sw	s8,40(sp)
+403873a6:	ba17c903          	lbu	s2,-1119(a5) # 3fcdfba1 <sch_prog_env+0x101>
+403873aa:	01954783          	lbu	a5,25(a0)
+403873ae:	28079763          	bnez	a5,4038763c <r_sch_prog_ble_push_hack+0x2b0>
+403873b2:	01c54983          	lbu	s3,28(a0)
+403873b6:	01754483          	lbu	s1,23(a0)
+403873ba:	842a                	mv	s0,a0
+403873bc:	8aae                	mv	s5,a1
+403873be:	00098463          	beqz	s3,403873c6 <r_sch_prog_ble_push_hack+0x3a>
+403873c2:	01d54983          	lbu	s3,29(a0)
+403873c6:	04a2                	slli	s1,s1,0x8
+403873c8:	67b9                	lui	a5,0xe
+403873ca:	8fe5                	and	a5,a5,s1
+403873cc:	3fce0a37          	lui	s4,0x3fce0
+403873d0:	cf81                	beqz	a5,403873e8 <r_sch_prog_ble_push_hack+0x5c>
+403873d2:	f80a2783          	lw	a5,-128(s4) # 3fcdff80 <r_plf_funcs_p>
+403873d6:	3c07b5b7          	lui	a1,0x3c07b
+403873da:	32300613          	li	a2,803
+403873de:	479c                	lw	a5,8(a5)
+403873e0:	a2858593          	addi	a1,a1,-1496 # 3c07aa28 <_flash_rodata_start+0xa908>
+403873e4:	4501                	li	a0,0
+403873e6:	9782                	jalr	a5
+403873e8:	ffc9f793          	andi	a5,s3,-4
+403873ec:	cf81                	beqz	a5,40387404 <r_sch_prog_ble_push_hack+0x78>
+403873ee:	f80a2783          	lw	a5,-128(s4)
+403873f2:	3c07b5b7          	lui	a1,0x3c07b
+403873f6:	32400613          	li	a2,804
+403873fa:	479c                	lw	a5,8(a5)
+403873fc:	a2858593          	addi	a1,a1,-1496 # 3c07aa28 <_flash_rodata_start+0xa908>
+40387400:	4501                	li	a0,0
+40387402:	9782                	jalr	a5
+40387404:	f80a2783          	lw	a5,-128(s4)
+40387408:	0134e4b3          	or	s1,s1,s3
+4038740c:	04c2                	slli	s1,s1,0x10
+4038740e:	0bc7a783          	lw	a5,188(a5) # e0bc <CSR_UINTSTATUS+0xd40b>
+40387412:	4501                	li	a0,0
+40387414:	00491993          	slli	s3,s2,0x4
+40387418:	9782                	jalr	a5
+4038741a:	84c1                	srai	s1,s1,0x10
+4038741c:	00e98793          	addi	a5,s3,14
+40387420:	04c2                	slli	s1,s1,0x10
+40387422:	97aa                	add	a5,a5,a0
+40387424:	80c1                	srli	s1,s1,0x10
+40387426:	00979023          	sh	s1,0(a5)
+4038742a:	01844483          	lbu	s1,24(s0) # 1018 <CSR_UINTSTATUS+0x367>
+4038742e:	05a00793          	li	a5,90
+40387432:	4501                	li	a0,0
+40387434:	02f484b3          	mul	s1,s1,a5
+40387438:	f80a2783          	lw	a5,-128(s4)
+4038743c:	0aaa                	slli	s5,s5,0xa
+4038743e:	0bc7a783          	lw	a5,188(a5)
+40387442:	9782                	jalr	a5
+40387444:	00898793          	addi	a5,s3,8
+40387448:	97aa                	add	a5,a5,a0
+4038744a:	40048493          	addi	s1,s1,1024
+4038744e:	8085                	srli	s1,s1,0x1
+40387450:	00979023          	sh	s1,0(a5)
+40387454:	01c44783          	lbu	a5,28(s0)
+40387458:	01a44483          	lbu	s1,26(s0)
+4038745c:	01444703          	lbu	a4,20(s0)
+40387460:	14078a63          	beqz	a5,403875b4 <r_sch_prog_ble_push_hack+0x228>
+403874d6:	f80a2783          	lw	a5,-128(s4)
+403874da:	4501                	li	a0,0
+403874dc:	0bc7a783          	lw	a5,188(a5)
+403874e0:	9782                	jalr	a5
+403874e2:	015b67b3          	or	a5,s6,s5
+403874e6:	0187e7b3          	or	a5,a5,s8
+403874ea:	8fc5                	or	a5,a5,s1
+403874ec:	0177e7b3          	or	a5,a5,s7
+403874f0:	954e                	add	a0,a0,s3
+403874f2:	0427e793          	ori	a5,a5,66
+403874f6:	07c2                	slli	a5,a5,0x10
+403874f8:	83c1                	srli	a5,a5,0x10
+403874fa:	00f51023          	sh	a5,0(a0)
+403874fe:	3fce07b7          	lui	a5,0x3fce0
+40387502:	f887a783          	lw	a5,-120(a5) # 3fcdff88 <r_modules_funcs_p>
+40387506:	2c47a783          	lw	a5,708(a5)
+4038750a:	9782                	jalr	a5
+4038750c:	100007b7          	lui	a5,0x10000
+40387510:	cc2a                	sw	a0,24(sp)
+40387512:	ce2e                	sw	a1,28(sp)
+40387514:	86aa                	mv	a3,a0
+40387516:	15e58713          	addi	a4,a1,350
+4038751a:	27000613          	li	a2,624
+4038751e:	17fd                	addi	a5,a5,-1 # fffffff <CSR_UINTSTATUS+0xffff34e>
+40387520:	0ce66e63          	bltu	a2,a4,403875fc <r_sch_prog_ble_push_hack+0x270>
+40387524:	4048                	lw	a0,4(s0)
+403875e2:	f80a2783          	lw	a5,-128(s4)
+403875e6:	4501                	li	a0,0
+403875e8:	0bc7a783          	lw	a5,188(a5)
+403875ec:	9782                	jalr	a5
+403875ee:	015b67b3          	or	a5,s6,s5
+403875f2:	8fc5                	or	a5,a5,s1
+403875f4:	954e                	add	a0,a0,s3
+403875f6:	0027e793          	ori	a5,a5,2
+403875fa:	bdf5                	j	403874f6 <r_sch_prog_ble_push_hack+0x16a>
+403875fc:	00168513          	addi	a0,a3,1 # 80000001 <SYSTEM+0x1ff40001>
+40387600:	d8f70713          	addi	a4,a4,-625 # d8f <CSR_UINTSTATUS+0xde>
+40387604:	00f576b3          	and	a3,a0,a5
+40387608:	bf21                	j	40387520 <r_sch_prog_ble_push_hack+0x194>
+4038760a:	00078023          	sb	zero,0(a5)
+4038760e:	ff097793          	andi	a5,s2,-16
+40387612:	cf89                	beqz	a5,4038762c <r_sch_prog_ble_push_hack+0x2a0>
+40387614:	f80a2783          	lw	a5,-128(s4)
+40387618:	6609                	lui	a2,0x2
+4038761a:	3c07b5b7          	lui	a1,0x3c07b
+4038761e:	479c                	lw	a5,8(a5)
+40387620:	9f860613          	addi	a2,a2,-1544 # 19f8 <CSR_UINTSTATUS+0xd47>
+40387624:	a2858593          	addi	a1,a1,-1496 # 3c07aa28 <_flash_rodata_start+0xa908>
+40387628:	4501                	li	a0,0
+4038762a:	9782                	jalr	a5
+4038762c:	800007b7          	lui	a5,0x80000
+40387630:	00f96933          	or	s2,s2,a5
+40387634:	600317b7          	lui	a5,0x60031
+40387638:	1127a023          	sw	s2,256(a5) # 60031100 <GPSPI2+0xd100>
+420399ec:	600317b7          	lui	a5,0x60031
+420399f0:	04b2                	slli	s1,s1,0xc
+420399f2:	20478713          	addi	a4,a5,516 # 60031204 <GPSPI2+0xd204>
+420399f6:	80b9                	srli	s1,s1,0xe
+420399f8:	c304                	sw	s1,0(a4)
+420399fa:	2c478793          	addi	a5,a5,708
+420399fe:	4398                	lw	a4,0(a5)
+42039a00:	43800513          	li	a0,1080
+42039a04:	00176713          	ori	a4,a4,1
+42039a08:	c398                	sw	a4,0(a5)

@@ -1,0 +1,120 @@
+{
+  "inputs": {
+    "rom": {
+      "sha256": "19ac22e08707df926fb0cf4c54795d4067b983fae8635f396ded173a6d78fc3c",
+      "bytes": 556332
+    },
+    "bootloader": {
+      "sha256": "d4a87d86e17457c5d9e6d9b6c83f1af5ab0122a58545aaab392af1135a01f00a",
+      "bytes": 19536
+    },
+    "ptable": {
+      "sha256": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1",
+      "bytes": 3072
+    },
+    "app": {
+      "sha256": "7da24e7446aa4f16344accc436f5d187e2057819582f2b37226c437cde8f377a",
+      "bytes": 606320
+    },
+    "elf": {
+      "sha256": "862b7e1b1a58ced342091aa37e59efef6ba269ba1861a03302fde9b4616996a0",
+      "bytes": 11045524
+    }
+  },
+  "captures": {
+    "stdout": {
+      "original_sha256": "032b75a4288b822e9722d8f7e5a9a3184ebb28e01cf96eab2d3a471b1893467f",
+      "sanitized_sha256": "032b75a4288b822e9722d8f7e5a9a3184ebb28e01cf96eab2d3a471b1893467f",
+      "bytes": 316
+    },
+    "stderr": {
+      "original_sha256": "ed5a815af9183ff85ef922028ea0b25d7570f90988956d75483da0876164c35b",
+      "sanitized_sha256": "ed5a815af9183ff85ef922028ea0b25d7570f90988956d75483da0876164c35b",
+      "bytes": 18213601
+    }
+  },
+  "checks": "pass",
+  "functions": [
+    "[fn] i=8211313 t=0.0513s c0 r_lld_adv_init(a0=0x1 a1=0x9001b00 a2=0xc46294) ret=0x4203d53e",
+    "[fn] i=8211314 t=0.0513s c0 r_lld_adv_init(a0=0x1 a1=0x9001b00 a2=0xc46294) ret=0x4203d53e",
+    "[fn] i=8212599 t=0.0513s c0 r_sch_arb_init(a0=0x1 a1=0x3fca742d a2=0x3fca1ec9) ret=0x4204836e",
+    "[fn] i=8212600 t=0.0513s c0 r_sch_arb_init(a0=0x1 a1=0x3fca742d a2=0x3fca1ec9) ret=0x4204836e",
+    "[fn] i=8212637 t=0.0513s c0 r_sch_prog_init(a0=0x1 a1=0x3fca742d a2=0x3fca1ec9) ret=0x4204837c",
+    "[fn] i=8212638 t=0.0513s c0 r_sch_prog_init(a0=0x1 a1=0x3fca742d a2=0x3fca1ec9) ret=0x4204837c",
+    "[fn] i=8214702 t=0.0513s c0 r_sch_plan_init(a0=0x1 a1=0x0 a2=0x4) ret=0x4204838a",
+    "[fn] i=8214703 t=0.0513s c0 r_sch_plan_init(a0=0x1 a1=0x0 a2=0x4) ret=0x4204838a",
+    "[fn] i=8214723 t=0.0513s c0 r_sch_alarm_init(a0=0x1 a1=0x0 a2=0x4) ret=0x42048398",
+    "[fn] i=8214724 t=0.0513s c0 r_sch_alarm_init(a0=0x1 a1=0x0 a2=0x4) ret=0x42048398",
+    "[fn] i=8214742 t=0.0513s c0 r_sch_slice_init(a0=0x1 a1=0x0 a2=0x4) ret=0x420483a6",
+    "[fn] i=8214743 t=0.0513s c0 r_sch_slice_init(a0=0x1 a1=0x0 a2=0x4) ret=0x420483a6",
+    "[fn] i=8443843 t=0.0528s c0 r_lld_adv_init(a0=0x2 a1=0x9001b00 a2=0xc7eee6) ret=0x4203d53e",
+    "[fn] i=8443844 t=0.0528s c0 r_lld_adv_init(a0=0x2 a1=0x9001b00 a2=0xc7eee6) ret=0x4203d53e",
+    "[fn] i=8445700 t=0.0528s c0 r_sch_arb_init(a0=0x2 a1=0x3fca738d a2=0x3fca1ec9) ret=0x4204836e",
+    "[fn] i=8445701 t=0.0528s c0 r_sch_arb_init(a0=0x2 a1=0x3fca738d a2=0x3fca1ec9) ret=0x4204836e",
+    "[fn] i=8445738 t=0.0528s c0 r_sch_prog_init(a0=0x2 a1=0x3fca738d a2=0x3fca1ec9) ret=0x4204837c",
+    "[fn] i=8445739 t=0.0528s c0 r_sch_prog_init(a0=0x2 a1=0x3fca738d a2=0x3fca1ec9) ret=0x4204837c",
+    "[fn] i=8447803 t=0.0528s c0 r_sch_plan_init(a0=0x2 a1=0x0 a2=0x4) ret=0x4204838a",
+    "[fn] i=8447804 t=0.0528s c0 r_sch_plan_init(a0=0x2 a1=0x0 a2=0x4) ret=0x4204838a",
+    "[fn] i=8447824 t=0.0528s c0 r_sch_alarm_init(a0=0x2 a1=0x0 a2=0x4) ret=0x42048398",
+    "[fn] i=8447825 t=0.0528s c0 r_sch_alarm_init(a0=0x2 a1=0x0 a2=0x4) ret=0x42048398",
+    "[fn] i=8447843 t=0.0528s c0 r_sch_slice_init(a0=0x2 a1=0x0 a2=0x4) ret=0x420483a6",
+    "[fn] i=8447844 t=0.0528s c0 r_sch_slice_init(a0=0x2 a1=0x0 a2=0x4) ret=0x420483a6",
+    "[fn] i=41111066 t=0.2569s c0 r_lld_adv_start_eco(a0=0x0 a1=0x3fca73a8 a2=0x0) ret=0x4203fe82",
+    "[fn] i=41111096 t=0.2569s c0 r_lld_adv_start_hook(a0=0x1 a1=0x3fca737f a2=0x0) ret=0x4203dfa6",
+    "[fn] i=41111143 t=0.2569s c0 r_lld_adv_start(a0=0x0 a1=0x3fca73a8 a2=0x1) ret=0x4203dfc6",
+    "[fn] i=41111144 t=0.2569s c0 r_lld_adv_start(a0=0x0 a1=0x3fca73a8 a2=0x1) ret=0x4203dfc6",
+    "[fn] i=41111670 t=0.2569s c0 r_lld_adv_start_init_evt_param(a0=0x0 a1=0x3fca73a8 a2=0x4) ret=0x400185fa",
+    "[fn] i=41111671 t=0.2569s c0 r_lld_adv_start_init_evt_param(a0=0x0 a1=0x3fca73a8 a2=0x4) ret=0x400185fa",
+    "[fn] i=41112006 t=0.2569s c0 r_lld_adv_adv_data_set_hack(a0=0x0 a1=0x1b a2=0x2c00) ret=0x40017ad0",
+    "[fn] i=41112091 t=0.2570s c0 r_lld_adv_adv_data_set(a0=0x0 a1=0x1b a2=0x2c00) ret=0x40383332",
+    "[fn] i=41112092 t=0.2570s c0 r_lld_adv_adv_data_set(a0=0x0 a1=0x1b a2=0x2c00) ret=0x40383332",
+    "[fn] i=41112438 t=0.2570s c0 r_lld_adv_scan_rsp_data_set_hack(a0=0x0 a1=0x14 a2=0x2400) ret=0x40017b30",
+    "[fn] i=41112526 t=0.2570s c0 r_lld_adv_scan_rsp_data_set(a0=0x0 a1=0x14 a2=0x2400) ret=0x403833c2",
+    "[fn] i=41112527 t=0.2570s c0 r_lld_adv_scan_rsp_data_set(a0=0x0 a1=0x14 a2=0x2400) ret=0x403833c2",
+    "[fn] i=41113426 t=0.2570s c0 r_lld_adv_start_set_cs(a0=0x0 a1=0x3fca73a8 a2=0x336) ret=0x4001860a",
+    "[fn] i=41113427 t=0.2570s c0 r_lld_adv_start_set_cs(a0=0x0 a1=0x3fca73a8 a2=0x336) ret=0x4001860a",
+    "[fn] i=41113666 t=0.2570s c0 r_lld_adv_start_update_filter_policy_hack(a0=0x0 a1=0x3fca73a8 a2=0x3fca730f) ret=0x4001861a",
+    "[fn] i=41114063 t=0.2570s c0 r_lld_adv_set_tx_power(a0=0x0 a1=0x4 a2=0x0) ret=0x40018684",
+    "[fn] i=41114064 t=0.2570s c0 r_lld_adv_set_tx_power(a0=0x0 a1=0x4 a2=0x0) ret=0x40018684",
+    "[fn] i=41115213 t=0.2570s c0 r_lld_adv_start_schedule_asap_hack(a0=0x0 a1=0x3fca73a8 a2=0x336) ret=0x40018948",
+    "[fn] i=41115261 t=0.2570s c0 r_lld_adv_start_schedule_asap(a0=0x0 a1=0x3fca73a8 a2=0x336) ret=0x4203df4e",
+    "[fn] i=41115262 t=0.2570s c0 r_lld_adv_start_schedule_asap(a0=0x0 a1=0x3fca73a8 a2=0x336) ret=0x4203df4e",
+    "[fn] i=41115283 t=0.2570s c0 r_sch_arb_insert(a0=0x3fca2dd8 a1=0x3fca73a8 a2=0x336) ret=0x400184d0",
+    "[fn] i=41115284 t=0.2570s c0 r_sch_arb_insert(a0=0x3fca2dd8 a1=0x3fca73a8 a2=0x336) ret=0x400184d0",
+    "[fn] i=41115602 t=0.2570s c0 r_sch_arb_prog_timer(a0=0x3fcdfbac a1=0x3fca2dd8 a2=0x7fffffe) ret=0x4002ff2c",
+    "[fn] i=41115603 t=0.2570s c0 r_sch_arb_prog_timer(a0=0x3fcdfbac a1=0x3fca2dd8 a2=0x7fffffe) ret=0x4002ff2c",
+    "[fn] i=41115910 t=0.2570s c0 r_lld_adv_duration_update(a0=0x0 a1=0x0 a2=0x7fffffe) ret=0x400184e4",
+    "[fn] i=41115911 t=0.2570s c0 r_lld_adv_duration_update(a0=0x0 a1=0x0 a2=0x7fffffe) ret=0x400184e4",
+    "[fn] i=41116042 t=0.2570s c0 r_lld_adv_coex_env_reset(a0=0x3fca2dd8 a1=0x0 a2=0x7fffffe) ret=0x40018954",
+    "[fn] i=41116043 t=0.2570s c0 r_lld_adv_coex_env_reset(a0=0x3fca2dd8 a1=0x0 a2=0x7fffffe) ret=0x40018954",
+    "[fn] i=41116264 t=0.2570s c0 r_lld_adv_start_hook(a0=0x0 a1=0x3fca737f a2=0x0) ret=0x4203dfe0",
+    "[fn] i=41200117 t=0.2575s c0 r_rwble_isr_hack(a0=0x0 a1=0x48 a2=0x600ce000) ret=0x40382494",
+    "[fn] i=41200248 t=0.2575s c0 r_sch_arb_event_start_isr_hack(a0=0x4 a1=0x48 a2=0x600ce000) ret=0x40386d96",
+    "[fn] i=41200509 t=0.2575s c0 r_lld_adv_evt_start_cbk(a0=0x3fca2dd8 a1=0x4 a2=0x600ce000) ret=0x40386f86",
+    "[fn] i=41200510 t=0.2575s c0 r_lld_adv_evt_start_cbk(a0=0x3fca2dd8 a1=0x4 a2=0x600ce000) ret=0x40386f86",
+    "[fn] i=41200604 t=0.2575s c0 r_lld_adv_set_tx_power(a0=0x0 a1=0x4 a2=0x600ce000) ret=0x4001682a",
+    "[fn] i=41200605 t=0.2575s c0 r_lld_adv_set_tx_power(a0=0x0 a1=0x4 a2=0x600ce000) ret=0x4001682a",
+    "[fn] i=41200817 t=0.2575s c0 r_lld_adv_dynamic_pti_process(a0=0x3fca2dd8 a1=0x0 a2=0x0) ret=0x4001683a",
+    "[fn] i=41200818 t=0.2575s c0 r_lld_adv_dynamic_pti_process(a0=0x3fca2dd8 a1=0x0 a2=0x0) ret=0x4001683a",
+    "[fn] i=41201968 t=0.2575s c0 r_sch_prog_push(a0=0x3fc97480 a1=0x400 a2=0x3fc97480) ret=0x4001696c",
+    "[fn] i=41201969 t=0.2575s c0 r_sch_prog_push(a0=0x3fc97480 a1=0x400 a2=0x3fc97480) ret=0x4001696c",
+    "[fn] i=41202465 t=0.2575s c0 r_sch_prog_ble_push_hack(a0=0x3fc97480 a1=0x0 a2=0x3fc97480) ret=0x4003103e",
+    "[fn] i=41203069 t=0.2575s c0 r_sch_arb_prog_timer(a0=0x0 a1=0x3 a2=0x7fffffe) ret=0x40386d96",
+    "[fn] i=41203070 t=0.2575s c0 r_sch_arb_prog_timer(a0=0x0 a1=0x3 a2=0x7fffffe) ret=0x40386d96"
+  ],
+  "snapshots_after_run": [
+    "60031204: 00029de5\n60031208: 04029e3e\n6003120c: 0c029f5f\n60031210: 1002a000\n60031214: 1402a037\n60031218: 1c02a178\n6003121c: 2002a209\n60031220: 24027197\n60031224: 2c0271a0\n60031228: 34000000\n6003122c: 3c000000\n60031230: 44000000\n60031234: 4c000000\n60031238: 54000000\n6003123c: 5c000000\n60031240: 64000000\n60031244: 6c000000\n60031248: 7402a2ca\n6003124c: 7802a2e8\n60031250: 7c02a331\n60031254: 8002a37a\n60031258: 8402a3c3\n6003125c: 8802a40c\n60031260: 8c02a455\n60031264: 9002a49e\n60031268: 9402a4e7\n6003126c: 9802a530\n60031270: 9c000000\n60031274: a0000000\n60031278: a4000000\n6003127c: a8000000\n60031280: ac000000\n60031284: b0000000\n60031288: b4000000\n6003128c: b8000000\n60031290: bc000000\n60031294: c0000000\n60031298: c4000000\n6003129c: c8000000\n600312a0: cc000000\n600312a4: 00000000\n600312a8: 00000000\n600312ac: 00000000\n600312b0: 00000000\n600312b4: 00000000\n600312b8: 00000000\n600312bc: 00000000\n600312c0: 00000000\n600312c4: 07fe01ff\n600312c8: 00000000\n600312cc: 00000000\n600312d0: 00000000\n600312d4: 000000ff\n600312d8: 0000001e\n600312dc: 00000000\n600312e0: 00000000\n",
+    "60031100: 80000000\n",
+    "3fca7794: 033b2802\n3fca7798: 02700000\n3fca779c: 0af70200\n3fca77a0: 0f000c00\n3fca77a4: 00000018\n3fca77a8: 00000000\n3fca77ac: 00000000\n3fca77b0: 00000000\n",
+    "3fca78f8: 08000404\n3fca78fc: 11240000\n3fca7900: 6055f900\n3fca7904: 8e89bed6\n3fca7908: 00555555\n3fca790c: 80270041\n3fca7910: 0000000b\n3fca7914: 00001400\n3fca7918: 00000008\n3fca791c: 00e00000\n3fca7920: 00000000\n3fca7924: 00000000\n3fca7928: 00000000\n3fca792c: 00000000\n3fca7930: 00000000\n3fca7934: 00000000\n3fca7938: 00000000\n3fca793c: 00000000\n3fca7940: 00000000\n3fca7944: 00000000\n3fca7948: 00000000\n3fca794c: 00000000\n3fca7950: 00000000\n3fca7954: 00000001\n",
+    "3fca80dc: 2120140e\n3fca80e0: 00002c00\n3fca80e4: 0d000000\n3fca80e8: 14000000\n3fca80ec: 24001a04\n3fca80f0: 00000000\n3fca80f4: 00000d00\n3fca80f8: 00000000\n3fca80fc: 00000000\n3fca8100: 00000000\n3fca8104: 00000000\n3fca8108: 00000000\n3fca810c: 00000000\n3fca8110: 00000000\n3fca8114: 00000000\n3fca8118: 00000000\n",
+    "3fca85e0: 00000000\n3fca85e4: 00000000\n3fca85e8: 00000000\n3fca85ec: 00000000\n3fca85f0: 00000000\n3fca85f4: 00000000\n3fca85f8: 00000000\n3fca85fc: 00000000\n3fca8600: 00000000\n3fca8604: 00000000\n3fca8608: 00000000\n3fca860c: 00000000\n3fca8610: 00000000\n3fca8614: 00000000\n3fca8618: 00000000\n3fca861c: 00000000\n",
+    "3fc9c680: 11060102\n3fc9c684: 31914b07\n3fc9c688: ccc5c9c3\n3fc9c68c: b5459e8f\n3fc9c690: afc2011f\n3fc9c694: 0612054f\n3fc9c698: a5001200\n3fc9c69c: baad5678\n3fc9c6a0: 00000815\n3fc9c6a4: 3fc982f4\n3fc9c6a8: 3fc982f4\n3fc9c6ac: a5a5a5a5\n"
+  ],
+  "stop": "[emu] stop: Halted \u2014 160000000 insns in 2.5s wall = 64.9 Minsn/s; emulated 1.000s (160000000 cycles); 0 exceptions, 1045 interrupts",
+  "source_8": [
+    "core0 int9          1  sources [8]"
+  ],
+  "implementation_revision": "609e7e0cfe9179f7bbb03857a36e903f232159e5",
+  "binary_sha256": "35178e87cc0bcec4d7993bab3f3850fc6005d85746090ebbee172b7ee24f2795"
+}

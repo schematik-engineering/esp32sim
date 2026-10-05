@@ -1,0 +1,223 @@
+400069f2:	9452                	add	s0,s0,s4
+400069f4:	040a                	slli	s0,s0,0x2
+400069f6:	4008                	lw	a0,0(s0)
+400069f8:	0024d583          	lhu	a1,2(s1)
+400069fc:	8149                	srli	a0,a0,0x12
+400069fe:	050a                	slli	a0,a0,0x2
+40006a00:	00a58e63          	beq	a1,a0,40006a1c <r_emi_get_mem_addr_by_offset+0xa6>
+40006a04:	3fce07b7          	lui	a5,0x3fce0
+40006a08:	f807a783          	lw	a5,-128(a5) # 3fcdff80 <r_plf_funcs_p>
+40006a0c:	3ff1a637          	lui	a2,0x3ff1a
+40006a10:	0a400693          	li	a3,164
+40006a14:	47dc                	lw	a5,12(a5)
+40006a16:	53060613          	addi	a2,a2,1328 # 3ff1a530 <CSWTCH.72+0x204>
+40006a1a:	9782                	jalr	a5
+40006a1c:	0024d483          	lhu	s1,2(s1)
+40006a20:	409984b3          	sub	s1,s3,s1
+40006a24:	0204d063          	bgez	s1,40006a44 <r_emi_get_mem_addr_by_offset+0xce>
+40006a28:	3fce07b7          	lui	a5,0x3fce0
+40006a2c:	f807a783          	lw	a5,-128(a5) # 3fcdff80 <r_plf_funcs_p>
+40006a30:	3ff1a637          	lui	a2,0x3ff1a
+40006a34:	0a700693          	li	a3,167
+40006a38:	47dc                	lw	a5,12(a5)
+40006a3a:	53060613          	addi	a2,a2,1328 # 3ff1a530 <CSWTCH.72+0x204>
+40006a3e:	85ca                	mv	a1,s2
+40006a40:	8526                	mv	a0,s1
+40006a42:	9782                	jalr	a5
+40006a44:	03700793          	li	a5,55
+40006a48:	0347f063          	bgeu	a5,s4,40006a68 <r_emi_get_mem_addr_by_offset+0xf2>
+40006a4c:	3fce07b7          	lui	a5,0x3fce0
+40006a50:	f807a783          	lw	a5,-128(a5) # 3fcdff80 <r_plf_funcs_p>
+40006a54:	6609                	lui	a2,0x2
+40006a56:	3ff1a5b7          	lui	a1,0x3ff1a
+40006a5a:	479c                	lw	a5,8(a5)
+40006a5c:	7c860613          	addi	a2,a2,1992 # 27c8 <RvExcFrameSize+0x2738>
+40006a60:	53058593          	addi	a1,a1,1328 # 3ff1a530 <CSWTCH.72+0x204>
+40006a64:	4501                	li	a0,0
+40006a66:	9782                	jalr	a5
+40006a68:	4008                	lw	a0,0(s0)
+40006a6a:	001007b7          	lui	a5,0x100
+40006a6e:	17f1                	addi	a5,a5,-4 # ffffc <RvExcFrameSize+0xfff6c>
+40006a70:	40f2                	lw	ra,28(sp)
+40006a72:	4462                	lw	s0,24(sp)
+40006a74:	050a                	slli	a0,a0,0x2
+40006a76:	8d7d                	and	a0,a0,a5
+40006a78:	3fc007b7          	lui	a5,0x3fc00
+40006a7c:	8d5d                	or	a0,a0,a5
+40006a7e:	9526                	add	a0,a0,s1
+40006a80:	4942                	lw	s2,16(sp)
+40006a82:	44d2                	lw	s1,20(sp)
+40006a84:	49b2                	lw	s3,12(sp)
+40006a86:	4a22                	lw	s4,8(sp)
+40006a88:	6105                	addi	sp,sp,32
+40006a8a:	8082                	ret
+400157e2:	4539                	li	a0,14
+400157e4:	02a40433          	mul	s0,s0,a0
+400157e8:	3fce0937          	lui	s2,0x3fce0
+400157ec:	4b01                	li	s6,0
+400157ee:	00440b93          	addi	s7,s0,4
+400157f2:	ce99                	beqz	a3,40015810 <r_lld_adv_adv_data_set+0x76>
+400157f4:	f8092783          	lw	a5,-128(s2) # 3fcdff80 <r_plf_funcs_p>
+400157f8:	6505                	lui	a0,0x1
+400157fa:	40050513          	addi	a0,a0,1024 # 1400 <RvExcFrameSize+0x1370>
+400157fe:	0bc7a783          	lw	a5,188(a5)
+40015802:	9782                	jalr	a5
+40015804:	955e                	add	a0,a0,s7
+40015806:	00055b03          	lhu	s6,0(a0)
+4001580a:	0b42                	slli	s6,s6,0x10
+4001580c:	010b5b13          	srli	s6,s6,0x10
+40015810:	f8092783          	lw	a5,-128(s2)
+40015814:	6d05                	lui	s10,0x1
+40015816:	400d0513          	addi	a0,s10,1024 # 1400 <RvExcFrameSize+0x1370>
+4001581a:	0bc7a783          	lw	a5,188(a5)
+4001581e:	00240c93          	addi	s9,s0,2
+40015822:	0499                	addi	s1,s1,6
+40015824:	9782                	jalr	a5
+40015826:	9566                	add	a0,a0,s9
+40015828:	00055783          	lhu	a5,0(a0)
+4001582c:	0ff4f493          	zext.b	s1,s1
+40015830:	04a2                	slli	s1,s1,0x8
+40015832:	0ff7f793          	zext.b	a5,a5
+40015836:	8cdd                	or	s1,s1,a5
+40015838:	f8092783          	lw	a5,-128(s2)
+4001583c:	400d0513          	addi	a0,s10,1024
+40015840:	04c2                	slli	s1,s1,0x10
+40015842:	0bc7a783          	lw	a5,188(a5)
+40015846:	84c1                	srai	s1,s1,0x10
+40015848:	04c2                	slli	s1,s1,0x10
+4001584a:	9782                	jalr	a5
+4001584c:	f8092783          	lw	a5,-128(s2)
+40015850:	9566                	add	a0,a0,s9
+40015852:	80c1                	srli	s1,s1,0x10
+40015854:	0bc7a783          	lw	a5,188(a5)
+40015858:	00951023          	sh	s1,0(a0)
+4001585c:	400d0513          	addi	a0,s10,1024
+40015860:	9782                	jalr	a5
+40015862:	955e                	add	a0,a0,s7
+40015864:	01551023          	sh	s5,0(a0)
+40015868:	074c5783          	lhu	a5,116(s8)
+4002ee5c:	60031737          	lui	a4,0x60031
+4002ee60:	4f5c                	lw	a5,28(a4)
+4002ee62:	1101                	addi	sp,sp,-32
+4002ee64:	800006b7          	lui	a3,0x80000
+4002ee68:	cc22                	sw	s0,24(sp)
+4002ee6a:	ce06                	sw	ra,28(sp)
+4002ee6c:	ca26                	sw	s1,20(sp)
+4002ee6e:	c84a                	sw	s2,16(sp)
+4002ee70:	8fd5                	or	a5,a5,a3
+4002ee72:	cf5c                	sw	a5,28(a4)
+4002ee74:	60031437          	lui	s0,0x60031
+4002ee78:	4c5c                	lw	a5,28(s0)
+4002ee7a:	fe07cfe3          	bltz	a5,4002ee78 <r_rwip_time_get+0x1c>
+4002ee7e:	3fce04b7          	lui	s1,0x3fce0
+4002ee82:	f844a783          	lw	a5,-124(s1) # 3fcdff84 <r_osi_funcs_p>
+4002ee86:	4bdc                	lw	a5,20(a5)
+4002ee88:	9782                	jalr	a5
+4002ee8a:	f844a783          	lw	a5,-124(s1)
+4002ee8e:	01c42903          	lw	s2,28(s0) # 6003101c <SPIMEM0+0x2e01c>
+4002ee92:	5000                	lw	s0,32(s0)
+4002ee94:	4f9c                	lw	a5,24(a5)
+4002ee96:	9782                	jalr	a5
+4002ee98:	27000593          	li	a1,624
+4002ee9c:	8d81                	sub	a1,a1,s0
+4002ee9e:	40f2                	lw	ra,28(sp)
+4002eea0:	4462                	lw	s0,24(sp)
+4002eea2:	100007b7          	lui	a5,0x10000
+4002eea6:	17fd                	addi	a5,a5,-1 # fffffff <RvExcFrameSize+0xfffff6f>
+4002eea8:	00f97533          	and	a0,s2,a5
+4002eeac:	44d2                	lw	s1,20(sp)
+4002eeae:	4942                	lw	s2,16(sp)
+4002eeb0:	6105                	addi	sp,sp,32
+4002eeb2:	8082                	ret
+4002f30e:	600317b7          	lui	a5,0x60031
+4002f312:	0e87a623          	sw	s0,236(a5) # 600310ec <SPIMEM0+0x2e0ec>
+4002f316:	27000413          	li	s0,624
+4002f31a:	8c05                	sub	s0,s0,s1
+4002f31c:	0442                	slli	s0,s0,0x10
+4002f31e:	8041                	srli	s0,s0,0x10
+4002f320:	c0047793          	andi	a5,s0,-1024
+4002f324:	cf99                	beqz	a5,4002f342 <r_rwip_timer_hus_set+0xa0>
+4002f326:	3fce07b7          	lui	a5,0x3fce0
+4002f32a:	f807a783          	lw	a5,-128(a5) # 3fcdff80 <r_plf_funcs_p>
+4002f32e:	6605                	lui	a2,0x1
+4002f330:	3ff1b5b7          	lui	a1,0x3ff1b
+4002f334:	479c                	lw	a5,8(a5)
+4002f336:	c8860613          	addi	a2,a2,-888 # c88 <RvExcFrameSize+0xbf8>
+4002f33a:	4ec58593          	addi	a1,a1,1260 # 3ff1b4ec <CSWTCH.0+0x178>
+4002f33e:	4501                	li	a0,0
+4002f340:	9782                	jalr	a5
+4002f342:	60031737          	lui	a4,0x60031
+4002f346:	6785                	lui	a5,0x1
+4002f348:	04594683          	lbu	a3,69(s2)
+4002f34c:	0e872823          	sw	s0,240(a4) # 600310f0 <SPIMEM0+0x2e0f0>
+4002f350:	80078793          	addi	a5,a5,-2048 # 800 <RvExcFrameSize+0x770>
+4002f354:	cf1c                	sw	a5,24(a4)
+4002f356:	c299                	beqz	a3,4002f35c <r_rwip_timer_hus_set+0xba>
+4002f358:	38f72623          	sw	a5,908(a4)
+4002f35c:	600316b7          	lui	a3,0x60031
+4002f360:	46dc                	lw	a5,12(a3)
+4002f362:	777d                	lui	a4,0xfffff
+4002f364:	7ff70713          	addi	a4,a4,2047 # fffff7ff <SPIMEM0+0x9fffc7ff>
+4002f368:	8ff9                	and	a5,a5,a4
+4002f36a:	6705                	lui	a4,0x1
+4002f36c:	80070713          	addi	a4,a4,-2048 # 800 <RvExcFrameSize+0x770>
+4002f370:	8fd9                	or	a5,a5,a4
+4002f372:	c6dc                	sw	a5,12(a3)
+4002f374:	40b2                	lw	ra,12(sp)
+4002f376:	4422                	lw	s0,8(sp)
+4002f378:	4492                	lw	s1,4(sp)
+4002f37a:	4902                	lw	s2,0(sp)
+4002f37c:	0141                	addi	sp,sp,16
+4002f37e:	8082                	ret
+4002f380:	600317b7          	lui	a5,0x60031
+4002f384:	47d8                	lw	a4,12(a5)
+4002f386:	76fd                	lui	a3,0xfffff
+4002f388:	7ff68693          	addi	a3,a3,2047 # fffff7ff <SPIMEM0+0x9fffc7ff>
+4002f38c:	8f75                	and	a4,a4,a3
+4002f38e:	c7d8                	sw	a4,12(a5)
+4002f390:	04594703          	lbu	a4,69(s2)
+4002f394:	d365                	beqz	a4,4002f374 <r_rwip_timer_hus_set+0xd2>
+4002f396:	6705                	lui	a4,0x1
+4002f398:	80070713          	addi	a4,a4,-2048 # 800 <RvExcFrameSize+0x770>
+
+4002e8ea:	600317b7          	lui	a5,0x60031
+4002e8ee:	4b80                	lw	s0,16(a5)
+4002e8f0:	e40419e3          	bnez	s0,4002e742 <r_rwble_isr+0xf8>
+4002e8f4:	50b2                	lw	ra,44(sp)
+4002e8f6:	5422                	lw	s0,40(sp)
+4002e8f8:	5492                	lw	s1,36(sp)
+4002e8fa:	5902                	lw	s2,32(sp)
+4002e8fc:	49f2                	lw	s3,28(sp)
+4002e8fe:	4a62                	lw	s4,24(sp)
+4002e900:	4ad2                	lw	s5,20(sp)
+4002e902:	4b42                	lw	s6,16(sp)
+4002e904:	4bb2                	lw	s7,12(sp)
+4002e906:	6145                	addi	sp,sp,48
+4002e908:	8082                	ret
+40030ef4:	c31c                	sw	a5,0(a4)
+40030ef6:	01079413          	slli	s0,a5,0x10
+40030efa:	f80aa783          	lw	a5,-128(s5)
+40030efe:	c714                	sw	a3,8(a4)
+40030f00:	4094                	lw	a3,0(s1)
+40030f02:	0bc7a783          	lw	a5,188(a5)
+40030f06:	4501                	li	a0,0
+40030f08:	c354                	sw	a3,4(a4)
+40030f0a:	4685                	li	a3,1
+40030f0c:	00d70623          	sb	a3,12(a4)
+40030f10:	9782                	jalr	a5
+40030f12:	002a0793          	addi	a5,s4,2
+40030f16:	953e                	add	a0,a0,a5
+40030f18:	8041                	srli	s0,s0,0x10
+40030f1a:	00851023          	sh	s0,0(a0)
+40030f1e:	0064d403          	lhu	s0,6(s1)
+40030f22:	6785                	lui	a5,0x1
+40030f24:	17fd                	addi	a5,a5,-1 # fff <RvExcFrameSize+0xf6f>
+40030f26:	8c7d                	and	s0,s0,a5
+40030f28:	f80aa783          	lw	a5,-128(s5)
+40030f2c:	4501                	li	a0,0
+40030f2e:	0bc7a783          	lw	a5,188(a5)
+40030f32:	9782                	jalr	a5
+40030f34:	004a0793          	addi	a5,s4,4
+40030f38:	4498                	lw	a4,8(s1)
+40030f3a:	953e                	add	a0,a0,a5
+40030f3c:	00851023          	sh	s0,0(a0)
