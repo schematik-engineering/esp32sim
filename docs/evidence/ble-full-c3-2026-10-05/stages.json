@@ -1,0 +1,91 @@
+{
+  "note": "Single runs with tracing/profiling and uncontrolled host load; wall times are not performance measurements. Stage 5 is initialization and advertising command acceptance, not milestone A.",
+  "stages": [
+    {
+      "stage": 0,
+      "name": "boot",
+      "stop": "[emu] stop: Halted \u2014 160000000 insns in 3.5s wall = 46.3 Minsn/s; emulated 1.000s (160000000 cycles); 0 exceptions, 979 interrupts",
+      "profile": [
+        "4002ee78  48.33%  r_rwip_time_get+0x1c",
+        "4002ee7a  48.33%  r_rwip_time_get+0x1e",
+        "403d04c6   0.09%"
+      ],
+      "guest_markers": [
+        "Starting BLE work!"
+      ],
+      "advertising_pdu_decoded": false
+    },
+    {
+      "stage": 1,
+      "name": "latch",
+      "stop": "[emu] stop: Halted \u2014 160000000 insns in 3.8s wall = 42.5 Minsn/s; emulated 1.000s (160000000 cycles); 0 exceptions, 33 interrupts",
+      "profile": [
+        "40002da4  47.43%  r_assert_param+0x34",
+        "40002da6  47.43%  r_assert_param+0x36",
+        "400462e2   0.61%  ets_delay_us+0x16"
+      ],
+      "guest_markers": [
+        "Starting BLE work!",
+        "BLE assert lld.c 324, param 00000000 09001b00"
+      ],
+      "advertising_pdu_decoded": false
+    },
+    {
+      "stage": 2,
+      "name": "version",
+      "stop": "[emu] stop: Halted \u2014 160000000 insns in 3.8s wall = 41.8 Minsn/s; emulated 1.000s (160000000 cycles); 0 exceptions, 33 interrupts",
+      "profile": [
+        "42048514  47.43%  r_rwip_driver_init+0x10e",
+        "42048516  47.43%  r_rwip_driver_init+0x110",
+        "400462e2   0.61%  ets_delay_us+0x16"
+      ],
+      "guest_markers": [
+        "Starting BLE work!"
+      ],
+      "advertising_pdu_decoded": false
+    },
+    {
+      "stage": 3,
+      "name": "reset",
+      "stop": "[emu] stop: Halted \u2014 160000000 insns in 3.9s wall = 40.8 Minsn/s; emulated 1.000s (160000000 cycles); 0 exceptions, 38 interrupts",
+      "profile": [
+        "42047f52  47.33%  r_rwble_hw_disable+0x1c",
+        "42047f54  47.33%  r_rwble_hw_disable+0x1e",
+        "400462e2   0.61%  ets_delay_us+0x16"
+      ],
+      "guest_markers": [
+        "Starting BLE work!"
+      ],
+      "advertising_pdu_decoded": false
+    },
+    {
+      "stage": 4,
+      "name": "hci-reset",
+      "stop": "[emu] stop: Halted \u2014 160000000 insns in 4.5s wall = 35.7 Minsn/s; emulated 1.000s (160000000 cycles); 0 exceptions, 38 interrupts",
+      "profile": [
+        "42048514  47.33%  r_rwip_driver_init+0x10e",
+        "42048516  47.33%  r_rwip_driver_init+0x110",
+        "400462e2   0.61%  ets_delay_us+0x16"
+      ],
+      "guest_markers": [
+        "Starting BLE work!"
+      ],
+      "advertising_pdu_decoded": false
+    },
+    {
+      "stage": 5,
+      "name": "enable",
+      "stop": "[emu] stop: Halted \u2014 160000000 insns in 3.0s wall = 53.5 Minsn/s; emulated 1.000s (160000000 cycles); 0 exceptions, 1043 interrupts",
+      "profile": [
+        "40389074  93.78%  esp_cpu_wait_for_intr+0x18",
+        "400462e2   0.61%  ets_delay_us+0x16",
+        "400462dc   0.61%  ets_delay_us+0x10"
+      ],
+      "guest_markers": [
+        "Starting BLE work!",
+        "Characteristic defined! Now you can read it in your phone!"
+      ],
+      "advertising_pdu_decoded": false
+    }
+  ]
+}

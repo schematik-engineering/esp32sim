@@ -1,0 +1,82 @@
+{
+  ".spike/build/Server.ino.bin": {
+    "sha256": "7da24e7446aa4f16344accc436f5d187e2057819582f2b37226c437cde8f377a",
+    "bytes": 606320
+  },
+  ".spike/build/Server.ino.bootloader.bin": {
+    "sha256": "d4a87d86e17457c5d9e6d9b6c83f1af5ab0122a58545aaab392af1135a01f00a",
+    "bytes": 19536
+  },
+  ".spike/build/Server.ino.partitions.bin": {
+    "sha256": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1",
+    "bytes": 3072
+  },
+  ".spike/build/Server.ino.elf": {
+    "sha256": "862b7e1b1a58ced342091aa37e59efef6ba269ba1861a03302fde9b4616996a0",
+    "bytes": 11045524
+  },
+  "web/wasm/fw/esp32c3_rev3_rom.elf": {
+    "sha256": "19ac22e08707df926fb0cf4c54795d4067b983fae8635f396ded173a6d78fc3c",
+    "bytes": 556332
+  },
+  "hardware/esp32/3.3.11/libraries/BLE/examples/Server/Server.ino": {
+    "sha256": "cce96a1efa293890525fc32ea37a1a02f1c8275d6a36b2790a9ca5ff0dda0e9b",
+    "bytes": 1706
+  },
+  "tools/esp32c3-libs/3.3.11/lib/libbt.a": {
+    "sha256": "3c6e9c3eb02667fd4b575eaed29436edb9e3123c5b55fd6bc6754d63069de564",
+    "bytes": 4090962
+  },
+  "tools/esp32c3-libs/3.3.11/lib/libbtdm_app.a": {
+    "sha256": "2c503e2f86294f7284cec7c879abb2ad3d3c76252b27d85d682cb643880f08e7",
+    "bytes": 1388286
+  },
+  "tools/esp32c3-libs/3.3.11/ld/libbtbb.a": {
+    "sha256": "35cc741979cd054b23e6c41addea9d9e2e207e9ea99fcf225652a96ecc35c15c",
+    "bytes": 12536
+  },
+  "tools/esp32c3-libs/3.3.11/ld/libphy.a": {
+    "sha256": "65d3591af8d982c6497a6b083dafce8a10f7c7beb86dde9735cece4d0a69202f",
+    "bytes": 209150
+  },
+  "tools/esp32c3-libs/3.3.11/include/esp_common/include/esp_idf_version.h": {
+    "sha256": "374e0785047d9f656362eb4c750d936439dd871dbb38261570400dc9b3ad57c9",
+    "bytes": 1520
+  },
+  "tools/esp32c3-libs/3.3.11/include/soc/esp32c3/register/soc/reg_base.h": {
+    "sha256": "0c11cb4190afcc8097608a7e508d6bbc12bb432f7c6c73922537c488963f8056",
+    "bytes": 2776
+  },
+  "tools/esp32c3-libs/3.3.11/include/soc/esp32c3/include/soc/interrupts.h": {
+    "sha256": "9600d160c10102d4bfe5d2d9d6786f43b7547df9fc0a624f7fcb7368c1b406ef",
+    "bytes": 6129
+  },
+  "tools/esp32c3-libs/3.3.11/include/soc/esp32c3/register/soc/syscon_reg.h": {
+    "sha256": "b74225d9d09508084021e5eb671454b1da29fc62b52a14fc61f6bed10f2db299",
+    "bytes": 27421
+  },
+  "tools/esp32c3-libs/3.3.11/include/soc/esp32c3/register/soc/system_reg.h": {
+    "sha256": "373e66719f0c0b762eac103d40d5862b96d2ac6ff1678eb09da8b77505867ce0",
+    "bytes": 42273
+  },
+  "firmware_identity": {
+    "arduino": "3.3.11",
+    "idf_header": "5.5.5",
+    "fqbn": "esp32:esp32:esp32c3",
+    "cli": "1.5.1",
+    "source_revision": "29dd4623307853d8c036b65c5bb3249fa131758c",
+    "host": "macOS 27.0.1 arm64",
+    "rust": "1.99.0",
+    "ble_flag": false,
+    "stub_flags": false,
+    "wifi_flag": false,
+    "build_workaround": "Rebuild Arduino ctags 5.8-arduino11 for ARM; rename __unused__ macro to CTAGS_UNUSED in its C/H files. Firmware sources, sdkconfig and blobs unchanged.",
+    "idf_app_descriptor": "v5.5.5",
+    "compiler": "riscv32-esp-elf-g++ (crosstool-NG esp-14.2.0_20260121) 14.2.0"
+  },
+  "ctags-5.8-arduino11.tar.gz": {
+    "sha256": "86ca843c62aecb9bc531a73d9b6cef33179bd885b1bf8df9e0c7e9761aa9794d",
+    "bytes": 489712,
+    "url": "https://github.com/arduino/ctags/archive/refs/tags/5.8-arduino11.tar.gz"
+  }
+}

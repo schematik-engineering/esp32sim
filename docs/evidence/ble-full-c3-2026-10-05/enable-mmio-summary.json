@@ -1,0 +1,208 @@
+{
+  "trace": "enable-mmio",
+  "ordering": "MMIO event index, host script writes excluded from counts; index includes them",
+  "blocks": {
+    "0x600c2000": {
+      "first_event": 1,
+      "first_address": "0x600c2104",
+      "first_pc": "0x40001ea0",
+      "symbol": "_init+0x10",
+      "reads": 7511,
+      "writes": 11672
+    },
+    "0x600c0000": {
+      "first_event": 16,
+      "first_address": "0x600c0058",
+      "first_pc": "0x4004986a",
+      "symbol": "ets_get_apb_freq+0x4",
+      "reads": 112,
+      "writes": 205
+    },
+    "0x6000e000": {
+      "first_event": 7193,
+      "first_address": "0x6000e044",
+      "first_pc": "0x403cc910",
+      "symbol": "_iram_text_end+0x38b10",
+      "reads": 11301,
+      "writes": 7151
+    },
+    "0x60026000": {
+      "first_event": 8135,
+      "first_address": "0x600260b0",
+      "first_pc": "0x403cf66c",
+      "symbol": "_iram_text_end+0x3b86c",
+      "reads": 2135,
+      "writes": 36
+    },
+    "0x6001d000": {
+      "first_event": 191062,
+      "first_address": "0x6001d054",
+      "first_pc": "0x4038997e",
+      "symbol": "rtc_sleep_pu+0x5c",
+      "reads": 18,
+      "writes": 18
+    },
+    "0x6001c000": {
+      "first_event": 191066,
+      "first_address": "0x6001ccd4",
+      "first_pc": "0x403899a2",
+      "symbol": "rtc_sleep_pu+0x80",
+      "reads": 549,
+      "writes": 455
+    },
+    "0x60006000": {
+      "first_event": 191072,
+      "first_address": "0x60006090",
+      "first_pc": "0x403899d4",
+      "symbol": "rtc_sleep_pu+0xb2",
+      "reads": 6681,
+      "writes": 6008
+    },
+    "0x60005000": {
+      "first_event": 191074,
+      "first_address": "0x600050f0",
+      "first_pc": "0x403899ec",
+      "symbol": "rtc_sleep_pu+0xca",
+      "reads": 1,
+      "writes": 1
+    },
+    "0x60031000": {
+      "first_event": 208643,
+      "first_address": "0x60031204",
+      "first_pc": "0x420399f8",
+      "symbol": "r_emi_em_base_init+0x72",
+      "reads": 202180,
+      "writes": 290
+    },
+    "0x60011000": {
+      "first_event": 208926,
+      "first_address": "0x60011050",
+      "first_pc": "0x42039566",
+      "symbol": "r_rf_rw_v9_le_init+0x13c",
+      "reads": 90,
+      "writes": 93
+    }
+  },
+  "top_polls": [
+    {
+      "first_event": 265969,
+      "address": "0x60031000",
+      "kind": "rd",
+      "pc": "0x42048514",
+      "symbol": "r_rwip_driver_init+0x10e",
+      "first_value": "0x8010070f",
+      "last_value": "0x0010070f",
+      "count": 120180
+    },
+    {
+      "first_event": 315385,
+      "address": "0x60031000",
+      "kind": "rd",
+      "pc": "0x42047f52",
+      "symbol": "r_rwble_hw_disable+0x1c",
+      "first_value": "0x8010060f",
+      "last_value": "0x0010060f",
+      "count": 50307
+    },
+    {
+      "first_event": 208938,
+      "address": "0x6003101c",
+      "kind": "rd",
+      "pc": "0x4002ee78",
+      "symbol": "r_rwip_time_get+0x1c",
+      "first_value": "0x80000060",
+      "last_value": "0x0000033d",
+      "count": 30699
+    },
+    {
+      "first_event": 190902,
+      "address": "0x600c2194",
+      "kind": "rd",
+      "pc": "0x4038c47e",
+      "symbol": "xPortSetInterruptMaskFromISR+0xe",
+      "first_value": "0x00000001",
+      "last_value": "0x00000002",
+      "count": 5808
+    },
+    {
+      "first_event": 8136,
+      "address": "0x600260b0",
+      "kind": "rd",
+      "pc": "0x403cf672",
+      "symbol": "_iram_text_end+0x3b872",
+      "first_value": "0x8b9d326b",
+      "last_value": "0x1cd37b43",
+      "count": 2050
+    },
+    {
+      "first_event": 213947,
+      "address": "0x6000e048",
+      "kind": "rd",
+      "pc": "0x40388c9a",
+      "symbol": "rom1_get_i2c_hostid+0x22",
+      "first_value": "0x0701ff40",
+      "last_value": "0x0701fe00",
+      "count": 1507
+    },
+    {
+      "first_event": 214262,
+      "address": "0x60006104",
+      "kind": "rd",
+      "pc": "0x400393d2",
+      "symbol": "rom_pbus_force_test+0x8",
+      "first_value": "0x00000001",
+      "last_value": "0x0000e245",
+      "count": 1251
+    },
+    {
+      "first_event": 214264,
+      "address": "0x60006110",
+      "kind": "rd",
+      "pc": "0x400393f8",
+      "symbol": "rom_pbus_force_test+0x2e",
+      "first_value": "0x01000000",
+      "last_value": "0x01000000",
+      "count": 1251
+    },
+    {
+      "first_event": 214265,
+      "address": "0x60006104",
+      "kind": "rd",
+      "pc": "0x40039400",
+      "symbol": "rom_pbus_force_test+0x36",
+      "first_value": "0x0000c00b",
+      "last_value": "0x00010007",
+      "count": 1251
+    },
+    {
+      "first_event": 214766,
+      "address": "0x6000e004",
+      "kind": "rd",
+      "pc": "0x40038e7a",
+      "symbol": "rom_chip_i2c_readReg_org+0x22",
+      "first_value": "0x04260267",
+      "last_value": "0x04170063",
+      "count": 963
+    },
+    {
+      "first_event": 214767,
+      "address": "0x6000e004",
+      "kind": "rd",
+      "pc": "0x40038e84",
+      "symbol": "rom_chip_i2c_readReg_org+0x2c",
+      "first_value": "0x04260267",
+      "last_value": "0x04170063",
+      "count": 963
+    },
+    {
+      "first_event": 214562,
+      "address": "0x6000e004",
+      "kind": "rd",
+      "pc": "0x40388e02",
+      "symbol": "rom1_chip_i2c_writeReg+0x52",
+      "first_value": "0x05482467",
+      "last_value": "0x057f026b",
+      "count": 479
+    }
+  ]
+}

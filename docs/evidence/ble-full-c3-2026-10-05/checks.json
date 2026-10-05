@@ -1,0 +1,73 @@
+{
+  "checks": [
+    {
+      "command": "cargo +1.99.0 clippy --workspace --all-targets -- -D warnings",
+      "result": "pass",
+      "log_sha256": "6c16ce9e4fd051a4470fbdb80e99e88992fc3dff2cc18c49d697024aa1df4e42"
+    },
+    {
+      "command": "cargo +1.99.0 clippy --release --target wasm32-unknown-unknown -p esp32sim-wasm --features jit-tests -- -D warnings",
+      "result": "pass",
+      "log_sha256": "0ed400ca5d813110e844f683d0777370f93f3fe82ac6f3ccc4ca2563567681c2"
+    },
+    {
+      "command": "ESP32SIM_ROM_DIR=\"$PWD/web/wasm/fw\" cargo +1.99.0 test --release --workspace -- --include-ignored --skip external_",
+      "result": "pass",
+      "log_sha256": "91194e1699ef97fc98f12f234392f331488c06a33139cbc529bd3bff33b8ff37",
+      "totals": {
+        "passed": 595,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    {
+      "command": "cargo +1.99.0 test --release --workspace",
+      "result": "pass",
+      "log_sha256": "082f5233286bc4a165d4f0d8d3528ae3742f8fef4777865b1bb49594d754cdbe",
+      "totals": {
+        "passed": 580,
+        "failed": 0,
+        "ignored": 31
+      }
+    },
+    {
+      "command": "RUSTUP_TOOLCHAIN=1.99.0 tools/wasm-build.sh",
+      "result": "pass",
+      "log_sha256": "a62c48c2b128f724d49dc5739a11ff5ebb2f38148e41f1a4a83331a0f7cd79b4"
+    },
+    {
+      "command": "node tools/wasm-test.mjs hello c3-hello c6-hello c6-energy-scan c6-contiki c6-contiki-net c6-rpl-net panel",
+      "result": "pass",
+      "log_sha256": "30014b684a60e0ee609355981cea9cbbf3c9d40ee4130ee5dd729971e55c4183",
+      "demos": [
+        "ok   wasm JIT handoff: shared-memory block committed at a scheduler boundary",
+        "ok   hello: board none, 4.3 M insns in 0.3 s wall (15.2 Minsn/s), 129 console lines, 0 binary frames",
+        "ok   c3-hello: board none, 480.0 M insns in 0.6 s wall (863.3 Minsn/s), 125 console lines, 0 binary frames",
+        "ok   c6-hello: board none, 480.0 M insns in 0.8 s wall (629.9 Minsn/s), 121 console lines, 0 binary frames",
+        "ok   c6-energy-scan: board waveshare-c6-lcd147, 480.0 M insns in 4.6 s wall (103.8 Minsn/s), 149 console lines, 141 binary frames",
+        "ok   c6-contiki: board waveshare-c6-lcd147, 1920.0 M insns in 5.9 s wall (325.9 Minsn/s), 181 console lines, 17 binary frames",
+        "ok   c6-contiki-net: 2 nodes, n0 tx 5/rx 5, n1 tx 5/rx 5, 30 s simulated in 6.5 s wall (5x real time)",
+        "ok   c6-rpl-net: 2 nodes, n0 tx 27/rx 27, n1 tx 27/rx 27, 90 s simulated in 15.4 s wall (6x real time)",
+        "ok   panel: board waveshare-lcd4b, 142.5 M insns in 5.6 s wall (25.3 Minsn/s), 193 console lines, 254 binary frames"
+      ]
+    },
+    {
+      "command": "node tools/check-evidence-privacy.mjs",
+      "result": "pass",
+      "log_sha256": "3999c177d26c7f4dbf1d7f22b66627e178d18ec955540266c36624550873bf50"
+    },
+    {
+      "command": "python3 docs/evidence/ble-full-c3-2026-10-05/replay.py --emulator target/release/esp32sim-c3 --build BUILD --rom web/wasm/fw/esp32c3_rev3_rom.elf --output OUTPUT",
+      "result": "pass",
+      "log_sha256": "8b483cf0cc5339528357f37542cd1bbc536b71b54995d43fdd55fd7f28015624"
+    }
+  ],
+  "goldens": "No regeneration; golden tests pass.",
+  "speed": "Not applicable: no emulator code, bus, device table, IRQ routing or per-tick path changed.",
+  "jit": "No JIT change; conditional JIT script not required.",
+  "default_toolchain": "Unchanged.",
+  "final_staged_privacy": {
+    "result": "PASS: 1633 tracked evidence files checked (20 gzip files); no configured privacy patterns found. Manual review is still required.",
+    "sha256": "802003cb458ddfc7461f5fe94f4712d610ae9e80edc919beb468a996e321b772"
+  }
+}

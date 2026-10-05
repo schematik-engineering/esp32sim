@@ -1,0 +1,270 @@
+{
+  "location": "Local notes directory; not published. Full normalized logs retained there.",
+  "redaction": "Home and worktree labels replaced; numbers, ordering and guest output unchanged.",
+  "files": [
+    {
+      "file": "ble-full-artifacts/arduino-build-cpp.log.gz",
+      "original_sha256": "0941fa7376ad7a33de743e80bb4b2d33c6f787f9c5be9d6003c66e734e216585",
+      "sanitized_sha256": "66cdb5a5db15eda66a30f192950b2dd996cde50868eba33c3b0586e180f9ac44",
+      "gzip_sha256": "6d2e66267b336678d16f957eacf90615a794491da41dc20fc4609cbfc7f4c601",
+      "original_bytes": 409,
+      "sanitized_bytes": 367
+    },
+    {
+      "file": "ble-full-artifacts/arduino-build.log.gz",
+      "original_sha256": "0941fa7376ad7a33de743e80bb4b2d33c6f787f9c5be9d6003c66e734e216585",
+      "sanitized_sha256": "66cdb5a5db15eda66a30f192950b2dd996cde50868eba33c3b0586e180f9ac44",
+      "gzip_sha256": "6d2e66267b336678d16f957eacf90615a794491da41dc20fc4609cbfc7f4c601",
+      "original_bytes": 409,
+      "sanitized_bytes": 367
+    },
+    {
+      "file": "ble-full-artifacts/arduino-final.log.gz",
+      "original_sha256": "3ceb07050f5650be06d63074a2f65725ab931a135e0fa9dfdfdb9bc8ff708b23",
+      "sanitized_sha256": "3ceb07050f5650be06d63074a2f65725ab931a135e0fa9dfdfdb9bc8ff708b23",
+      "gzip_sha256": "74be37e2d33d28008263e92566b8fc281dba90ab192479bb3053e3d3ffed4f9f",
+      "original_bytes": 207,
+      "sanitized_bytes": 207
+    },
+    {
+      "file": "ble-full-artifacts/boot.stderr.gz",
+      "original_sha256": "1ad549a028c82a086c762006277c523aee1262a43868b5e3a73334807d141fe9",
+      "sanitized_sha256": "1ad549a028c82a086c762006277c523aee1262a43868b5e3a73334807d141fe9",
+      "gzip_sha256": "d908c6d65ce3b663be131ae19cbd701ef4835562f1fcc6d1afcc996637023209",
+      "original_bytes": 8863,
+      "sanitized_bytes": 8863
+    },
+    {
+      "file": "ble-full-artifacts/boot.stdout.gz",
+      "original_sha256": "75254e2718ea264b610485d698409c21b1e852ab9809ba250f37a754605f86b7",
+      "sanitized_sha256": "75254e2718ea264b610485d698409c21b1e852ab9809ba250f37a754605f86b7",
+      "gzip_sha256": "668a44ed0a5fd2840d2e37304ee87d24c972d439769850f5dce49f4c9ceaf665",
+      "original_bytes": 256,
+      "sanitized_bytes": 256
+    },
+    {
+      "file": "ble-full-artifacts/build.log.gz",
+      "original_sha256": "1f1bbb35ccad4f88d5123c85fa62850d3283473496332ec6e2ff413bec283fc9",
+      "sanitized_sha256": "72d27fb00dd11ca5f715a10b7d18bde7279ca0c598bc27068d158c733fd10111",
+      "gzip_sha256": "fb9cadcf33c5eb88695c5241e6585eba0374a8d462dd007c5fda024b7d220e5c",
+      "original_bytes": 965,
+      "sanitized_bytes": 533
+    },
+    {
+      "file": "ble-full-artifacts/clippy-native.log.gz",
+      "original_sha256": "3d946f379b95a6c11f823f4a4c435ec675aa7bce41f101b6bb6180a8da2972c8",
+      "sanitized_sha256": "6c16ce9e4fd051a4470fbdb80e99e88992fc3dff2cc18c49d697024aa1df4e42",
+      "gzip_sha256": "db99bf66e1ae60ec331ad0e4e1aca7c6b564838ae4c346dfc6a70d6bae7f3434",
+      "original_bytes": 1170,
+      "sanitized_bytes": 642
+    },
+    {
+      "file": "ble-full-artifacts/clippy-wasm.log.gz",
+      "original_sha256": "9d16e6086320869a8badee5dae149fe1c4a4b4a67ea205e5a8e107c38428d68f",
+      "sanitized_sha256": "0ed400ca5d813110e844f683d0777370f93f3fe82ac6f3ccc4ca2563567681c2",
+      "gzip_sha256": "65ded939477c8e855ea01675f4b32eeeac38516218b87200a96e4420c801b88b",
+      "original_bytes": 1078,
+      "sanitized_bytes": 598
+    },
+    {
+      "file": "ble-full-artifacts/ctags-build.log.gz",
+      "original_sha256": "5b68a0f3bf98ec6ca0d2c65272c751a99434b0c596de20cd37bc136ba2297d41",
+      "sanitized_sha256": "5b68a0f3bf98ec6ca0d2c65272c751a99434b0c596de20cd37bc136ba2297d41",
+      "gzip_sha256": "0237df3b7b3ee1abd0200da59217eae2ae587d4dcdfc0c968a4ba55745132800",
+      "original_bytes": 7559,
+      "sanitized_bytes": 7559
+    },
+    {
+      "file": "ble-full-artifacts/ctags-configure.log.gz",
+      "original_sha256": "7aad2881f0cf71319f71418d23544a4f115c3566433a4ce1353c641a52ab8a91",
+      "sanitized_sha256": "7aad2881f0cf71319f71418d23544a4f115c3566433a4ce1353c641a52ab8a91",
+      "gzip_sha256": "fa3010f2a57cd9b96cc5a9f3d0d5e88cf14c683c1474c9b5bd70a3a0e88b13ab",
+      "original_bytes": 3715,
+      "sanitized_bytes": 3715
+    },
+    {
+      "file": "ble-full-artifacts/enable-mmio.stderr.gz",
+      "original_sha256": "dafb832ecf6a37d073d1a2457185c54bbdbdab61c30e1bc3422c739de322adee",
+      "sanitized_sha256": "dafb832ecf6a37d073d1a2457185c54bbdbdab61c30e1bc3422c739de322adee",
+      "gzip_sha256": "494a12c340a2a714657899316dcf4182483bd86e419fff2f7ebbdacf8352b765",
+      "original_bytes": 27592044,
+      "sanitized_bytes": 27592044
+    },
+    {
+      "file": "ble-full-artifacts/enable-mmio.stdout.gz",
+      "original_sha256": "032b75a4288b822e9722d8f7e5a9a3184ebb28e01cf96eab2d3a471b1893467f",
+      "sanitized_sha256": "032b75a4288b822e9722d8f7e5a9a3184ebb28e01cf96eab2d3a471b1893467f",
+      "gzip_sha256": "1228dd7128511b4c9d352a3c9c667ffe4df16209895fc0b578decbf5a36c8d18",
+      "original_bytes": 316,
+      "sanitized_bytes": 316
+    },
+    {
+      "file": "ble-full-artifacts/enable.stderr.gz",
+      "original_sha256": "9cf4121e2d70f0477cb50bf56ec1837e350a390380bd5a3004a484d811172e9c",
+      "sanitized_sha256": "9cf4121e2d70f0477cb50bf56ec1837e350a390380bd5a3004a484d811172e9c",
+      "gzip_sha256": "c6dd0fbdfe027276e4325dcd3f62f86c00e0a91aeebdaeb4c183e2d4a778ebeb",
+      "original_bytes": 810418,
+      "sanitized_bytes": 810418
+    },
+    {
+      "file": "ble-full-artifacts/enable.stdout.gz",
+      "original_sha256": "032b75a4288b822e9722d8f7e5a9a3184ebb28e01cf96eab2d3a471b1893467f",
+      "sanitized_sha256": "032b75a4288b822e9722d8f7e5a9a3184ebb28e01cf96eab2d3a471b1893467f",
+      "gzip_sha256": "1228dd7128511b4c9d352a3c9c667ffe4df16209895fc0b578decbf5a36c8d18",
+      "original_bytes": 316,
+      "sanitized_bytes": 316
+    },
+    {
+      "file": "ble-full-artifacts/hci-reset.stderr.gz",
+      "original_sha256": "4fff5e6fecb1280369d6656e73ffe1a6856adcef84e71e913d07af363f98b9e3",
+      "sanitized_sha256": "4fff5e6fecb1280369d6656e73ffe1a6856adcef84e71e913d07af363f98b9e3",
+      "gzip_sha256": "93e70054733d6fa153afe6782007a0bf8f00fbe7f3c0114f27b560deb841fe01",
+      "original_bytes": 807627,
+      "sanitized_bytes": 807627
+    },
+    {
+      "file": "ble-full-artifacts/hci-reset.stdout.gz",
+      "original_sha256": "75254e2718ea264b610485d698409c21b1e852ab9809ba250f37a754605f86b7",
+      "sanitized_sha256": "75254e2718ea264b610485d698409c21b1e852ab9809ba250f37a754605f86b7",
+      "gzip_sha256": "668a44ed0a5fd2840d2e37304ee87d24c972d439769850f5dce49f4c9ceaf665",
+      "original_bytes": 256,
+      "sanitized_bytes": 256
+    },
+    {
+      "file": "ble-full-artifacts/latch-mmio.stderr.gz",
+      "original_sha256": "afaba2f24eca2d8defca6d60ee4425a35595e919723fb1adaf0e47ce6cd2167e",
+      "sanitized_sha256": "afaba2f24eca2d8defca6d60ee4425a35595e919723fb1adaf0e47ce6cd2167e",
+      "gzip_sha256": "e581130a80e798f61077d655a8e7903c7326e23917b0de41eb8890c92f9f458a",
+      "original_bytes": 15112315,
+      "sanitized_bytes": 15112315
+    },
+    {
+      "file": "ble-full-artifacts/latch-mmio.stdout.gz",
+      "original_sha256": "38066fe727f63fe1d3b16ccad13b4e05749bc250271f4dfaa69d7bc76f7c6fc5",
+      "sanitized_sha256": "38066fe727f63fe1d3b16ccad13b4e05749bc250271f4dfaa69d7bc76f7c6fc5",
+      "gzip_sha256": "774abda0d99e96b4cbcafa4b1a68c17bd0ba540e5afa288e0d158f5fd5b7f0b5",
+      "original_bytes": 303,
+      "sanitized_bytes": 303
+    },
+    {
+      "file": "ble-full-artifacts/latch.stderr.gz",
+      "original_sha256": "c30975e4d891f67466250bef9eb4574c1b016b78421a12c3300e185e4a1bed0b",
+      "sanitized_sha256": "c30975e4d891f67466250bef9eb4574c1b016b78421a12c3300e185e4a1bed0b",
+      "gzip_sha256": "af1bd1a41aa58c0d85473a3abdd608ec4923ae66f22322ae20ded6405f7081c2",
+      "original_bytes": 805427,
+      "sanitized_bytes": 805427
+    },
+    {
+      "file": "ble-full-artifacts/latch.stdout.gz",
+      "original_sha256": "38066fe727f63fe1d3b16ccad13b4e05749bc250271f4dfaa69d7bc76f7c6fc5",
+      "sanitized_sha256": "38066fe727f63fe1d3b16ccad13b4e05749bc250271f4dfaa69d7bc76f7c6fc5",
+      "gzip_sha256": "774abda0d99e96b4cbcafa4b1a68c17bd0ba540e5afa288e0d158f5fd5b7f0b5",
+      "original_bytes": 303,
+      "sanitized_bytes": 303
+    },
+    {
+      "file": "ble-full-artifacts/mmio.stderr.gz",
+      "original_sha256": "87c26c298e82fb88222bfed286c0ddb560a9d2e0af55f374eb601c4cfb834d97",
+      "sanitized_sha256": "87c26c298e82fb88222bfed286c0ddb560a9d2e0af55f374eb601c4cfb834d97",
+      "gzip_sha256": "d361996e87d4404bb3fdde213195487bd73cb527fedaa259e4225d2596f1c5cc",
+      "original_bytes": 53830203,
+      "sanitized_bytes": 53830203
+    },
+    {
+      "file": "ble-full-artifacts/mmio.stdout.gz",
+      "original_sha256": "75254e2718ea264b610485d698409c21b1e852ab9809ba250f37a754605f86b7",
+      "sanitized_sha256": "75254e2718ea264b610485d698409c21b1e852ab9809ba250f37a754605f86b7",
+      "gzip_sha256": "668a44ed0a5fd2840d2e37304ee87d24c972d439769850f5dce49f4c9ceaf665",
+      "original_bytes": 256,
+      "sanitized_bytes": 256
+    },
+    {
+      "file": "ble-full-artifacts/privacy.log.gz",
+      "original_sha256": "3999c177d26c7f4dbf1d7f22b66627e178d18ec955540266c36624550873bf50",
+      "sanitized_sha256": "3999c177d26c7f4dbf1d7f22b66627e178d18ec955540266c36624550873bf50",
+      "gzip_sha256": "afc232abbfd8cdf4c1970101de4f47054f751c28812994351199d8ad2c47dbb9",
+      "original_bytes": 130,
+      "sanitized_bytes": 130
+    },
+    {
+      "file": "ble-full-artifacts/replay.log.gz",
+      "original_sha256": "8b483cf0cc5339528357f37542cd1bbc536b71b54995d43fdd55fd7f28015624",
+      "sanitized_sha256": "8b483cf0cc5339528357f37542cd1bbc536b71b54995d43fdd55fd7f28015624",
+      "gzip_sha256": "34414cc168068c78872ff641ccd7b29c047dfb3fd68352dcf8143c2cb3d5cc20",
+      "original_bytes": 65,
+      "sanitized_bytes": 65
+    },
+    {
+      "file": "ble-full-artifacts/reset.stderr.gz",
+      "original_sha256": "3ca6461a9418b8f8836d9680a6cbfe299a63c9a47d3d8804e6ef443152edd680",
+      "sanitized_sha256": "3ca6461a9418b8f8836d9680a6cbfe299a63c9a47d3d8804e6ef443152edd680",
+      "gzip_sha256": "8e4f670a88333a5dd0172e3ad6ced1f5373c17474735e97ad39468996ba4553e",
+      "original_bytes": 806919,
+      "sanitized_bytes": 806919
+    },
+    {
+      "file": "ble-full-artifacts/reset.stdout.gz",
+      "original_sha256": "75254e2718ea264b610485d698409c21b1e852ab9809ba250f37a754605f86b7",
+      "sanitized_sha256": "75254e2718ea264b610485d698409c21b1e852ab9809ba250f37a754605f86b7",
+      "gzip_sha256": "668a44ed0a5fd2840d2e37304ee87d24c972d439769850f5dce49f4c9ceaf665",
+      "original_bytes": 256,
+      "sanitized_bytes": 256
+    },
+    {
+      "file": "ble-full-artifacts/test-full.log.gz",
+      "original_sha256": "11e8ca024ff08067b029507c8e49a2ef483c4d0cde027b4cf608e3a1d8c11235",
+      "sanitized_sha256": "91194e1699ef97fc98f12f234392f331488c06a33139cbc529bd3bff33b8ff37",
+      "gzip_sha256": "79df344268d230c67c307314fdeaab38bd418a01a6ff63d360967e6cc9e0bc08",
+      "original_bytes": 55236,
+      "sanitized_bytes": 54708
+    },
+    {
+      "file": "ble-full-artifacts/test-plain.log.gz",
+      "original_sha256": "082f5233286bc4a165d4f0d8d3528ae3742f8fef4777865b1bb49594d754cdbe",
+      "sanitized_sha256": "082f5233286bc4a165d4f0d8d3528ae3742f8fef4777865b1bb49594d754cdbe",
+      "gzip_sha256": "a103f35b463ddffdbf8ccffbb71188ef71f63f7779c62a5f9cfe4cdd9f7cc941",
+      "original_bytes": 57187,
+      "sanitized_bytes": 57187
+    },
+    {
+      "file": "ble-full-artifacts/version.stderr.gz",
+      "original_sha256": "30c2b6fa4e1b7b63b9e17084a53eb21ca5b4feb16d38147f305730a4a4a3d40c",
+      "sanitized_sha256": "30c2b6fa4e1b7b63b9e17084a53eb21ca5b4feb16d38147f305730a4a4a3d40c",
+      "gzip_sha256": "020360311b0a490f2b103890cede2358e27e1427f38c0797112264058a7c5c8a",
+      "original_bytes": 805541,
+      "sanitized_bytes": 805541
+    },
+    {
+      "file": "ble-full-artifacts/version.stdout.gz",
+      "original_sha256": "75254e2718ea264b610485d698409c21b1e852ab9809ba250f37a754605f86b7",
+      "sanitized_sha256": "75254e2718ea264b610485d698409c21b1e852ab9809ba250f37a754605f86b7",
+      "gzip_sha256": "668a44ed0a5fd2840d2e37304ee87d24c972d439769850f5dce49f4c9ceaf665",
+      "original_bytes": 256,
+      "sanitized_bytes": 256
+    },
+    {
+      "file": "ble-full-artifacts/wasm-build.log.gz",
+      "original_sha256": "068f90fc47e2a21ea8786bf94db923780547dbbff6c857e4d58d7a7754eb75a5",
+      "sanitized_sha256": "a62c48c2b128f724d49dc5739a11ff5ebb2f38148e41f1a4a83331a0f7cd79b4",
+      "gzip_sha256": "0ba81e3d7c9a2692c5c09f961ebed02cf9bfd31db18977c45c4af8a33d4f75c6",
+      "original_bytes": 1201,
+      "sanitized_bytes": 721
+    },
+    {
+      "file": "ble-full-artifacts/wasm-test.log.gz",
+      "original_sha256": "30014b684a60e0ee609355981cea9cbbf3c9d40ee4130ee5dd729971e55c4183",
+      "sanitized_sha256": "30014b684a60e0ee609355981cea9cbbf3c9d40ee4130ee5dd729971e55c4183",
+      "gzip_sha256": "eff82a1e93a5c2d080ec2dea5324b6cb31651fc6375890d8b8fb29c5e760c621",
+      "original_bytes": 969,
+      "sanitized_bytes": 969
+    },
+    {
+      "file": "ble-full-artifacts/privacy-final.log.gz",
+      "original_sha256": "802003cb458ddfc7461f5fe94f4712d610ae9e80edc919beb468a996e321b772",
+      "sanitized_sha256": "802003cb458ddfc7461f5fe94f4712d610ae9e80edc919beb468a996e321b772",
+      "gzip_sha256": "bdc22d8c2702e222924bba4b0d27a500a412908eb7e5223ce814d1f4e2a28f07",
+      "original_bytes": 130,
+      "sanitized_bytes": 130
+    }
+  ]
+}

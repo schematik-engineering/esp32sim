@@ -1,0 +1,154 @@
+
+web/wasm/fw/esp32c3_rev3_rom.elf:     file format elf32-littleriscv
+
+
+Disassembly of section .bt_text:
+
+4002ee5c <r_rwip_time_get>:
+4002ee5c:	60031737          	lui	a4,0x60031
+4002ee60:	4f5c                	lw	a5,28(a4)
+4002ee62:	1101                	addi	sp,sp,-32
+4002ee64:	800006b7          	lui	a3,0x80000
+4002ee68:	cc22                	sw	s0,24(sp)
+4002ee6a:	ce06                	sw	ra,28(sp)
+4002ee6c:	ca26                	sw	s1,20(sp)
+4002ee6e:	c84a                	sw	s2,16(sp)
+4002ee70:	8fd5                	or	a5,a5,a3
+4002ee72:	cf5c                	sw	a5,28(a4)
+4002ee74:	60031437          	lui	s0,0x60031
+4002ee78:	4c5c                	lw	a5,28(s0)
+4002ee7a:	fe07cfe3          	bltz	a5,4002ee78 <r_rwip_time_get+0x1c>
+4002ee7e:	3fce04b7          	lui	s1,0x3fce0
+4002ee82:	f844a783          	lw	a5,-124(s1) # 3fcdff84 <r_osi_funcs_p>
+4002ee86:	4bdc                	lw	a5,20(a5)
+4002ee88:	9782                	jalr	a5
+4002ee8a:	f844a783          	lw	a5,-124(s1)
+4002ee8e:	01c42903          	lw	s2,28(s0) # 6003101c <SPIMEM0+0x2e01c>
+4002ee92:	5000                	lw	s0,32(s0)
+4002ee94:	4f9c                	lw	a5,24(a5)
+4002ee96:	9782                	jalr	a5
+4002ee98:	27000593          	li	a1,624
+4002ee9c:	8d81                	sub	a1,a1,s0
+4002ee9e:	40f2                	lw	ra,28(sp)
+4002eea0:	4462                	lw	s0,24(sp)
+4002eea2:	100007b7          	lui	a5,0x10000
+4002eea6:	17fd                	addi	a5,a5,-1 # fffffff <RvExcFrameSize+0xfffff6f>
+4002eea8:	00f97533          	and	a0,s2,a5
+4002eeac:	44d2                	lw	s1,20(sp)
+4002eeae:	4942                	lw	s2,16(sp)
+4002eeb0:	6105                	addi	sp,sp,32
+4002eeb2:	8082                	ret
+
+
+.spike/build/Server.ino.elf:     file format elf32-littleriscv
+
+
+Disassembly of section .flash.text:
+
+4203ce62 <r_lld_core_init+0x426>:
+4203ce62:	0135                	addi	sp,sp,13
+4203ce64:	c388                	sw	a0,0(a5)
+4203ce66:	409c                	lw	a5,0(s1)
+4203ce68:	090025b7          	lui	a1,0x9002
+4203ce6c:	b0058593          	addi	a1,a1,-1280 # 9001b00 <CSR_UINTSTATUS+0x9000e4f>
+4203ce70:	1007e793          	ori	a5,a5,256
+4203ce74:	c09c                	sw	a5,0(s1)
+4203ce76:	40dc                	lw	a5,4(s1)
+4203ce78:	00b78d63          	beq	a5,a1,4203ce92 <r_lld_core_init+0x456>
+4203ce7c:	f8042783          	lw	a5,-128(s0)
+4203ce80:	40c8                	lw	a0,4(s1)
+4203ce82:	3c07b637          	lui	a2,0x3c07b
+4203ce86:	47dc                	lw	a5,12(a5)
+4203ce88:	14400693          	li	a3,324
+4203ce8c:	8bc60613          	addi	a2,a2,-1860 # 3c07a8bc <_flash_rodata_start+0xa79c>
+4203ce90:	9782                	jalr	a5
+
+
+.spike/build/Server.ino.elf:     file format elf32-littleriscv
+
+
+Disassembly of section .flash.text:
+
+420484fe <r_rwip_driver_init+0xf8>:
+420484fe:	60031737          	lui	a4,0x60031
+42048502:	00079b23          	sh	zero,22(a5)
+42048506:	431c                	lw	a5,0(a4)
+42048508:	800006b7          	lui	a3,0x80000
+4204850c:	c1048493          	addi	s1,s1,-1008
+42048510:	8fd5                	or	a5,a5,a3
+42048512:	c31c                	sw	a5,0(a4)
+42048514:	431c                	lw	a5,0(a4)
+42048516:	fe07cfe3          	bltz	a5,42048514 <r_rwip_driver_init+0x10e>
+
+
+.spike/build/Server.ino.elf:     file format elf32-littleriscv
+
+
+Disassembly of section .flash.text:
+
+42047f36 <r_rwble_hw_disable>:
+42047f36:	4789                	li	a5,2
+42047f38:	04f51063          	bne	a0,a5,42047f78 <r_rwble_hw_disable+0x42>
+42047f3c:	600317b7          	lui	a5,0x60031
+42047f40:	4398                	lw	a4,0(a5)
+42047f42:	800006b7          	lui	a3,0x80000
+42047f46:	eff77713          	andi	a4,a4,-257
+42047f4a:	c398                	sw	a4,0(a5)
+42047f4c:	4398                	lw	a4,0(a5)
+42047f4e:	8f55                	or	a4,a4,a3
+42047f50:	c398                	sw	a4,0(a5)
+42047f52:	4398                	lw	a4,0(a5)
+42047f54:	fe074fe3          	bltz	a4,42047f52 <r_rwble_hw_disable+0x1c>
+42047f58:	577d                	li	a4,-1
+42047f5a:	0007a623          	sw	zero,12(a5) # 6003100c <GPSPI2+0xd00c>
+42047f5e:	cf98                	sw	a4,24(a5)
+42047f60:	3fce0737          	lui	a4,0x3fce0
+42047f64:	9b174703          	lbu	a4,-1615(a4) # 3fcdf9b1 <sdk_cfg_priv_opts+0x45>
+42047f68:	cb01                	beqz	a4,42047f78 <r_rwble_hw_disable+0x42>
+42047f6a:	2d878793          	addi	a5,a5,728
+42047f6e:	4398                	lw	a4,0(a5)
+42047f70:	800006b7          	lui	a3,0x80000
+42047f74:	8f55                	or	a4,a4,a3
+42047f76:	c398                	sw	a4,0(a5)
+
+
+web/wasm/fw/esp32c3_rev3_rom.elf:     file format elf32-littleriscv
+
+
+Disassembly of section .bt_text:
+
+4002f30e <r_rwip_timer_hus_set+0x6c>:
+4002f30e:	600317b7          	lui	a5,0x60031
+4002f312:	0e87a623          	sw	s0,236(a5) # 600310ec <SPIMEM0+0x2e0ec>
+4002f316:	27000413          	li	s0,624
+4002f31a:	8c05                	sub	s0,s0,s1
+4002f31c:	0442                	slli	s0,s0,0x10
+4002f31e:	8041                	srli	s0,s0,0x10
+4002f320:	c0047793          	andi	a5,s0,-1024
+4002f324:	cf99                	beqz	a5,4002f342 <r_rwip_timer_hus_set+0xa0>
+4002f326:	3fce07b7          	lui	a5,0x3fce0
+4002f32a:	f807a783          	lw	a5,-128(a5) # 3fcdff80 <r_plf_funcs_p>
+4002f32e:	6605                	lui	a2,0x1
+4002f330:	3ff1b5b7          	lui	a1,0x3ff1b
+4002f334:	479c                	lw	a5,8(a5)
+4002f336:	c8860613          	addi	a2,a2,-888 # c88 <RvExcFrameSize+0xbf8>
+4002f33a:	4ec58593          	addi	a1,a1,1260 # 3ff1b4ec <CSWTCH.0+0x178>
+4002f33e:	4501                	li	a0,0
+4002f340:	9782                	jalr	a5
+4002f342:	60031737          	lui	a4,0x60031
+4002f346:	6785                	lui	a5,0x1
+4002f348:	04594683          	lbu	a3,69(s2)
+4002f34c:	0e872823          	sw	s0,240(a4) # 600310f0 <SPIMEM0+0x2e0f0>
+4002f350:	80078793          	addi	a5,a5,-2048 # 800 <RvExcFrameSize+0x770>
+4002f354:	cf1c                	sw	a5,24(a4)
+4002f356:	c299                	beqz	a3,4002f35c <r_rwip_timer_hus_set+0xba>
+4002f358:	38f72623          	sw	a5,908(a4)
+4002f35c:	600316b7          	lui	a3,0x60031
+4002f360:	46dc                	lw	a5,12(a3)
+4002f362:	777d                	lui	a4,0xfffff
+4002f364:	7ff70713          	addi	a4,a4,2047 # fffff7ff <SPIMEM0+0x9fffc7ff>
+4002f368:	8ff9                	and	a5,a5,a4
+4002f36a:	6705                	lui	a4,0x1
+4002f36c:	80070713          	addi	a4,a4,-2048 # 800 <RvExcFrameSize+0x770>
+4002f370:	8fd9                	or	a5,a5,a4
+4002f372:	c6dc                	sw	a5,12(a3)
