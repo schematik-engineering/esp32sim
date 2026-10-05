@@ -45,3 +45,37 @@ fn c6_ble_without_elf_names_the_missing_symbol() {
     assert!(!result.status.success());
     assert!(String::from_utf8_lossy(&result.stderr).contains("requires ELF symbol esp_bt_controller_init"));
 }
+
+#[test]
+fn full_ble_mode_is_c3_only_and_excludes_hci() {
+    for args in [vec!["--chip", "s3", "--ble", "full"], vec!["--chip", "c3", "--ble", "--ble", "full"], vec!["--chip", "c3", "--ble", "full", "--ble"]] {
+        let result = Command::new(env!("CARGO_BIN_EXE_esp32sim")).args(args).output().unwrap();
+        assert!(!result.status.success());
+        assert!(String::from_utf8_lossy(&result.stderr).contains("mutually exclusive"));
+    }
+}
+
+#[test]
+#[ignore = "set ESP32SIM_BLE_SERVER_DIR to the unchanged Arduino 3.3.11 C3 Server build and ESP32SIM_ROM_DIR to the ROM directory"]
+fn external_full_ble_server_programs_first_event() {
+    let build = PathBuf::from(std::env::var_os("ESP32SIM_BLE_SERVER_DIR").expect("set ESP32SIM_BLE_SERVER_DIR to the Arduino C3 Server build"));
+    let rom = PathBuf::from(std::env::var_os("ESP32SIM_ROM_DIR").expect("set ESP32SIM_ROM_DIR to the C3 rev3 ROM directory")).join("esp32c3_rev3_rom.elf");
+    assert!(rom.is_file(), "missing C3 rev3 ROM input");
+    let mut command = Command::new(env!("CARGO_BIN_EXE_esp32sim-c3"));
+    command.args(["--boot", "rom", "--rom"]).arg(rom).args(["--ble", "full", "--flash-mb", "4", "--max-seconds", "1", "--no-dump", "--irq-latency",
+        "--trace-fn", "r_sch_prog_ble_push", "--trace-fn", "r_lld_adv_evt_start_cbk", "--peek", "0x60031100,1"]);
+    for (flag, suffix) in [("--bootloader", "bootloader.bin"), ("--ptable", "partitions.bin"), ("--app", "bin"), ("--elf", "elf")] {
+        let file = build.join(format!("Server.ino.{suffix}"));
+        assert!(file.is_file(), "missing Arduino Server input {}", file.display());
+        command.arg(flag).arg(file);
+    }
+    let result = command.output().expect("run C3 Server specimen");
+    let console = String::from_utf8_lossy(&result.stdout);
+    let trace = String::from_utf8_lossy(&result.stderr);
+    assert!(result.status.success(), "{trace}");
+    assert!(console.contains("Characteristic defined! Now you can read it in your phone!"), "{console}");
+    for expected in ["r_sch_prog_ble_push_hack(a0=", "r_lld_adv_evt_start_cbk(a0=", "sources [8]", "60031100: 80000000", "0 exceptions"] {
+        assert!(trace.contains(expected), "missing {expected}: {trace}");
+    }
+    assert!(!console.contains("assert"), "{console}");
+}

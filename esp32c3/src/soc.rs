@@ -111,6 +111,7 @@ impl esp_soc::SocBus for SocBus {
         let old = std::mem::replace(&mut self.periph, periph::Peripherals::new(mac));
         let p = &mut self.periph;
         p.wifi.ap = old.wifi.ap; p.wifi.net = old.wifi.net; p.wifi.log = old.wifi.log; p.wifi.relay = old.wifi.relay;
+        if old.ble_lc.enabled() { p.ble_lc.enable(); esp_periph::Dispatch::refresh_optional(p, 0x31); }
         p.refresh_work();
         p.efuse = old.efuse;
         p.adc.analog = old.adc.analog;

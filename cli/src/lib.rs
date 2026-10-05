@@ -69,7 +69,7 @@ pub struct Opts {
     pub rom: Option<PathBuf>, pub bootloader: Option<String>, pub ptable: Option<String>, pub app: Option<String>, pub elfs: Vec<String>,
     pub flash_image: Option<String>, pub flash_at: Vec<String>, pub boot: Option<String>, pub flash_mb: Option<usize>, pub psram_mb: Option<usize>,
     pub mac: Option<[u8; 6]>, pub strap: Option<u32>, pub reset_cause: Option<u32>, pub efuse_regs: Option<String>, pub regs_init: Option<String>,
-    pub board: String, pub wifi: Option<String>, pub ble: bool, pub net: String, pub cam_image: Option<String>, pub cam_fps: f64,
+    pub board: String, pub wifi: Option<String>, pub ble: bool, pub ble_full: bool, pub net: String, pub cam_image: Option<String>, pub cam_fps: f64,
     pub spi2_timing: bool, pub measured_te: bool,
     pub max_insns: u64, pub max_seconds: Option<f64>, pub script: Option<String>, pub serial: Option<String>,
     pub console: Option<String>, pub console_prefix: bool, pub realtime: bool, pub web_port: Option<u16>, pub web_dir: Option<String>, pub no_reboot: bool,
@@ -113,7 +113,10 @@ pub fn parse(args: &[String], default_chip: &str) -> Opts {
             "--spi2-timing" => o.spi2_timing = true,
             "--measured-te" => o.measured_te = true,
             "--wifi" => o.wifi = Some(next()),
-            "--ble" => o.ble = true,
+            "--ble" => {
+                let full = args.get(i + 1).is_some_and(|s| s == "full");
+                if full { i += 1; o.ble_full = true; } else { o.ble = true; }
+            },
             "--net" => o.net = next(),
             "--cam-image" => o.cam_image = Some(next()),
             "--cam-fps" => o.cam_fps = next().parse().expect("fps"),
@@ -163,6 +166,7 @@ pub fn parse(args: &[String], default_chip: &str) -> Opts {
         }
         i += 1;
     }
+    if o.ble_full && (o.ble || o.chip != "c3") { usage_error("--ble full requires C3 and is mutually exclusive with --ble"); }
     o
 }
 
@@ -277,6 +281,7 @@ fn setup_c3(o: &Opts) -> esp32c3::Machine {
     let mut m = esp32c3::machine(o.mac.unwrap_or([0x60, 0x55, 0xf9, 0x00, 0x11, 0x22]), o.flash_mb.unwrap_or(4) << 20);
     m.bus.set_flash_size(o.flash_mb.unwrap_or(4) << 20);   // the JEDEC capacity follows the size
     if !o.debug.is_empty() { let mut f = esp_soc::DebugFlags::from_env(); for d in &o.debug { f.parse(d); } m.set_debug(&f); }
+    if o.ble_full { m.bus.periph.ble_lc.enable(); esp_periph::Dispatch::refresh_optional(&mut m.bus.periph, 0x31); }
     if let Some(spec) = &o.wifi {
         let cfg = esp_soc::wifi::ApConfig::parse(spec).unwrap_or_else(|e| { eprintln!("--wifi: {e}"); std::process::exit(2) });
         eprintln!("[emu] virtual AP '{}' bssid {} channel {} ({})", cfg.ssid, esp_soc::wifi::mac_str(&cfg.bssid), cfg.channel, if cfg.psk.is_some() { "WPA2-PSK" } else { "open" });
