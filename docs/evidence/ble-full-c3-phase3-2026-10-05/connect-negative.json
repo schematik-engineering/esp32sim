@@ -1,0 +1,31 @@
+{
+  "result": "connection event rejected: unsupported CS format 3",
+  "probe_patch_sha256": "8be1f3ec4c0ee9e171e968a5510ccace50fa9157af70bd68e0b060f7c17913d9",
+  "probe_binary_sha256": "4edba937102f6f9765b036c16993d195a66861e7816c2a1b609fd70318c926e8",
+  "modeled_seconds": 0.265,
+  "instructions": 42400000,
+  "exceptions": 0,
+  "connect_ind": "[ble-central] hus=517863 channel=37 type=CONNECT_IND pdu=0522010000000002241100f955607083329a56341201000018000000c800ffffffff1f05",
+  "first_connection_start": "[fn] i=41492068 t=0.2593s c0 r_lld_con_start(a0=0x1 a1=0x3fca7328 a2=0x1) ret=0x4203e328",
+  "first_event_callback": "[fn] i=41579743 t=0.2599s c0 r_lld_con_evt_start_cbk(a0=0x3fca2d88 a1=0x171 a2=0x600ce000) ret=0x40385160",
+  "aborted_event_callback": "[fn] i=41729605 t=0.2608s c0 r_lld_con_frm_isr(a0=0x1 a1=0x342 a2=0x1) ret=0x40385480",
+  "activity": 1,
+  "cs_logical": "0x45a",
+  "cs_first_halfword": "0x0603",
+  "tx_logical": "0x147e",
+  "cs_access_address": "0x9a328370",
+  "cs_crc_init": "0x123456",
+  "connection_interval_us": 30000,
+  "captures": {
+    "out": {
+      "original_sha256": "032b75a4288b822e9722d8f7e5a9a3184ebb28e01cf96eab2d3a471b1893467f",
+      "sanitized_sha256": "032b75a4288b822e9722d8f7e5a9a3184ebb28e01cf96eab2d3a471b1893467f",
+      "bytes": 316
+    },
+    "err": {
+      "original_sha256": "9fea45b705c73cca255ff482d2ca3ab130fe73bc07e0e4b8c61c552b717add10",
+      "sanitized_sha256": "9fea45b705c73cca255ff482d2ca3ab130fe73bc07e0e4b8c61c552b717add10",
+      "bytes": 4112
+    }
+  }
+}

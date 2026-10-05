@@ -98,3 +98,46 @@ fn external_full_ble_server_advertises_repeatedly() {
         previous = Some(hus);
     }
 }
+
+#[test]
+#[ignore = "set ESP32SIM_BLE_SERVER_DIR to the unchanged Arduino 3.3.11 C3 Server build and ESP32SIM_ROM_DIR to the ROM directory"]
+fn external_full_ble_server_responds_to_active_scan() {
+    let build = PathBuf::from(std::env::var_os("ESP32SIM_BLE_SERVER_DIR").expect("set ESP32SIM_BLE_SERVER_DIR to the Arduino C3 Server build"));
+    let rom = PathBuf::from(std::env::var_os("ESP32SIM_ROM_DIR").expect("set ESP32SIM_ROM_DIR to the C3 rev3 ROM directory")).join("esp32c3_rev3_rom.elf");
+    assert!(rom.is_file(), "missing C3 rev3 ROM input");
+    let mut command = Command::new(env!("CARGO_BIN_EXE_esp32sim-c3"));
+    command.args(["--boot", "rom", "--rom"]).arg(rom).args(["--ble", "full", "--ble-scan", "--ble-observe",
+        "--flash-mb", "4", "--max-seconds", "2", "--no-dump", "--trace-fn", "r_lld_rxdesc_free"]);
+    for (flag, suffix) in [("--bootloader", "bootloader.bin"), ("--ptable", "partitions.bin"), ("--app", "bin"), ("--elf", "elf")] {
+        let file = build.join(format!("Server.ino.{suffix}"));
+        assert!(file.is_file(), "missing Arduino Server input {}", file.display());
+        command.arg(flag).arg(file);
+    }
+    let result = command.output().expect("run C3 Server specimen");
+    let console = String::from_utf8_lossy(&result.stdout);
+    let trace = String::from_utf8_lossy(&result.stderr);
+    assert!(result.status.success(), "{trace}");
+    assert!(console.contains("Characteristic defined! Now you can read it in your phone!"), "{console}");
+    assert!(!console.contains("assert") && !trace.contains("[ble-error]"), "{console}\n{trace}");
+    assert!(trace.contains("0 exceptions"), "{trace}");
+    let packets: Vec<_> = trace.lines().filter(|line| line.starts_with("[ble-air]") || line.starts_with("[ble-central]")).collect();
+    assert!(packets.len() >= 45 && packets.len().is_multiple_of(9), "{trace}");
+    let time = |line: &str| -> u64 { line.split_whitespace().find_map(|v| v.strip_prefix("hus=")).unwrap().parse().unwrap() };
+    let mut previous = None;
+    for (index, exchange) in packets.as_chunks::<3>().0.iter().enumerate() {
+        for line in exchange { assert!(line.contains(&format!("channel={}", 37 + index % 3)), "{line}"); }
+        assert!(exchange[0].contains("type=ADV_IND AdvA=60:55:f9:00:11:24"), "{}", exchange[0]);
+        assert!(exchange[1].contains("type=SCAN_REQ"), "{}", exchange[1]);
+        assert!(exchange[2].contains("type=SCAN_RSP AdvA=60:55:f9:00:11:24 name=\"BLE Server Example\""), "{}", exchange[2]);
+        assert_eq!(time(exchange[1]) - time(exchange[0]), 2 * (8 * (35 + 8) + 150));
+        assert_eq!(time(exchange[2]) - time(exchange[1]), 2 * (8 * (14 + 8) + 150));
+        if index.is_multiple_of(3) {
+            let current = time(exchange[0]);
+            if let Some(prior) = previous { assert!((120_000..=140_000).contains(&(current - prior))); }
+            previous = Some(current);
+        }
+    }
+    // Both the ROM veneer and its body can be traced. At least one free per request
+    // proves repeated guest consumption, beyond simply printing configured SCAN_RSP.
+    assert!(trace.matches("r_lld_rxdesc_free(a0=").count() >= packets.len() / 3, "{trace}");
+}

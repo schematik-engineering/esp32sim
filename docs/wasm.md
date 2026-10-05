@@ -270,4 +270,7 @@ emulator deletion. `[ble-air]` contains modeled half-microsecond time, channel,
 PDU type, AdvA, decoded name/service AD fields and the raw PDU. `[ble-config]`
 contains configured scan-response data, not a transmitted packet. The bounded
 1024-entry queue reports lost observations as `[ble-observer] dropped=N`.
-No RX, SCAN_REQ or connection handling is implemented.
+Call `esp32sim_ble_scan(emu, enabled)` to toggle the virtual active scanner
+after enabling full mode (0 = success, 1 = full mode unavailable). SCAN_REQ
+observations use `[ble-central]`; received requests use guest RX buffers and
+produce `[ble-air]` SCAN_RSP packets. Connections are not implemented.

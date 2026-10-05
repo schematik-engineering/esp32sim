@@ -1,0 +1,21 @@
+{
+  "checks": "pass",
+  "module_sha256": "701cb3d68e1015321c36a4d7b00ce29dec41ee0371f0ac875bfddc45389e6eb0",
+  "modeled_seconds": 2,
+  "packets": 162,
+  "events": 27,
+  "first_five_event_hus": [
+    516875,
+    655625,
+    788125,
+    916875,
+    1056875
+  ],
+  "interval_us": {
+    "min": 60000,
+    "max": 70000
+  },
+  "scan_responses": 81,
+  "sample": "[ble-air] hus=518515 channel=37 type=SCAN_RSP AdvA=3c:84:27:b6:a7:1e name=\"BLE Server Example\" pdu=041a1ea7b627843c1309424c4520536572766572204578616d706c65",
+  "configured": "[ble-config] SCAN_RSP name=\"BLE Server Example\" data=1309424c4520536572766572204578616d706c65"
+}

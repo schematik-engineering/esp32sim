@@ -29,6 +29,7 @@ PSRAM and register presets.
 | `--flash-at OFFSET=FILE` (repeatable) | write a file into flash at a hex offset — a data partition's contents (the panel's `demo` partition takes `energydata.json`) |
 | `--stub SYMBOL[=value]` (repeatable) | return `value` (default 0) immediately when execution reaches the function's entry; numeric function addresses require a `0x` prefix; accepts decimal, `0x` hex, `true` (1) or `false` (0); rejects invalid values |
 | `--ble full` | experimental C3 register-level BLE controller; runs legacy advertising events in modeled time; excludes `--ble` |
+| `--ble-scan` | enable a virtual active scanner in C3 full mode; sends SCAN_REQ and observes guest-configured SCAN_RSP |
 | `--ble-observe` | passive full-mode PDU log: half-microsecond timestamp, channel, type, AdvA, decoded AD and raw PDU |
 | `--ble` | opt-in virtual BLE controller on S3/C3/C6; requires the matching application `--elf` |
 | `--wifi SPEC` | attach a virtual access point the WiFi blob hears, plus a virtual network (DHCP/ARP/ICMP/DNS/SNTP; station 10.0.2.15, gateway 10.0.2.2) — for example `ssid=demo,chan=6,psk=demo-password,bssid=02:00:00:00:00:01`. `password` and `pass` alias `psk`; unknown keys and invalid values are rejected. Open and WPA2-PSK networks both join end to end, on S3, C3 and C6 (docs/wifi-plan.md, docs/esp32c3.md, docs/wifi-c6-plan.md) |
@@ -186,5 +187,9 @@ logs emitted ADV_IND, ADV_NONCONN_IND or ADV_SCAN_IND packets as `[ble-air]` lin
 `hus` is modeled time in half-microseconds. `[ble-config]` reports configured
 SCAN_RSP data separately; a passive observer cannot elicit that response. The queue
 holds the latest 1024 observations and reports dropped entries when polled.
-RX, scan requests and connections are not implemented. Register meanings and the
-300 µs silent receive window remain inferred/model choices, without hardware validation.
+`--ble-scan` sends a virtual SCAN_REQ 150 µs after each scannable advertising
+PDU, receives it through the guest-provided RX ring, and emits the configured
+SCAN_RSP after another 150 µs turnaround. The guest drains RX at event completion.
+The scanner models an error-free link with a fixed −40 dBm RSSI. Connections,
+CRC-error injection and RF propagation are not implemented. Register fields,
+RX timestamp placement and receive-window timing remain inferred/model choices.

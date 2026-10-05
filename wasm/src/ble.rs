@@ -1,4 +1,4 @@
-//! Passive observation of the C3 full link controller.
+//! Active scanning and observation of the C3 full link controller.
 use super::{Emu, MachineKind};
 
 /// Enable the full controller before boot. Returns 1 for other chips or after boot.
@@ -34,4 +34,17 @@ pub unsafe extern "C" fn esp32sim_ble_take(e: *mut Emu) -> usize {
 #[no_mangle]
 pub unsafe extern "C" fn esp32sim_ble_ptr(e: *const Emu) -> *const u8 {
     unsafe { &*e }.ble_out.as_ptr()
+}
+
+
+/// Toggle the virtual active scanner. Returns 1 unless C3 full mode is enabled.
+/// # Safety
+/// `e` must be a live emulator with exclusive access for this call.
+#[no_mangle]
+pub unsafe extern "C" fn esp32sim_ble_scan(e: *mut Emu, enabled: u32) -> u32 {
+    let e = unsafe { &mut *e };
+    let MachineKind::C3(m) = &mut e.m else { return 1 };
+    if !m.bus.periph.ble_lc.enabled() { return 1 }
+    m.bus.periph.ble_lc.scan(enabled != 0);
+    0
 }

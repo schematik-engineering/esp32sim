@@ -29,12 +29,15 @@ struct State {
     scan_response: Vec<u8>,
     dropped: u64,
     pub_log: bool,
+    scanning: bool,
     packets: VecDeque<String>,
 }
 
 impl BleLc {
     pub fn enable(&mut self) { self.state = Some(Box::default()); }
     pub fn observe(&mut self, log: bool) { if let Some(s) = &mut self.state { s.pub_log = log; } }
+    pub fn scan(&mut self, enabled: bool) { if let Some(s) = &mut self.state { s.scanning = enabled; } }
+    pub fn scanning(&self) -> bool { self.state.as_ref().is_some_and(|s| s.scanning) }
     pub fn logging(&self) -> bool { self.state.as_ref().is_some_and(|s| s.pub_log) }
     pub fn take_observation(&mut self) -> Option<String> {
         let s = self.state.as_mut()?;
@@ -50,9 +53,20 @@ struct Event {
     entry: usize,
     due: u64,
     advertising: Option<Advertising>,
+    phase: ScanPhase,
+}
+
+#[derive(Default)]
+enum ScanPhase {
+    #[default]
+    Advertising,
+    Request(u8),
+    Receive(u8),
+    Response(u8),
 }
 
 struct Advertising {
+    activity: u16,
     channels: u8,
     pdu: Vec<u8>,
     scan_response: Vec<u8>,
@@ -61,7 +75,7 @@ struct Advertising {
 impl State {
     fn raise(&mut self, source: u32) {
         self.raw |= source;
-        // Coalesce repeated pending sources; only TIMER and END exist in this model.
+        // Coalesce repeated pending sources; TIMER and END are the modeled interrupt sources.
         if !self.fifo.contains(&source) { self.fifo.push_back(source); }
     }
     fn observe(&mut self, line: String) {
@@ -126,7 +140,7 @@ impl BleLc {
             }
             next = (half(sram, tx) & 0x7fff) as u32;
             if next == 0 || next == first {
-                return Ok(Advertising { channels, pdu: advertising.ok_or("missing advertising PDU")?, scan_response });
+                return Ok(Advertising { activity: half(sram, cs + 2) & 31, channels, pdu: advertising.ok_or("missing advertising PDU")?, scan_response });
             }
         }
         Err("unterminated TX descriptor chain")
@@ -146,7 +160,7 @@ impl BleLc {
                 let target = coarse * 625 + 624u64.saturating_sub(half(sram, entry + 6) as u64);
                 let delta = (target + PERIOD - now / HALF_US_CYCLES % PERIOD) % PERIOD;
                 let due = if delta >= PERIOD / 2 { now } else { (now / HALF_US_CYCLES + delta) * HALF_US_CYCLES };
-                self.state.as_mut().unwrap().event = Some(Event { entry, due, advertising: None });
+                self.state.as_mut().unwrap().event = Some(Event { entry, due, advertising: None, phase: ScanPhase::Advertising });
             }
         }
         let Some(mut event) = self.state.as_mut().unwrap().event.take() else { return };
@@ -174,23 +188,89 @@ impl BleLc {
                 }
             }
         }
-        let s = self.state.as_mut().unwrap();
         let advertising = event.advertising.as_mut().unwrap();
-        if advertising.channels != 0 {
-            let channel = advertising.channels.trailing_zeros() as u8;
-            advertising.channels &= !(1 << channel);
-            let pdu = &advertising.pdu;
-            let address = pdu[2..8].iter().rev().map(|b| format!("{b:02x}")).collect::<Vec<_>>().join(":");
-            let kind = match pdu[0] & 15 { 0 => "ADV_IND", 2 => "ADV_NONCONN_IND", _ => "ADV_SCAN_IND" };
-            s.observe(format!("[ble-air] hus={} channel={} type={} AdvA={} {} pdu={}", event.due / HALF_US_CYCLES,
-                37 + channel, kind, address, ad_fields(&pdu[8..]), hex(pdu)));
-            // Model choice: 1M PHY airtime (preamble, access address, CRC) plus a
-            // 300 us silent receive window. No RX or SCAN_RSP is emitted without RX.
-            event.due += (8 * (pdu.len() as u64 + 8) + 300) * 2 * HALF_US_CYCLES;
-            s.event = Some(event);
-        } else {
-            self.complete(event.entry, 3, sram);
+        match event.phase {
+            ScanPhase::Request(channel) => {
+                let pdu = scan_request(&advertising.pdu);
+                self.state.as_mut().unwrap().observe(format!("[ble-central] hus={} channel={channel} type=SCAN_REQ pdu={}",
+                    event.due / HALF_US_CYCLES, hex(&pdu)));
+                event.due += airtime(pdu.len());
+                event.phase = ScanPhase::Receive(channel);
+            }
+            ScanPhase::Receive(channel) => {
+                let pdu = scan_request(&advertising.pdu);
+                if let Err(reason) = self.receive(advertising.activity, channel, event.due, &pdu, sram) {
+                    self.state.as_mut().unwrap().observe(format!("[ble-error] {reason}"));
+                    self.complete(event.entry, 4, sram);
+                    return;
+                }
+                event.due += 300 * HALF_US_CYCLES;
+                event.phase = ScanPhase::Response(channel);
+            }
+            ScanPhase::Response(channel) => {
+                self.emit(event.due, channel, &advertising.scan_response);
+                event.due += airtime(advertising.scan_response.len()) + 300 * HALF_US_CYCLES;
+                event.phase = ScanPhase::Advertising;
+            }
+            ScanPhase::Advertising if advertising.channels != 0 => {
+                let channel = advertising.channels.trailing_zeros() as u8;
+                advertising.channels &= !(1 << channel);
+                self.emit(event.due, 37 + channel, &advertising.pdu);
+                if self.scanning() && matches!(advertising.pdu[0] & 15, 0 | 6) && !advertising.scan_response.is_empty() {
+                    // Model choice: a virtual scanner responds exactly T_IFS after the PDU ends.
+                    event.due += airtime(advertising.pdu.len()) + 300 * HALF_US_CYCLES;
+                    event.phase = ScanPhase::Request(37 + channel);
+                } else {
+                    event.due += airtime(advertising.pdu.len()) + 600 * HALF_US_CYCLES;
+                }
+            }
+            ScanPhase::Advertising => {
+                self.complete(event.entry, 3, sram);
+                return;
+            }
         }
+        self.state.as_mut().unwrap().event = Some(event);
+    }
+
+    fn emit(&mut self, cycles: u64, channel: u8, pdu: &[u8]) {
+        let address = pdu[2..8].iter().rev().map(|b| format!("{b:02x}")).collect::<Vec<_>>().join(":");
+        let kind = match pdu[0] & 15 { 0 => "ADV_IND", 2 => "ADV_NONCONN_IND", 4 => "SCAN_RSP", _ => "ADV_SCAN_IND" };
+        self.state.as_mut().unwrap().observe(format!("[ble-air] hus={} channel={channel} type={kind} AdvA={address} {} pdu={}",
+            cycles / HALF_US_CYCLES, ad_fields(&pdu[8..]), hex(pdu)));
+    }
+
+    fn receive(&mut self, activity: u16, channel: u8, cycles: u64, pdu: &[u8], sram: &mut [u8]) -> Result<(), &'static str> {
+        if pdu.len() != 14 || pdu[0] & 15 != 3 || pdu[1] != 12 || !(37..=39).contains(&channel) {
+            return Err("invalid scanner PDU");
+        }
+        // Inferred head/link: r_lld_core_init 0x4203cd80 / 0x4203ccb0.
+        let logical = self.ram.read(0x24) & 0x7fff;
+        let rx = self.mapped(logical, 20, sram).ok_or("unmapped RX descriptor")?;
+        let link = half(sram, rx);
+        if link & 0x8000 != 0 { return Err("RX descriptor still owned by guest") }
+        // Inferred payload pointer: r_lld_adv_pkt_rx_send_scan_req_evt 0x4001644c..5e.
+        let buffer = half(sram, rx + 18);
+        if buffer == 0 { return Err("RX descriptor has no buffer") }
+        let data = self.mapped(buffer as u32, pdu.len() - 2, sram).ok_or("unmapped RX buffer")?;
+        sram[data..data + pdu.len() - 2].copy_from_slice(&pdu[2..]);
+        // Inferred success/status/header/activity: r_lld_adv_pkt_rx 0x400165cc..d8,
+        // r_lld_rxdesc_check 0x400203aa..ca. Only error-free host packets are supported.
+        // Inferred RSSI/channel: r_lld_con_rx_channel_assess 0x40019dbc..dc8.
+        // r_rf_rssi_convert 0x4002e026 sign-extends the low byte. Fixed -40 dBm is
+        // a virtual-radio choice, not a signal-strength measurement.
+        // Inferred timestamp: r_lld_con_rx_sync_time_update 0x4001a08e..ce / 0x4001a138..158.
+        // Timestamp at receive completion is provisional; advertising does not consume it.
+        let hus = cycles / HALF_US_CYCLES;
+        let coarse = hus / 625;
+        for (off, value) in [(2, 0), (4, half(pdu, 0)), (6, (channel as u16) << 8 | (-40i8 as u8 as u16)),
+            (8, coarse as u16), (10, (coarse >> 16) as u16 & 0xfff),
+            (12, activity << 11 | (624 - hus % 625) as u16), (14, 0)] {
+            sram[rx + off..rx + off + 2].copy_from_slice(&value.to_le_bytes());
+        }
+        // Publish ownership last; r_lld_rxdesc_free recycles buffers and clears this bit.
+        sram[rx..rx + 2].copy_from_slice(&(link | 0x8000).to_le_bytes());
+        self.ram.write(0x24, (link & 0x7fff) as u32);
+        Ok(())
     }
 
     fn complete(&mut self, entry: usize, status: u16, sram: &mut [u8]) {
@@ -202,6 +282,15 @@ impl BleLc {
         // r_ip_funcs_p+0x6c0 resolves to r_sch_prog_end_isr_hack.
         self.state.as_mut().unwrap().raise(1 << 5);
     }
+}
+
+fn airtime(len: usize) -> u64 { 8 * (len as u64 + 8) * 2 * HALF_US_CYCLES }
+
+fn scan_request(advertising: &[u8]) -> Vec<u8> {
+    // Public simulated scanner address 02:00:00:00:00:01; RxAdd follows advertiser TxAdd.
+    let mut pdu = vec![3 | ((advertising[0] & 0x40) << 1), 12, 1, 0, 0, 0, 0, 2];
+    pdu.extend_from_slice(&advertising[2..8]);
+    pdu
 }
 
 fn hex(bytes: &[u8]) -> String { bytes.iter().map(|b| format!("{b:02x}")).collect() }
@@ -431,6 +520,56 @@ mod tests {
         assert_eq!((half(&ram, crate::bus::DRAM_IN_SRAM) >> 3) & 7, 4);
     }
 
+
+    #[test]
+    fn active_scan_uses_guest_rx_ring_and_ifs_before_response() {
+        let (mut d, mut ram) = advertising_fixture();
+        let base = crate::bus::DRAM_IN_SRAM;
+        d.scan(true);
+        d.write(0x24, 0x1000);
+        for index in 0..3 {
+            let rx = base + 0x1000 + index as usize * 20;
+            ram[rx..rx + 2].copy_from_slice(&(0x1000 + ((index + 1) % 3) * 20u16).to_le_bytes());
+            ram[rx + 18..rx + 20].copy_from_slice(&(0x7800 + index * 32u16).to_le_bytes());
+        }
+        d.write(0x100, REQUEST);
+        d.service(&mut ram);
+        let mut lines = Vec::new();
+        while let Some(delta) = d.next_deadline() {
+            d.tick(delta - 1);
+            d.service(&mut ram);
+            assert!(d.take_observation().is_none(), "radio action before deadline");
+            d.tick(1);
+            d.service(&mut ram);
+            while let Some(line) = d.take_observation() {
+                if !line.starts_with("[ble-config]") { lines.push(line); }
+            }
+        }
+        assert_eq!(lines.len(), 9);
+        let time = |line: &str| -> u64 { line.split_whitespace().find_map(|v| v.strip_prefix("hus=")).unwrap().parse().unwrap() };
+        for (index, exchange) in lines.as_chunks::<3>().0.iter().enumerate() {
+            assert!(exchange[0].contains("type=ADV_IND"));
+            assert!(exchange[1].contains("type=SCAN_REQ"));
+            assert!(exchange[2].contains("type=SCAN_RSP"));
+            assert!(exchange[2].contains("name=\"xy\""));
+            assert_eq!(time(&exchange[1]) - time(&exchange[0]), airtime(11) / HALF_US_CYCLES + 300);
+            assert_eq!(time(&exchange[2]) - time(&exchange[1]), airtime(14) / HALF_US_CYCLES + 300);
+            for line in exchange { assert!(line.contains(&format!("channel={}", 37 + index))); }
+            let rx = base + 0x1000 + index * 20;
+            assert_ne!(half(&ram, rx) & 0x8000, 0);
+            assert_eq!(half(&ram, rx + 2), 0);
+            assert_eq!(half(&ram, rx + 4), 0x0c03);
+            assert_eq!(half(&ram, rx + 6), ((37 + index as u16) << 8) | 216);
+            assert_eq!(&ram[base + 0x7800 + index * 32..base + 0x780c + index * 32],
+                &[1, 0, 0, 0, 0, 2, 6, 5, 4, 3, 2, 1]);
+        }
+        assert_eq!(d.read(0x24), 0x1000);
+        assert_eq!(d.state.as_ref().unwrap().raw, 1 << 5);
+        let snapshot = ram.clone();
+        assert_eq!(d.receive(0, 37, 0, &scan_request(&[0; 8]), &mut ram), Err("RX descriptor still owned by guest"));
+        assert_eq!(snapshot, ram);
+        assert!(d.receive(0, 0, 0, &[3, 12], &mut ram).is_err());
+    }
 
     #[test]
     fn latch_is_atomic_and_wraps_in_modeled_time() {

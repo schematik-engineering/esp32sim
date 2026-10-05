@@ -1,0 +1,21 @@
+--- a/esp32c3/src/ble_lc.rs
++++ b/esp32c3/src/ble_lc.rs
+@@ -195 +195 @@
+-                self.state.as_mut().unwrap().observe(format!("[ble-central] hus={} channel={channel} type=SCAN_REQ pdu={}",
++                self.state.as_mut().unwrap().observe(format!("[ble-central] hus={} channel={channel} type=CONNECT_IND pdu={}",
+@@ -207,2 +207,3 @@
+-                event.due += 300 * HALF_US_CYCLES;
+-                event.phase = ScanPhase::Response(channel);
++                self.scan(false);
++                self.complete(event.entry, 3, sram);
++                return;
+@@ -243 +244 @@
+-        if pdu.len() != 14 || pdu[0] & 15 != 3 || pdu[1] != 12 || !(37..=39).contains(&channel) {
++        if pdu.len() != 36 || pdu[0] & 15 != 5 || pdu[1] != 34 || !(37..=39).contains(&channel) {
+@@ -291 +292 @@
+-    let mut pdu = vec![3 | ((advertising[0] & 0x40) << 1), 12, 1, 0, 0, 0, 0, 2];
++    let mut pdu = vec![5 | ((advertising[0] & 0x40) << 1), 34, 1, 0, 0, 0, 0, 2];
+@@ -292,0 +294,3 @@
++    // Probe uses CSA#1 (ChSel clear), 30ms interval, 2s timeout and all 37 data channels.
++    pdu.extend_from_slice(&[0x70, 0x83, 0x32, 0x9a, 0x56, 0x34, 0x12, 1, 0, 0,
++        24, 0, 0, 0, 200, 0, 0xff, 0xff, 0xff, 0xff, 0x1f, 5]);

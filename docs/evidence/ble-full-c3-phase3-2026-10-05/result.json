@@ -1,0 +1,61 @@
+{
+  "checks": "pass",
+  "modeled_seconds": 2,
+  "events": 27,
+  "advertisements": 81,
+  "scan_requests": 81,
+  "scan_responses": 81,
+  "rx_free_trace_entries": 162,
+  "trace_note": "ROM veneer and body can both be counted",
+  "first_five_event_hus": [
+    516875,
+    650625,
+    789375,
+    924375,
+    1058125
+  ],
+  "interval_us": {
+    "min": 60000.0,
+    "max": 70000.0,
+    "median": 65000.0
+  },
+  "scan_req_ifs_us": 150,
+  "scan_rsp_ifs_us": 150,
+  "sample": "[ble-air] hus=518515 channel=37 type=SCAN_RSP AdvA=60:55:f9:00:11:24 name=\"BLE Server Example\" pdu=041a241100f955601309424c4520536572766572204578616d706c65",
+  "stop": "[emu] stop: Halted \u2014 320000000 insns in 0.3s wall = 1163.4 Minsn/s; emulated 2.000s (320000000 cycles); 0 exceptions, 2153 interrupts",
+  "inputs": {
+    "rom": {
+      "sha256": "19ac22e08707df926fb0cf4c54795d4067b983fae8635f396ded173a6d78fc3c",
+      "bytes": 556332
+    },
+    "bootloader": {
+      "sha256": "d4a87d86e17457c5d9e6d9b6c83f1af5ab0122a58545aaab392af1135a01f00a",
+      "bytes": 19536
+    },
+    "ptable": {
+      "sha256": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1",
+      "bytes": 3072
+    },
+    "app": {
+      "sha256": "7da24e7446aa4f16344accc436f5d187e2057819582f2b37226c437cde8f377a",
+      "bytes": 606320
+    },
+    "elf": {
+      "sha256": "862b7e1b1a58ced342091aa37e59efef6ba269ba1861a03302fde9b4616996a0",
+      "bytes": 11045524
+    }
+  },
+  "binary_sha256": "e72348f2f58ce480d31298362ca90b7428dbbb9985f8ee8a8c6228ac74c1d4ba",
+  "captures": {
+    "stdout": {
+      "original_sha256": "032b75a4288b822e9722d8f7e5a9a3184ebb28e01cf96eab2d3a471b1893467f",
+      "sanitized_sha256": "032b75a4288b822e9722d8f7e5a9a3184ebb28e01cf96eab2d3a471b1893467f",
+      "bytes": 316
+    },
+    "stderr": {
+      "original_sha256": "660012168783d449b28d47c00f0757abcafe7df2cf52c2bc432d2893db817289",
+      "sanitized_sha256": "660012168783d449b28d47c00f0757abcafe7df2cf52c2bc432d2893db817289",
+      "bytes": 54145
+    }
+  }
+}

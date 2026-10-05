@@ -1,0 +1,129 @@
+{
+  "base": "5dec562ad59d398b27fdd1ce3d85aa8e7efc6755",
+  "main": "29dd4623307853d8c036b65c5bb3249fa131758c",
+  "environment": {
+    "system": "Darwin",
+    "architecture": "arm64",
+    "release": "27.0.0",
+    "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+    "node": "v22.23.1",
+    "TMPDIR": "<WORKTREE>/.ble3"
+  },
+  "checks": [
+    {
+      "check": "clippy-native",
+      "command": "cargo +1.99.0 clippy --workspace --all-targets -- -D warnings",
+      "exit": 0,
+      "wall_seconds": 0.08,
+      "log": {
+        "sha256": "6d77f64dfc8c5325b90fdbe05d8be367bdd578bcccec24f275c5ffee7d03dd6e",
+        "bytes": 72
+      }
+    },
+    {
+      "check": "clippy-wasm",
+      "command": "cargo +1.99.0 clippy --release --target wasm32-unknown-unknown -p esp32sim-wasm --features jit-tests -- -D warnings",
+      "exit": 0,
+      "wall_seconds": 1.67,
+      "log": {
+        "sha256": "923920e389c9f9b9a05b3e6d1342988165c066dde50bc227ce415e090805db8f",
+        "bytes": 598
+      }
+    },
+    {
+      "check": "tests-full",
+      "command": "cargo +1.99.0 test --release --workspace -- --include-ignored --skip external_",
+      "exit": 0,
+      "wall_seconds": 68.77,
+      "log": {
+        "sha256": "bb7edd8139c8a41a0629b749a01c6beb687628b23d86c22f761ae3d7b03c3f8d",
+        "bytes": 55405
+      },
+      "test_totals": {
+        "passed": 604,
+        "failed": 0,
+        "ignored": 0
+      },
+      "environment": {
+        "ESP32SIM_ROM_DIR": "<WORKTREE>/web/wasm/fw"
+      }
+    },
+    {
+      "check": "tests-plain",
+      "command": "cargo +1.99.0 test --release --workspace",
+      "exit": 0,
+      "wall_seconds": 6.45,
+      "log": {
+        "sha256": "6371d6f83874913d8c2a43b9d9a70b0dbb19948eebfbaf355fc21b67039483f5",
+        "bytes": 58252
+      },
+      "test_totals": {
+        "passed": 589,
+        "failed": 0,
+        "ignored": 33
+      }
+    },
+    {
+      "check": "specimen",
+      "command": "cargo +1.99.0 test --release -p esp32sim --test ble external_full_ble_server -- --ignored",
+      "exit": 0,
+      "wall_seconds": 20.31,
+      "log": {
+        "sha256": "83344f0ee3f2c88423316b16da3c822ecf8ab70fef5b4108576f794fdf372f26",
+        "bytes": 576
+      },
+      "test_totals": {
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "environment": {
+        "ESP32SIM_ROM_DIR": "<WORKTREE>/web/wasm/fw",
+        "ESP32SIM_BLE_SERVER_DIR": "<BUILD>"
+      }
+    },
+    {
+      "check": "wasm-build",
+      "command": "tools/wasm-build.sh",
+      "exit": 0,
+      "wall_seconds": 13.13,
+      "log": {
+        "sha256": "6f1988c0cf54b36faffa110a6b5e9f9219829ed74b1f8f9d0f774feab8cbb2e4",
+        "bytes": 667
+      },
+      "environment": {
+        "RUSTUP_TOOLCHAIN": "1.99.0"
+      }
+    },
+    {
+      "check": "wasm-demos",
+      "command": "node tools/wasm-test.mjs hello c3-hello c6-hello c6-energy-scan c6-contiki c6-contiki-net c6-rpl-net panel",
+      "exit": 0,
+      "wall_seconds": 45.34,
+      "log": {
+        "sha256": "c2417a828148fc4438667d0945d5099763ba15d83ca201102c29188431a3ee24",
+        "bytes": 970
+      }
+    },
+    {
+      "check": "privacy",
+      "command": "node tools/check-evidence-privacy.mjs",
+      "exit": 0,
+      "wall_seconds": 0.45,
+      "log": {
+        "sha256": "384c31e04143c426a41991ee4036b546edfecc38870359d860a8c82da41ed39e",
+        "bytes": 130
+      },
+      "scope": "final staged evidence, including phase 3"
+    }
+  ],
+  "source_sha256": {
+    "esp32c3/src/ble_lc.rs": "55a97f952e11450e32797918a13ae50f02d3b2be62d42549607dac673bf92cb8",
+    "esp32c3/src/soc.rs": "9c978dcfdb84aa6882c40708155056c054ea65e0a8b76e5b5cad9824c46c405d",
+    "cli/src/lib.rs": "648ff22eaff3831bbf2603dd3b12c17f30c6517d827eeee2c0cb9b8b6a085b64",
+    "cli/tests/ble.rs": "0026816ee2e317da2ab36a2f96901cd1e19d7442b0b2a0892bbfa0b82bde49fb",
+    "wasm/src/ble.rs": "b907209d3f4e2c01127737787fb7cf60452e54935a25e4830c613dab33f38cbb"
+  },
+  "goldens": "unchanged; UPDATE_GOLDENS not used",
+  "jit": "unchanged; dedicated JIT test not required"
+}
