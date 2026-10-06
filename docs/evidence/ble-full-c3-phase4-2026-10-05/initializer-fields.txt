@@ -1,0 +1,63 @@
+rom: 40002cf2..40002d32
+40002cf2:	0a840413          	addi	s0,s0,168 # 3fcdf0a8 <g_initor_evt_end_abort>
+40002cf6:	09c48993          	addi	s3,s1,156 # 3fcdf09c <g_direct_adv_use_peer_rpa_addr>
+40002cfa:	40059937          	lui	s2,0x40059
+40002cfe:	00e7de63          	bge	a5,a4,40002d1a <btdm_controller_rom_data_init+0x84>
+40002d02:	3ff1a537          	lui	a0,0x3ff1a
+40002d06:	413406b3          	sub	a3,s0,s3
+40002d0a:	1fc90613          	addi	a2,s2,508 # 400591fc <_data_start_btdm_rom>
+40002d0e:	09c48593          	addi	a1,s1,156
+40002d12:	3d850513          	addi	a0,a0,984 # 3ff1a3d8 <CSWTCH.72+0xac>
+40002d16:	1bf450ef          	jal	400486d4 <ets_printf>
+40002d1a:	41340633          	sub	a2,s0,s3
+40002d1e:	4462                	lw	s0,24(sp)
+40002d20:	1fc92583          	lw	a1,508(s2)
+40002d24:	40f2                	lw	ra,28(sp)
+40002d26:	4942                	lw	s2,16(sp)
+40002d28:	49b2                	lw	s3,12(sp)
+40002d2a:	09c48513          	addi	a0,s1,156
+40002d2e:	44d2                	lw	s1,20(sp)
+40002d30:	6105                	addi	sp,sp,32
+40002d32:	2895506f          	j	400587ba <memcpy>
+rom: 40001544..4000154c
+40001544:	2e02f06f          	j	40030824 <r_sch_prog_rx_isr>
+40001548:	44c2f06f          	j	40030994 <r_sch_prog_skip_isr>
+4000154c:	3902f06f          	j	400308dc <r_sch_prog_tx_isr>
+rom: 4002de12..4002de58
+4002de12:	1141                	addi	sp,sp,-16
+4002de14:	c422                	sw	s0,8(sp)
+4002de16:	3fce0437          	lui	s0,0x3fce0
+4002de1a:	f8842783          	lw	a5,-120(s0) # 3fcdff88 <r_modules_funcs_p>
+4002de1e:	c04a                	sw	s2,0(sp)
+4002de20:	892a                	mv	s2,a0
+4002de22:	0c87a783          	lw	a5,200(a5)
+4002de26:	6505                	lui	a0,0x1
+4002de28:	c226                	sw	s1,4(sp)
+4002de2a:	c606                	sw	ra,12(sp)
+4002de2c:	84ae                	mv	s1,a1
+4002de2e:	4691                	li	a3,4
+4002de30:	0ff00613          	li	a2,255
+4002de34:	4591                	li	a1,4
+4002de36:	90150513          	addi	a0,a0,-1791 # 901 <RvExcFrameSize+0x871>
+4002de3a:	9782                	jalr	a5
+4002de3c:	cd19                	beqz	a0,4002de5a <r_misc_free_em_buf_in_isr+0x48>
+4002de3e:	01250023          	sb	s2,0(a0)
+4002de42:	f8842783          	lw	a5,-120(s0)
+4002de46:	4422                	lw	s0,8(sp)
+4002de48:	00951123          	sh	s1,2(a0)
+4002de4c:	40b2                	lw	ra,12(sp)
+4002de4e:	4492                	lw	s1,4(sp)
+4002de50:	4902                	lw	s2,0(sp)
+4002de52:	0e07a303          	lw	t1,224(a5)
+4002de56:	0141                	addi	sp,sp,16
+4002de58:	8302                	jr	t1
+app: 4203a5de..4203a5fc
+4203a5de:	3fce07b7          	lui	a5,0x3fce0
+4203a5e2:	f807a783          	lw	a5,-128(a5) # 3fcdff80 <r_plf_funcs_p>
+4203a5e6:	00645583          	lhu	a1,6(s0)
+4203a5ea:	00445503          	lhu	a0,4(s0)
+4203a5ee:	4b9c                	lw	a5,16(a5)
+4203a5f0:	3c07a637          	lui	a2,0x3c07a
+4203a5f4:	0b800693          	li	a3,184
+4203a5f8:	7fc60613          	addi	a2,a2,2044 # 3c07a7fc <_flash_rodata_start+0xa6dc>
+4203a5fc:	9782                	jalr	a5

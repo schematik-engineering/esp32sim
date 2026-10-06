@@ -1,0 +1,66 @@
+{
+  "checks": "pass",
+  "modeled_seconds": 3,
+  "connection_events": 92,
+  "att_read": "[ble-att] value=48656c6c6f20576f726c642073617973204e65696c text=\"Hello World says Neil\"",
+  "first_event": "[ble-connection] event=0 window_hus=535984 anchor_hus=536067 channel=5",
+  "last_event": "[ble-connection] event=91 window_hus=5995943 anchor_hus=5996067 channel=16",
+  "protocol_sample": [
+    "[ble-central] hus=536067 channel=5 type=DATA pdu=03060c09ffff0100",
+    "[ble-air] hus=536623 channel=5 type=DATA pdu=17060c09e5021600",
+    "[ble-central] hus=537179 channel=5 type=DATA pdu=0f09080000000000000000",
+    "[ble-air] hus=537783 channel=5 type=DATA pdu=1b090efff9010000000000",
+    "[ble-central] hus=538387 channel=5 type=DATA pdu=0309090000000000000000",
+    "[ble-air] hus=538991 channel=5 type=DATA pdu=17090900f9010000000000",
+    "[ble-central] hus=539595 channel=5 type=DATA pdu=0e1b17000400060100ffff00284b9131c3c9c5cc8f9e45b51f01c2af4f",
+    "[ble-air] hus=540487 channel=5 type=DATA pdu=1a0905000400070e001000",
+    "[ble-central] hus=541091 channel=5 type=DATA pdu=020b07000400080e0010000328",
+    "[ble-air] hus=541727 channel=5 type=DATA pdu=0500",
+    "[ble-central] hus=596067 channel=10 type=DATA pdu=0d00",
+    "[ble-air] hus=596527 channel=10 type=DATA pdu=1a1b1700040009150f000a1000a8261b3607eaf5b78846e1363e48b5be",
+    "[ble-central] hus=597419 channel=10 type=DATA pdu=0207030004000a1000",
+    "[ble-air] hus=597991 channel=10 type=DATA pdu=0500",
+    "[ble-central] hus=656067 channel=15 type=DATA pdu=0d00",
+    "[ble-air] hus=656527 channel=15 type=DATA pdu=1a1a160004000b48656c6c6f20576f726c642073617973204e65696c",
+    "[ble-central] hus=657403 channel=15 type=DATA pdu=0100",
+    "[ble-air] hus=657863 channel=15 type=DATA pdu=0500",
+    "[ble-central] hus=716067 channel=20 type=DATA pdu=0d00",
+    "[ble-air] hus=716527 channel=20 type=DATA pdu=0900"
+  ],
+  "stop": "[emu] stop: Halted \u2014 480000000 insns in 0.4s wall = 1144.2 Minsn/s; emulated 3.000s (480000000 cycles); 0 exceptions, 3638 interrupts",
+  "inputs": {
+    "rom": {
+      "sha256": "19ac22e08707df926fb0cf4c54795d4067b983fae8635f396ded173a6d78fc3c",
+      "bytes": 556332
+    },
+    "bootloader": {
+      "sha256": "d4a87d86e17457c5d9e6d9b6c83f1af5ab0122a58545aaab392af1135a01f00a",
+      "bytes": 19536
+    },
+    "ptable": {
+      "sha256": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1",
+      "bytes": 3072
+    },
+    "app": {
+      "sha256": "7da24e7446aa4f16344accc436f5d187e2057819582f2b37226c437cde8f377a",
+      "bytes": 606320
+    },
+    "elf": {
+      "sha256": "862b7e1b1a58ced342091aa37e59efef6ba269ba1861a03302fde9b4616996a0",
+      "bytes": 11045524
+    }
+  },
+  "binary_sha256": "8313628abd5c63beb838d714f0f1c51c2d62eecc6f44d2b85cd5d38334328391",
+  "captures": {
+    "stdout": {
+      "original_sha256": "032b75a4288b822e9722d8f7e5a9a3184ebb28e01cf96eab2d3a471b1893467f",
+      "sanitized_sha256": "032b75a4288b822e9722d8f7e5a9a3184ebb28e01cf96eab2d3a471b1893467f",
+      "bytes": 316
+    },
+    "stderr": {
+      "original_sha256": "d6cc60c2e14ea45769f83616668435e6859b9dbb72f183d0866cb1124bd80c88",
+      "sanitized_sha256": "d6cc60c2e14ea45769f83616668435e6859b9dbb72f183d0866cb1124bd80c88",
+      "bytes": 19765
+    }
+  }
+}

@@ -151,7 +151,7 @@ fn external_full_ble_server_connects_and_times_out() {
     let mut command = Command::new(env!("CARGO_BIN_EXE_esp32sim-c3"));
     command.args(["--boot", "rom", "--rom"]).arg(rom).args(["--ble", "full", "--ble-connect",
         "--ble-stop-after-ms", "2500", "--ble-observe", "--flash-mb", "4", "--max-seconds", "6", "--no-dump",
-        "--trace-fn", "r_llc_disconnect_end"]);
+        "--trace-fn", "r_llc_disconnect_end", "--trace-fn", "r_lld_con_tx_isr"]);
     for (flag, suffix) in [("--bootloader", "bootloader.bin"), ("--ptable", "partitions.bin"), ("--app", "bin"), ("--elf", "elf")] {
         let file = build.join(format!("Server.ino.{suffix}"));
         assert!(file.is_file(), "missing Arduino Server input {}", file.display());
@@ -163,6 +163,7 @@ fn external_full_ble_server_connects_and_times_out() {
     assert!(result.status.success(), "{trace}");
     assert!(!console.contains("assert") && !trace.contains("[ble-error]"), "{console}\n{trace}");
     assert!(trace.contains("0 exceptions"), "{trace}");
+    assert!(trace.contains("r_lld_con_tx_isr(a0=0x1"), "{trace}");
     let number = |line: &str, key: &str| -> u64 {
         line.split_whitespace().find_map(|s| s.strip_prefix(key)).unwrap().parse().unwrap()
     };
@@ -200,4 +201,32 @@ fn external_full_ble_server_connects_and_times_out() {
     let resumed = trace.lines().find(|l| l.contains("[ble-state] disconnected advertising_resumed")).unwrap();
     assert!((3_900_000..=4_200_000).contains(&(number(resumed, "hus=") - last_tx)));
     assert!(trace[trace.find(resumed).unwrap()..].contains("type=ADV_IND"));
+}
+
+#[test]
+#[ignore = "set ESP32SIM_BLE_SERVER_DIR to the unchanged Arduino 3.3.11 C3 Server build and ESP32SIM_ROM_DIR to the ROM directory"]
+fn external_full_ble_server_reads_gatt_by_uuid() {
+    let build = PathBuf::from(std::env::var_os("ESP32SIM_BLE_SERVER_DIR").expect("set ESP32SIM_BLE_SERVER_DIR to the Arduino C3 Server build"));
+    let rom = PathBuf::from(std::env::var_os("ESP32SIM_ROM_DIR").expect("set ESP32SIM_ROM_DIR to the C3 rev3 ROM directory")).join("esp32c3_rev3_rom.elf");
+    assert!(rom.is_file(), "missing C3 rev3 ROM input");
+    let mut command = Command::new(env!("CARGO_BIN_EXE_esp32sim-c3"));
+    command.args(["--boot", "rom", "--rom"]).arg(rom).args(["--ble", "full", "--ble-connect",
+        "--ble-read-uuid", "4fafc201-1fb5-459e-8fcc-c5c9c331914b", "beb5483e-36e1-4688-b7f5-ea07361b26a8", "--ble-observe", "--flash-mb", "4", "--max-seconds", "3", "--no-dump",
+        "--trace-fn", "r_llc_disconnect_end", "--trace-fn", "r_lld_con_tx_isr"]);
+    for (flag, suffix) in [("--bootloader", "bootloader.bin"), ("--ptable", "partitions.bin"), ("--app", "bin"), ("--elf", "elf")] {
+        let file = build.join(format!("Server.ino.{suffix}"));
+        assert!(file.is_file(), "missing Arduino Server input {}", file.display());
+        command.arg(flag).arg(file);
+    }
+    let result = command.output().expect("run C3 Server specimen");
+    let console = String::from_utf8_lossy(&result.stdout);
+    let trace = String::from_utf8_lossy(&result.stderr);
+    assert!(result.status.success(), "{trace}");
+    assert!(!console.contains("assert") && !trace.contains("[ble-error]"), "{console}\n{trace}");
+    assert!(trace.contains("0 exceptions"), "{trace}");
+    assert!(trace.contains("[ble-att] value=48656c6c6f20576f726c642073617973204e65696c text=\"Hello World says Neil\""), "{trace}");
+    assert!(!trace.contains("[ble-state] disconnected"), "{trace}");
+    // Assert the packets came from the guest's ATT service and declaration responses.
+    assert!(trace.contains("05000400070e001000"), "{trace}");
+    assert!(trace.contains("1700040009150f000a1000a8261b3607eaf5b78846e1363e48b5be"), "{trace}");
 }

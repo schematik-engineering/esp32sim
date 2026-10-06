@@ -1,0 +1,64 @@
+[
+  {
+    "check": "clippy-native",
+    "command": "cargo +1.99.0 clippy --workspace --all-targets -- -D warnings",
+    "exit": 0,
+    "seconds": 0.7911974999988161
+  },
+  {
+    "check": "clippy-wasm",
+    "command": "cargo +1.99.0 clippy --release --target wasm32-unknown-unknown -p esp32sim-wasm --features jit-tests -- -D warnings",
+    "exit": 0,
+    "seconds": 0.880005875000279
+  },
+  {
+    "check": "test-ci",
+    "command": "cargo +1.99.0 test --release --workspace -- --include-ignored --skip external_",
+    "exit": 0,
+    "seconds": 52.601089291998505,
+    "passed_tests": 609
+  },
+  {
+    "check": "test-plain",
+    "command": "cargo +1.99.0 test --release --workspace",
+    "exit": 0,
+    "seconds": 5.39234716700048,
+    "passed_tests": 594
+  },
+  {
+    "check": "wasm-build",
+    "command": "tools/wasm-build.sh",
+    "exit": 0,
+    "seconds": 9.285120082999128
+  },
+  {
+    "check": "wasm-test",
+    "command": "node tools/wasm-test.mjs hello c3-hello c6-hello c6-energy-scan c6-contiki c6-contiki-net c6-rpl-net panel",
+    "exit": 0,
+    "seconds": 36.06502937500045
+  },
+  {
+    "check": "privacy",
+    "command": "node tools/check-evidence-privacy.mjs",
+    "exit": 0,
+    "seconds": 0.37222891700002947
+  },
+  {
+    "check": "bins",
+    "command": "cargo +1.99.0 build --release --bins",
+    "exit": 0,
+    "seconds": 12.89472654200108
+  },
+  {
+    "check": "baseline",
+    "command": "cargo +1.99.0 build --release --bins --manifest-path .ble4/main/Cargo.toml",
+    "exit": 0,
+    "seconds": 0.029258083000968327
+  },
+  {
+    "check": "external Server",
+    "command": "ESP32SIM_BLE_SERVER_DIR=<BUILD> ESP32SIM_ROM_DIR=<ROM_DIR> cargo +1.99.0 test --release -p esp32sim --test ble external_full_ble_server -- --ignored",
+    "exit": 0,
+    "passed_tests": 4
+  }
+]

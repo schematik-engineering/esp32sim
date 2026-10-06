@@ -2,6 +2,7 @@
 //! All register and descriptor fields below are inferred, not public-header definitions or silicon validated.
 //! See docs/evidence/ble-full-c3-2026-10-05/polls-disassembly.txt and the phase-1 through phase-4 receipts.
 use std::collections::VecDeque;
+use esp_soc::ble::peer::{Command, ReadStep, UuidRead};
 use emu_core::ClockDomain;
 use esp_periph::{Device, RegRam, WriteEffect};
 
@@ -31,6 +32,7 @@ struct State {
     pub_log: bool,
     scanning: bool,
     connecting: bool,
+    read_request: Option<UuidRead>,
     stop_after_ms: Option<u32>,
     connection: Option<Connection>,
     packets: VecDeque<String>,
@@ -41,6 +43,21 @@ impl BleLc {
     pub fn observe(&mut self, log: bool) { if let Some(s) = &mut self.state { s.pub_log = log; } }
     pub fn scan(&mut self, enabled: bool) { if let Some(s) = &mut self.state { s.scanning = enabled; } }
     pub fn connect(&mut self, stop_after_ms: Option<u32>) { if let Some(s) = &mut self.state { s.connecting = true; s.stop_after_ms = stop_after_ms; } }
+    pub fn command(&mut self, command: &str) -> Result<(), String> {
+        let command: Command = command.parse()?;
+        let s = self.state.as_mut().ok_or("full BLE is disabled")?;
+        match command {
+            Command::Connect => s.connecting = true,
+            Command::ReadUuid(service, characteristic) => {
+                if s.read_request.is_some() || s.connection.as_ref().is_some_and(|c| c.gatt.is_some()) {
+                    return Err("a BLE read is already pending".into());
+                }
+                s.read_request = Some(UuidRead::new(service, characteristic));
+            }
+            _ => return Err("full BLE supports connect and read-uuid SERVICE CHARACTERISTIC".into()),
+        }
+        Ok(())
+    }
     pub fn scanning(&self) -> bool { self.state.as_ref().is_some_and(|s| s.scanning) }
     pub fn logging(&self) -> bool { self.state.as_ref().is_some_and(|s| s.pub_log) }
     pub fn take_observation(&mut self) -> Option<String> {
@@ -316,6 +333,15 @@ impl BleLc {
         let activity = half(sram, cs + 2) & 31;
         match event.connection_phase {
             0 => {
+                if let Some(read) = self.state.as_mut().unwrap().read_request.take() {
+                    if c.features {
+                        c.att(&read.request());
+                    } else {
+                        // Virtual central: Bluetooth 5.0, no optional LL features.
+                        c.outgoing.extend([vec![3,6,0x0c,9,0xff,0xff,1,0], vec![3,9,8,0,0,0,0,0,0,0,0]]);
+                    }
+                    c.gatt = Some(read);
+                }
                 // Inferred programmed unmapped channel: r_lld_con_evt_start_cbk 0x4001ae4e..aeaa.
                 let control = half(sram, cs + 22);
                 if control & (1 << 14) != 0 { return Err("CSA#2 not supported") }
@@ -354,14 +380,16 @@ impl BleLc {
                     self.state.as_mut().unwrap().connection = Some(c);
                     return Ok(false);
                 }
-                let pdu = [c.central.header(1), 0];
+                let mut pdu = c.outgoing.front().cloned().unwrap_or_else(|| vec![1,0]);
+                pdu[0] = c.central.header(pdu[0]);
                 self.state.as_mut().unwrap().observe(format!("[ble-central] hus={} channel={} type=DATA pdu={}", event.due / HALF_US_CYCLES, c.channel, hex(&pdu)));
                 c.central.sent = true;
-                event.due += airtime(2);
+                event.due += airtime(pdu.len());
                 event.connection_phase = 2;
             }
             2 => {
-                let pdu = [c.central.header(1), 0];
+                let mut pdu = c.outgoing.front().cloned().unwrap_or_else(|| vec![1,0]);
+                pdu[0] = c.central.header(pdu[0]);
                 // Inferred TX ownership/link/header: r_lld_con_tx 0x4001a410..16,
                 // 0x4001a570..58e; r_lld_con_tx_prog 0x4001ac2e..66.
                 if c.peripheral.acknowledge(pdu[0]) {
@@ -370,12 +398,15 @@ impl BleLc {
                             let next = half(sram, tx) & 0x7fff;
                             put_half(sram, tx, next | 0x8000);
                             put_half(sram, cs + 28, next);
-                            self.state.as_mut().unwrap().raise(1 << 6);
+                            // Inferred TX IRQ bit 1: r_rwble_isr_hack 0x40386ad2..ec.
+                            // Live ip+0x6d4 -> 0x4000154c -> r_sch_prog_tx_isr.
+                            // Bit 6 routes ip+0x6d0 to r_sch_prog_skip_isr instead.
+                            self.state.as_mut().unwrap().raise(1 << 1);
                         }
                     }
                 }
                 if c.peripheral.accept(pdu[0]) {
-                    self.receive(activity, c.channel, event.due - airtime(2), &pdu, sram)?;
+                    self.receive(activity, c.channel, event.due - airtime(pdu.len()), &pdu, sram)?;
                     // r_rwble_isr_hack 0x40386aee..b08 -> r_sch_prog_rx_isr,
                     // then r_lld_con_rx_isr. ET must already be active (state 2).
                     self.state.as_mut().unwrap().raise(1 << 2);
@@ -406,8 +437,41 @@ impl BleLc {
                 pdu[0] = c.peripheral.header(pdu[0]);
                 c.peripheral.sent = true;
                 self.state.as_mut().unwrap().observe(format!("[ble-air] hus={} channel={} type=DATA pdu={}", event.due / HALF_US_CYCLES, c.channel, hex(&pdu)));
-                c.central.acknowledge(pdu[0]);
-                c.central.accept(pdu[0]);
+                if c.central.acknowledge(pdu[0]) { c.outgoing.pop_front(); }
+                if c.central.accept(pdu[0]) {
+                    match pdu[0] & 3 {
+                        3 if pdu.len() > 2 => match pdu[2] {
+                            0x0e | 8 => c.outgoing.push_back(vec![3,9,9,0,0,0,0,0,0,0,0]),
+                            9 if !c.features => {
+                                c.features = true;
+                                if let Some(read) = &c.gatt { let request = read.request(); c.att(&request); }
+                            }
+                            9 | 0x0c => {},
+                            _ => return Err("unsupported LL control procedure"),
+                        },
+                        2 => {
+                            // ponytail: default ATT MTU 23 fits one 27-byte LL PDU.
+                            // Add L2CAP reassembly before supporting larger negotiated MTUs.
+                            if pdu.len() < 6 || half(&pdu, 2) as usize + 6 != pdu.len() || half(&pdu, 4) != 4 {
+                                return Err("unsupported L2CAP packet");
+                            }
+                            let read = c.gatt.as_mut().ok_or("unsolicited ATT response")?;
+                            match read.receive(&pdu[6..]) {
+                                Ok(ReadStep::Request(request)) => c.att(&request),
+                                Ok(ReadStep::Value(value)) => {
+                                    self.state.as_mut().unwrap().observe(format!("[ble-att] value={} text={:?}", hex(&value), String::from_utf8_lossy(&value)));
+                                    c.gatt = None;
+                                }
+                                Err(error) => {
+                                    self.state.as_mut().unwrap().observe(format!("[ble-att] {error}"));
+                                    c.gatt = None;
+                                }
+                            }
+                        }
+                        1 if pdu.len() == 2 => {},
+                        _ => return Err("unsupported LL data fragment"),
+                    }
+                }
                 event.due += airtime(pdu.len());
                 if pdu[0] & 16 != 0 && event.due + 300 * HALF_US_CYCLES + airtime(2) < c.anchor + 60_000 * HALF_US_CYCLES {
                     event.due += 300 * HALF_US_CYCLES;
@@ -449,6 +513,16 @@ struct Connection {
     peripheral: Sequence,
     pending: Option<TxPacket>,
     stopped: bool,
+    outgoing: VecDeque<Vec<u8>>,
+    features: bool,
+    gatt: Option<UuidRead>,
+}
+impl Connection {
+    fn att(&mut self, pdu: &[u8]) {
+        let mut packet = vec![2, (pdu.len() + 4) as u8, pdu.len() as u8, 0, 4, 0];
+        packet.extend_from_slice(pdu);
+        self.outgoing.push_back(packet);
+    }
 }
 struct TxPacket {
     pdu: Vec<u8>,
@@ -862,7 +936,7 @@ mod tests {
         assert_ne!(half(&ram, base + 0x1400) & 0x8000, 0);
         assert_eq!(half(&ram, base + 0x41c), 0x140e);
         assert!(d.state.as_ref().unwrap().connection.as_ref().unwrap().pending.is_none());
-        assert_ne!(d.state.as_ref().unwrap().raw & (1 << 6), 0);
+        assert_ne!(d.state.as_ref().unwrap().raw & (1 << 1), 0);
     }
 
     #[test]

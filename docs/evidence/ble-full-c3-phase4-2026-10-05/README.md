@@ -45,7 +45,7 @@ and writers. Earlier receipts describe exchange mappings and descriptor layouts.
 | CS +28 | Connection TX pointer, initialized at 0x4001bfd2..bff8. |
 | TX +0 bit15/link, +2 header, +4 payload | `r_lld_con_tx`, 0x4001a410..16 / 0x4001a570..58e, and `r_lld_con_tx_prog`, 0x4001ac2e..66. Cache the pending PDU until peer NESN acknowledges it; then set completion ownership and advance CS+28 through the link. |
 | RX status/header/buffer | Same 20-byte ring as phase 3, with data-channel numbers and the corrected sync timestamp. Error-free packets only. No fabricated CRC check. |
-| IRQ RX bit2, TX bit6 | App `r_rwble_isr_hack`, 0x40386aee..b48, routes to `r_sch_prog_rx_isr` / `r_sch_prog_tx_isr`, then the connection callbacks. RX is published at packet completion; TX completion waits for ACK. |
+| IRQ RX bit2, TX bit1 | App `r_rwble_isr_hack`, 0x40386ad2..b08, routes to `r_sch_prog_rx_isr` / `r_sch_prog_tx_isr`, then the connection callbacks. RX is published at packet completion; TX completion waits for ACK. |
 | ET state 2, state 3 / END bit5 | Mark active before RX IRQ; finish after the exchange. Existing `r_sch_prog_end_isr_handler` completion contract. Missing central packets produce no RX IRQ. |
 
 SN/NESN are independently tracked for central and peripheral. Duplicate sequence
@@ -105,3 +105,52 @@ completion side effects. Step 3 (LL procedures and ATT), the remaining step-4
 CLI/WASM surface and step-5 GATT acceptance are not claimed by this commit.
 
 Final CPU result: C3 median user 2.402440 → 2.407438 s (+0.208%); S3 +0.260%, C6 +0.309%. Work/output match in every sample. The earlier complete run, retained in `cpu-negative.json`, measured C3 +2.053% with 2.47–4.43 s samples and failed the limit. The final run has no concurrent build/test jobs; neither run excludes samples.
+
+## Step 3: LL exchange and ATT read
+
+The step-3 implementation is the later commit containing `gatt-result.json`.
+It adds `--ble-read-uuid SERVICE_UUID CHARACTERISTIC_UUID` alongside
+`--ble full --ble-connect --ble-observe`. The central exchanges VERSION_IND,
+FEATURE_REQ / FEATURE_RSP and answers the guest's SLAVE_FEATURE_REQ. It
+advertises no optional LL features. ATT uses L2CAP CID 4 and default MTU 23.
+Find By Type Value locates the configured primary service at 0x000e..0x0010;
+Read By Type finds the readable characteristic at value handle 0x0010.
+The guest returns **Hello World says Neil** in ATT Read Response.
+
+The `read-uuid` parser and ATT discovery/read state machine are shared with
+the existing HCI peer. No HCI interception is used in full mode. The current
+radio central supports unfragmented default-MTU ATT; larger MTUs, encryption,
+PHY updates and connection-parameter updates remain unsupported.
+
+### Corrections discovered by payload traffic
+
+The original step-2 interrupt inference was wrong: **TX completion is bit 1**.
+The live `r_ip_funcs_p+0x6d4` points at 0x4000154c, a veneer for
+`r_sch_prog_tx_isr`. Bit 6 uses +0x6d0 / 0x40001548 and invokes
+`r_sch_prog_skip_isr`. The initial empty-packet test passed without proving
+guest TX completion; the strengthened test now requires
+`r_lld_con_tx_isr(activity=1)`. No history is rewritten.
+
+Payload ACKs also exposed a missing ROM image copy. Before the loader fix, the
+probe reached the requested ATT value but each response ACK produced
+`BLE assert ke_task.c 184, param 00000901 00000004`.
+`r_ble_util_buf_acl_tx_free_in_isr` passed buffers 0x9c00, 0xa000 and 0xa400
+to `r_misc_free_em_buf_in_isr` (0x4002de12), which allocated message 0x0901
+for task 4. App `r_ke_task_schedule_hack`, 0x4203a5de..5fc, found no handler.
+
+The ROM ELF's `.data_btdm` contains the handler entry at 0x3fcdf0a0:
+`00000901 4002ddb0`. It was present before boot and zero after controller init.
+`btdm_controller_rom_data_init`, 0x40002d1a..32, copies twelve bytes from
+the pointer at `_data_start_btdm_rom` (0x400591fc, pointing to 0x4005966c).
+That ROM-side image is absent from the ELF sections. The existing loader
+back-fills the reset-handler table but omitted this separate indirect copy.
+It now fills that ROM image from the ELF's own `.data_btdm` bytes for C3.
+This restores the original guest initializer; it does not patch guest code,
+replace a handler or suppress an assertion. The final run has no assertions.
+
+Reproduce with `gatt-replay.py`, using the same four caller-supplied arguments
+as `replay.py`. `gatt-checks.json` and `gatt-cpu.json` cover the later
+implementation. The external GATT test requires both discovery responses and
+the returned text, plus three seconds without disconnect or assertion.
+
+Step-3 CPU: C3 2.526651 → 2.513093 s (−0.537%), S3 +0.057%, C6 +0.017%; seven alternating pairs, identical work/output and unchanged goldens. All required checks pass: 609 CI-style / 594 plain tests, four external Server tests, native/WASM Clippy and eight WASM demos.

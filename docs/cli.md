@@ -28,8 +28,11 @@ PSRAM and register presets.
 | `--no-reboot` | stop at the first chip reset instead of rebooting from ROM |
 | `--flash-at OFFSET=FILE` (repeatable) | write a file into flash at a hex offset — a data partition's contents (the panel's `demo` partition takes `energydata.json`) |
 | `--stub SYMBOL[=value]` (repeatable) | return `value` (default 0) immediately when execution reaches the function's entry; numeric function addresses require a `0x` prefix; accepts decimal, `0x` hex, `true` (1) or `false` (0); rejects invalid values |
-| `--ble full` | experimental C3 register-level BLE controller; runs legacy advertising events in modeled time; excludes `--ble` |
+| `--ble full` | experimental C3 register-level BLE controller; advertising, scanning and one virtual central; excludes `--ble` |
 | `--ble-scan` | enable a virtual active scanner in C3 full mode; sends SCAN_REQ and observes guest-configured SCAN_RSP |
+| `--ble-connect` | connect the full-mode virtual central to the first ADV_IND using CSA#1, a 30-ms interval and a 2-s supervision timeout |
+| `--ble-stop-after-ms N` | stop central traffic N milliseconds after the first anchor, rounded up to an event; requires `--ble-connect` |
+| `--ble-read-uuid SERVICE CHARACTERISTIC` | discover a primary service and readable characteristic by 128-bit UUID, then read it over ATT CID 4; use with `--ble full --ble-connect` |
 | `--ble-observe` | passive full-mode PDU log: half-microsecond timestamp, channel, type, AdvA, decoded AD and raw PDU |
 | `--ble` | opt-in virtual BLE controller on S3/C3/C6; requires the matching application `--elf` |
 | `--wifi SPEC` | attach a virtual access point the WiFi blob hears, plus a virtual network (DHCP/ARP/ICMP/DNS/SNTP; station 10.0.2.15, gateway 10.0.2.2) — for example `ssid=demo,chan=6,psk=demo-password,bssid=02:00:00:00:00:01`. `password` and `pass` alias `psk`; unknown keys and invalid values are rejected. Open and WPA2-PSK networks both join end to end, on S3, C3 and C6 (docs/wifi-plan.md, docs/esp32c3.md, docs/wifi-c6-plan.md) |
@@ -190,6 +193,17 @@ holds the latest 1024 observations and reports dropped entries when polled.
 `--ble-scan` sends a virtual SCAN_REQ 150 µs after each scannable advertising
 PDU, receives it through the guest-provided RX ring, and emits the configured
 SCAN_RSP after another 150 µs turnaround. The guest drains RX at event completion.
-The scanner models an error-free link with a fixed −40 dBm RSSI. Connections,
-CRC-error injection and RF propagation are not implemented. Register fields,
-RX timestamp placement and receive-window timing remain inferred/model choices.
+The scanner models an error-free link with a fixed −40 dBm RSSI.
+`--ble-connect` starts one unencrypted 1M connection with CSA#1 hop 5 and all
+37 data channels. Empty PDUs maintain it; `--ble-stop-after-ms` lets the guest's
+supervision timer expire. `--ble-read-uuid SERVICE CHARACTERISTIC` performs LL
+version/feature exchange and an ATT read with the default MTU 23. The returned
+value appears in a `[ble-att]` observation. The UUID command is also supported
+by the HCI peer. UUIDs accept hexadecimal digits with optional hyphens.
+
+The full model does not support L2CAP fragmentation, encryption, PHY changes,
+connection-parameter updates, CSA#2, CRC-error injection or RF propagation.
+Register fields, RX sync placement and receive-window timing remain inferred.
+The Server specimen resumes advertising after a timeout but currently logs a
+UUID-flattening error and advertises a changed service UUID; reconnect behavior
+is not accepted.

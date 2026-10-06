@@ -42,6 +42,7 @@ enum Request {
     Descriptors,
     Read(u16),
     Write(u16),
+    ReadUuid,
 }
 
 #[derive(Debug, PartialEq)]
@@ -50,6 +51,7 @@ pub enum Command {
     Discover,
     Read(u16),
     Write(u16, Vec<u8>),
+    ReadUuid([u8; 16], [u8; 16]),
 }
 impl std::str::FromStr for Command {
     type Err = String;
@@ -58,6 +60,7 @@ impl std::str::FromStr for Command {
         match parts.as_slice() {
             ["connect"] => return Ok(Self::Connect),
             ["discover"] => return Ok(Self::Discover),
+            ["read-uuid", service, characteristic] => return Ok(Self::ReadUuid(parse_uuid(service)?, parse_uuid(characteristic)?)),
             ["read" | "subscribe", _] | ["write", _, _] => {}
             _ => return Err("expected connect, discover, read HANDLE, write HANDLE HEX, subscribe CCC_HANDLE".into()),
         }
@@ -82,6 +85,70 @@ impl std::str::FromStr for Command {
         })
     }
 }
+fn parse_uuid(text: &str) -> Result<[u8; 16], String> {
+    let digits: String = text.chars().filter(|c| *c != '-').collect();
+    if digits.len() != 32 || !digits.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err("expected a 128-bit BLE UUID".into());
+    }
+    let mut bytes = [0; 16];
+    for (i, byte) in bytes.iter_mut().rev().enumerate() {
+        *byte = u8::from_str_radix(&digits[2 * i..2 * i + 2], 16).unwrap();
+    }
+    Ok(bytes)
+}
+
+pub enum ReadStep { Request(Vec<u8>), Value(Vec<u8>) }
+enum UuidStage { Service, Characteristic(u16, u16), Value }
+/// ATT discovery and read, independent of HCI or radio transport; default MTU 23.
+pub struct UuidRead {
+    service: [u8; 16],
+    characteristic: [u8; 16],
+    stage: UuidStage,
+}
+impl UuidRead {
+    pub fn new(service: [u8; 16], characteristic: [u8; 16]) -> Self {
+        Self { service, characteristic, stage: UuidStage::Service }
+    }
+    pub fn request(&self) -> Vec<u8> {
+        let mut p = vec![6, 1, 0, 255, 255, 0, 0x28];
+        p.extend(self.service);
+        p
+    }
+    pub fn receive(&mut self, p: &[u8]) -> Result<ReadStep, String> {
+        if p.first() == Some(&1) { return Err(format!("ATT error {}", hex(p))) }
+        match self.stage {
+            UuidStage::Service if p.len() >= 5 && p[0] == 7 && (p.len() - 1).is_multiple_of(4) => {
+                let start = word(&p[1..]); let end = word(&p[3..]);
+                if start == 0 || end < start { return Err("invalid service range".into()) }
+                self.stage = UuidStage::Characteristic(start, end);
+                Ok(ReadStep::Request(vec![8, start as u8, (start >> 8) as u8, end as u8, (end >> 8) as u8, 3, 0x28]))
+            }
+            UuidStage::Characteristic(start, end) if p.len() > 2 && p[0] == 9 && matches!(p[1], 7 | 21) && (p.len() - 2).is_multiple_of(p[1] as usize) => {
+                let mut last = start - 1;
+                for item in p[2..].chunks_exact(p[1] as usize) {
+                    let declaration = word(item); let handle = word(&item[3..]);
+                    if declaration <= last || declaration > end || handle <= declaration || handle > end {
+                        return Err("invalid characteristic handles".into());
+                    }
+                    last = declaration;
+                    if item[5..] == self.characteristic {
+                        if item[2] & 2 == 0 { return Err("characteristic is not readable".into()) }
+                        self.stage = UuidStage::Value;
+                        return Ok(ReadStep::Request(att_read(handle).to_vec()));
+                    }
+                }
+                if last == end { return Err("characteristic UUID not found".into()) }
+                let next = last + 1;
+                self.stage = UuidStage::Characteristic(next, end);
+                Ok(ReadStep::Request(vec![8, next as u8, (next >> 8) as u8, end as u8, (end >> 8) as u8, 3, 0x28]))
+            }
+            UuidStage::Value if p.first() == Some(&0x0b) => Ok(ReadStep::Value(p[1..].to_vec())),
+            _ => Err(format!("invalid ATT discovery response {}", hex(p))),
+        }
+    }
+}
+pub fn att_read(handle: u16) -> [u8; 3] { [0x0a, handle as u8, (handle >> 8) as u8] }
+
 pub struct Peer {
     link: Link,
     log: Vec<String>,
@@ -92,6 +159,7 @@ pub struct Peer {
     guest_central: bool,
     pending: Option<Request>,
     discovery_start: u16,
+    uuid_read: Option<UuidRead>,
     value: Vec<u8>,
 }
 impl Peer {
@@ -106,6 +174,7 @@ impl Peer {
             guest_central: false,
             pending: None,
             discovery_start: 1,
+            uuid_read: None,
             value: vec![100],
         }
     }
@@ -133,9 +202,15 @@ impl Peer {
             match self.commands.pop_front().unwrap() {
                 Command::Connect => unreachable!(),
                 Command::Discover => self.discover(Request::Services, 1),
+                Command::ReadUuid(service, characteristic) => {
+                    let read = UuidRead::new(service, characteristic);
+                    self.pending = Some(Request::ReadUuid);
+                    self.att(&read.request());
+                    self.uuid_read = Some(read);
+                }
                 Command::Read(handle) => {
                     self.pending = Some(Request::Read(handle));
-                    self.att(&[0x0a, handle as u8, (handle >> 8) as u8]);
+                    self.att(&att_read(handle));
                 }
                 Command::Write(handle, value) => {
                     self.pending = Some(Request::Write(handle));
@@ -258,6 +333,14 @@ impl Peer {
             self.log.push(format!("unsolicited ATT {}", hex(p)));
             return;
         };
+        if kind == Request::ReadUuid {
+            match self.uuid_read.as_mut().unwrap().receive(p) {
+                Ok(ReadStep::Request(request)) => { self.pending = Some(kind); self.att(&request); }
+                Ok(ReadStep::Value(value)) => self.log.push(format!("read value={} text={:?}", hex(&value), String::from_utf8_lossy(&value))),
+                Err(error) => self.log.push(error),
+            }
+            return;
+        }
         if p[0] == 1 && p.len() == 5 {
             if p[4] == 0x0a && matches!(kind, Request::Services | Request::Characteristics | Request::Descriptors) {
                 self.discovery_next(kind);
@@ -445,6 +528,20 @@ mod tests {
         c.command("connect").unwrap();
         while c.pop_packet().is_some() {}
     }
+    #[test]
+    fn uuid_read_discovers_handles_and_rejects_invalid_ranges() {
+        let Command::ReadUuid(service, characteristic) = "read-uuid 4fafc201-1fb5-459e-8fcc-c5c9c331914b beb5483e-36e1-4688-b7f5-ea07361b26a8".parse().unwrap() else { panic!("UUID command") };
+        let mut read = UuidRead::new(service, characteristic);
+        assert_eq!(&read.request()[7..], &service);
+        assert!(matches!(read.receive(&[7,14,0,16,0]).unwrap(), ReadStep::Request(p) if p == [8,14,0,16,0,3,0x28]));
+        let mut declaration = vec![9,21,15,0,2,16,0]; declaration.extend(characteristic);
+        assert!(matches!(read.receive(&declaration).unwrap(), ReadStep::Request(p) if p == [10,16,0]));
+        assert!(matches!(read.receive(&[11,42]).unwrap(), ReadStep::Value(p) if p == [42]));
+        let mut invalid = UuidRead::new(service, characteristic);
+        assert!(invalid.receive(&[7,16,0,14,0]).is_err());
+        assert!("read-uuid zz ab".parse::<Command>().is_err());
+    }
+
     #[test]
     fn deferred_controller_is_bounded_and_pending_commands_survive() {
         struct Deferred { link: Link, calls: std::rc::Rc<std::cell::Cell<usize>> }
