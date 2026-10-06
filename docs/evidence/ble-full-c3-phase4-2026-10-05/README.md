@@ -1,7 +1,8 @@
-# EX210: C3 full BLE, phase 4 — connection events
+# EX211: C3 full BLE, phase 4 — connection events
 
-Base: `0824de29971106410ccc3415fc19affcefc61a16`. Implementation: the commit
-containing this receipt. Unchanged Arduino-ESP32 3.3.11 / IDF 5.5.5 Server,
+Base: `0824de29971106410ccc3415fc19affcefc61a16`. Step 2: `d8f55162`;
+step 3: `ebe5949a`; step 4: `bb1e6edf`; final step 5: the commit
+containing this receipt, merging upstream main `a3a3102c`. Unchanged Arduino-ESP32 3.3.11 / IDF 5.5.5 Server,
 C3 rev3 ROM; input hashes are in `result.json`. No hardware oracle, guest
 patches, register pokes or HCI substitution.
 
@@ -177,3 +178,30 @@ queue drops. `surface-checks.json`, `surface-cpu.json` and
 `wasm-result.json` record the final step-4 checks and production module.
 
 Step-4 CPU: C3 2.490646 → 2.503725 s (+0.525%), S3 +1.155%, C6 +0.141%; seven alternating pairs, equal work/output. Only C3 has the requested ±1% acceptance bound; no speedup or universal zero-variance claim is made. 609 full / 594 plain tests, five external native tests, production WASM specimen and all required checks pass.
+
+The catalog ID is now EX211: upstream main independently allocated EX210 to the WiFi idle experiment. Earlier BLE receipts retain their original fork-local EX210 labels and immutable revisions. Both catalog rows are preserved; this is an ID collision resolution, not a new BLE experiment.
+
+
+## Step 5: final regression acceptance
+
+The final source preserves the published BLE ancestry and merges upstream
+`a3a3102c6c7e130e20a4d5d6e4eb45a68251590c`. The preceding step receipts
+compared against the then-pinned `29dd4623`; `final-cpu.json` compares against
+the updated main using newly built binaries. Upstream's WiFi goldens are
+inherited unchanged; no BLE change regenerates or modifies a golden.
+
+Additional unit tests cover both receive-window unit scales and inclusive
+boundaries, cached retransmission without re-reading an unacknowledged
+descriptor, and ADV_SCAN_IND eligibility while both scanning and connecting
+are selected. The last test exposed a request-selection bug: CONNECT_IND must
+only follow ADV_IND. ADV_SCAN_IND now elicits SCAN_REQ while the connection
+attempt remains pending.
+
+`final-checks.json`, `final-connection.json`, `final-gatt.json` and
+`final-wasm.json` cover the final merged source. All five native external
+tests pin the unchanged specimen's advertising, active scanning, connection/
+timeout, UUID read and script path. The WASM acceptance exercises scan, connect,
+post-connection read, central stop and advertising restart. Register meanings
+remain inferred; this is simulator acceptance, not hardware validation.
+
+Final checks: 619 CI-style and 601 plain release tests, both Clippy targets, all eight WASM demos, five native external Server tests and the production WASM specimen pass. JIT code is unchanged. Final C3 median user time is 2.405140 → 2.403198 s (−0.081%), within ±1%, across seven alternating pairs after warmup. All rounds have identical instruction counts and console hashes; `final-cpu.json` retains every sample, including S3 and C6. No golden changes relative to the merged upstream main.

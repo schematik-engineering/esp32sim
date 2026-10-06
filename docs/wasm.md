@@ -246,7 +246,7 @@ Native Rust hosts use `SocBus::set_ethernet_relay`, `take_ethernet_frames` and
 
 Frames contain Ethernet headers and payloads without FCS, from 14 through 1518
 bytes. Each direction holds at most 64 queued frames in relay mode. Excess TX
-frames are dropped and counted in the MAC model's `tx_dropped`; a full RX queue rejects injection. Delivery can drop frames
+frames are dropped and counted in the WiFi link's `tx_dropped` (`StationLink`); a full RX queue rejects injection. Delivery can drop frames
 when the guest has no free receive descriptor. Drain after each run slice and
 copy bytes before the next `ethernet_take`, which replaces the entire batch.
 Recreate JavaScript memory views after calls that may grow WASM memory.
@@ -273,4 +273,14 @@ contains configured scan-response data, not a transmitted packet. The bounded
 Call `esp32sim_ble_scan(emu, enabled)` to toggle the virtual active scanner
 after enabling full mode (0 = success, 1 = full mode unavailable). SCAN_REQ
 observations use `[ble-central]`; received requests use guest RX buffers and
-produce `[ble-air]` SCAN_RSP packets. Connections are not implemented.
+produce `[ble-air]` SCAN_RSP packets.
+Send `connect` or `read-uuid SERVICE CHARACTERISTIC` through
+`esp32sim_ble_command(emu, ptr, len)`. UUIDs are 128-bit hexadecimal strings
+with optional hyphens. The central supports an unencrypted 1M CSA#1 connection,
+30-ms interval, zero latency and a 2-s supervision timeout. ATT uses CID 4 and
+default MTU 23. `[ble-state]` reports connection/advertising transitions;
+`[ble-att]` reports the returned value or ATT error.
+`esp32sim_ble_central_stop(emu)` stops central transmissions on an active link.
+Both calls return 0 on success and 1 for invalid input/state. See the
+[complete external Server check](evidence/ble-full-c3-phase4-2026-10-05/external_wasm.mjs).
+Encryption, PHY/connection updates, CSA#2 and L2CAP fragmentation are not supported.

@@ -1,0 +1,63 @@
+{
+  "checks": "pass",
+  "modeled_seconds": 6,
+  "connection_events": 150,
+  "central_pdus": 85,
+  "peripheral_pdus": 85,
+  "exchange_duration_us": 2490000.0,
+  "anchor_interval_us": 30000,
+  "ifs_us": 150,
+  "connect": "[ble-central] hus=517863 channel=37 type=CONNECT_IND pdu=0522010000000002241100f955607083329a56341201060018000000c800ffffffff1f05",
+  "first_event": "[ble-connection] event=0 window_hus=535984 anchor_hus=536067 channel=5",
+  "last_event": "[ble-connection] event=149 window_hus=9472043 anchor_hus=9476067 channel=10",
+  "first_exchange": [
+    "[ble-central] hus=536067 channel=5 type=DATA pdu=0100",
+    "[ble-air] hus=536527 channel=5 type=DATA pdu=17060c09e5021600",
+    "[ble-central] hus=537083 channel=5 type=DATA pdu=0d00",
+    "[ble-air] hus=537543 channel=5 type=DATA pdu=0900"
+  ],
+  "disconnect": "[fn] i=758093183 t=4.7381s c0 r_llc_disconnect_end(a0=0x1 a1=0x0 a2=0x8) ret=0x4000d644",
+  "last_central_hus": 5516067,
+  "resumed": "[ble-state] disconnected advertising_resumed hus=9480000",
+  "resumed_advertisements": 60,
+  "resumed_advertisement_sample": "[ble-air] hus=9480000 channel=37 type=ADV_IND AdvA=60:55:f9:00:11:24 service=004202f9-8a3f-ca9f-e000-000001000000 flags=0x06 connection_interval_units=6:18 pdu=2021241100f95560020106110700000001000000e09fca3f8af9024200051206001200",
+  "guest_errors": [
+    "E (9476) NimBLE: ble_uuid_flat rc=3"
+  ],
+  "stop": "[emu] stop: Halted \u2014 960000000 insns in 0.7s wall = 1282.0 Minsn/s; emulated 6.000s (960000000 cycles); 0 exceptions, 6927 interrupts",
+  "inputs": {
+    "rom": {
+      "sha256": "19ac22e08707df926fb0cf4c54795d4067b983fae8635f396ded173a6d78fc3c",
+      "bytes": 556332
+    },
+    "bootloader": {
+      "sha256": "d4a87d86e17457c5d9e6d9b6c83f1af5ab0122a58545aaab392af1135a01f00a",
+      "bytes": 19536
+    },
+    "ptable": {
+      "sha256": "148b959cbff1c38aa8e1d5c0ba9d612c54997b945e56a63f41223eef650653a1",
+      "bytes": 3072
+    },
+    "app": {
+      "sha256": "7da24e7446aa4f16344accc436f5d187e2057819582f2b37226c437cde8f377a",
+      "bytes": 606320
+    },
+    "elf": {
+      "sha256": "862b7e1b1a58ced342091aa37e59efef6ba269ba1861a03302fde9b4616996a0",
+      "bytes": 11045524
+    }
+  },
+  "binary_sha256": "12e426c47534b5c710342be604bde9e630908721ff1c089fd5aa189e0a20e1db",
+  "captures": {
+    "stdout": {
+      "original_sha256": "97b5c82c72222432621d64f843dd0f370cbc49bdd608d640c4fb0ac9fb4550c3",
+      "sanitized_sha256": "97b5c82c72222432621d64f843dd0f370cbc49bdd608d640c4fb0ac9fb4550c3",
+      "bytes": 355
+    },
+    "stderr": {
+      "original_sha256": "d110b6d0743e4c6892fcade8a62cbe38ab91a2ee649a97166604ad57ea0f156c",
+      "sanitized_sha256": "d110b6d0743e4c6892fcade8a62cbe38ab91a2ee649a97166604ad57ea0f156c",
+      "bytes": 35538
+    }
+  }
+}

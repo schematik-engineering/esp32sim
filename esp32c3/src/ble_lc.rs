@@ -110,7 +110,7 @@ struct Advertising {
 impl State {
     fn raise(&mut self, source: u32) {
         self.raw |= source;
-        // Coalesce repeated pending sources; TIMER and END are the modeled interrupt sources.
+        // Coalesce repeated pending interrupt sources.
         if !self.fifo.contains(&source) { self.fifo.push_back(source); }
     }
     fn observe(&mut self, line: String) {
@@ -243,14 +243,14 @@ impl BleLc {
         let advertising = event.advertising.as_mut().unwrap();
         match event.phase {
             ScanPhase::Request(channel) => {
-                let pdu = if self.state.as_ref().unwrap().connecting { connect_request(&advertising.pdu) } else { scan_request(&advertising.pdu) };
+                let pdu = if self.state.as_ref().unwrap().connecting && advertising.pdu[0] & 15 == 0 { connect_request(&advertising.pdu) } else { scan_request(&advertising.pdu) };
                 self.state.as_mut().unwrap().observe(format!("[ble-central] hus={} channel={channel} type={} pdu={}",
                     event.due / HALF_US_CYCLES, if pdu[0] & 15 == 5 { "CONNECT_IND" } else { "SCAN_REQ" }, hex(&pdu)));
                 event.due += airtime(pdu.len());
                 event.phase = ScanPhase::Receive(channel);
             }
             ScanPhase::Receive(channel) => {
-                let pdu = if self.state.as_ref().unwrap().connecting { connect_request(&advertising.pdu) } else { scan_request(&advertising.pdu) };
+                let pdu = if self.state.as_ref().unwrap().connecting && advertising.pdu[0] & 15 == 0 { connect_request(&advertising.pdu) } else { scan_request(&advertising.pdu) };
                 if let Err(reason) = self.receive(advertising.activity, channel, event.due - airtime(pdu.len()), &pdu, sram) {
                     self.state.as_mut().unwrap().observe(format!("[ble-error] {reason}"));
                     self.complete(event.entry, 4, sram);
@@ -868,6 +868,65 @@ mod tests {
         assert_eq!(d.receive(0, 37, 0, &scan_request(&[0; 8]), &mut ram), Err("RX descriptor still owned by guest"));
         assert_eq!(snapshot, ram);
         assert!(d.receive(0, 0, 0, &[3, 12], &mut ram).is_err());
+    }
+
+    #[test]
+    fn scanner_does_not_connect_to_scannable_nonconnectable_advertising() {
+        let (mut d, mut ram) = advertising_fixture();
+        let base = crate::bus::DRAM_IN_SRAM;
+        put_half(&mut ram, base + 0x1402, 0x0906); // ADV_SCAN_IND
+        d.scan(true);
+        d.connect(None);
+        d.write(0x100, REQUEST);
+        d.service(&mut ram);
+        for _ in 0..2 {
+            d.tick(d.next_deadline().unwrap());
+            d.service(&mut ram);
+        }
+        let mut observations = Vec::new();
+        while let Some(line) = d.take_observation() { observations.push(line); }
+        assert!(observations.iter().any(|line| line.contains("type=SCAN_REQ")));
+        assert!(!observations.iter().any(|line| line.contains("type=CONNECT_IND")));
+        assert!(d.state.as_ref().unwrap().connecting);
+    }
+
+    #[test]
+    fn connection_anchor_must_fit_the_programmed_receive_window() {
+        for (window, anchor, valid) in [(20,1000,true), (20,1080,true), (20,1081,false),
+            (20,999,false), (0x8001,2250,true), (0x8001,2251,false)] {
+            let (mut d, mut ram) = advertising_fixture();
+            let base = crate::bus::DRAM_IN_SRAM;
+            let cs = base + 0x400;
+            put_half(&mut ram, cs, 3);
+            put_half(&mut ram, cs + 22, 5 << 8);
+            put_half(&mut ram, cs + 26, window);
+            ram[cs + 34..cs + 39].copy_from_slice(&[255,255,255,255,31]);
+            d.state.as_mut().unwrap().connection = Some(Connection {
+                anchor: anchor * HALF_US_CYCLES, ..Connection::default()
+            });
+            let mut event = Event { entry: base, due: 1000 * HALF_US_CYCLES,
+                advertising: None, phase: ScanPhase::Advertising, connection_phase: 0 };
+            assert_eq!(d.connection_event(&mut event, cs, &mut ram).is_ok(), valid);
+            if valid { assert_eq!(event.due, anchor * HALF_US_CYCLES); }
+        }
+    }
+
+    #[test]
+    fn unacknowledged_connection_tx_reuses_the_cached_packet() {
+        let (mut d, mut ram) = advertising_fixture();
+        let base = crate::bus::DRAM_IN_SRAM;
+        put_half(&mut ram, base + 0x1402, 1); // empty LL data PDU
+        d.state.as_mut().unwrap().connection = Some(Connection::default());
+        let mut event = Event { entry: base, due: 0, advertising: None,
+            phase: ScanPhase::Advertising, connection_phase: 3 };
+        d.connection_event(&mut event, base + 0x400, &mut ram).unwrap();
+        let first = d.take_observation().unwrap();
+        put_half(&mut ram, base + 0x1402, 0xffff); // would be invalid if re-read
+        event.connection_phase = 3;
+        d.connection_event(&mut event, base + 0x400, &mut ram).unwrap();
+        let repeated = d.take_observation().unwrap();
+        assert_eq!(first.split("pdu=").nth(1), repeated.split("pdu=").nth(1));
+        assert_eq!(half(&ram, base + 0x1400) & 0x8000, 0);
     }
 
     #[test]

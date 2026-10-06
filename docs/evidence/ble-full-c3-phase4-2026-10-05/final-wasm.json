@@ -1,0 +1,15 @@
+{
+  "checks": "pass",
+  "module_sha256": "f61a264f168da94ee46f542c8628b35cd2646c3a2b4f24e60dd4d1fcf30e6f9f",
+  "modeled_seconds": 6,
+  "scan_responses": 27,
+  "sample": "[ble-air] hus=518515 channel=37 type=SCAN_RSP AdvA=3c:84:27:b6:a7:1e name=\"BLE Server Example\" pdu=041a1ea7b627843c1309424c4520536572766572204578616d706c65",
+  "connection_events": 149,
+  "first_event": "[ble-connection] event=0 window_hus=1732234 anchor_hus=1732317 channel=5",
+  "last_event": "[ble-connection] event=148 window_hus=10608293 anchor_hus=10612317 channel=5",
+  "central_pdus": 89,
+  "exchange_duration_us": 2460000,
+  "read": "[ble-att] value=48656c6c6f20576f726c642073617973204e65696c text=\"Hello World says Neil\"",
+  "resumed": "[ble-state] disconnected advertising_resumed hus=10616250",
+  "guest_errors": []
+}

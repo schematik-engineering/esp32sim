@@ -1,0 +1,69 @@
+[
+  {
+    "check": "clippy-native",
+    "command": "cargo +1.99.0 clippy --workspace --all-targets -- -D warnings",
+    "exit": 0,
+    "seconds": 1.1695737920017564
+  },
+  {
+    "check": "clippy-wasm",
+    "command": "cargo +1.99.0 clippy --release --target wasm32-unknown-unknown -p esp32sim-wasm --features jit-tests -- -D warnings",
+    "exit": 0,
+    "seconds": 0.7969496249988879
+  },
+  {
+    "check": "test-ci",
+    "command": "ESP32SIM_ROM_DIR=<ABSOLUTE_ROM_DIR> cargo +1.99.0 test --release --workspace -- --include-ignored --skip external_",
+    "exit": 0,
+    "seconds": 54.22925329200007,
+    "passed_tests": 619
+  },
+  {
+    "check": "test-plain",
+    "command": "cargo +1.99.0 test --release --workspace",
+    "exit": 0,
+    "seconds": 5.456049667000116,
+    "passed_tests": 601
+  },
+  {
+    "check": "wasm-build",
+    "command": "RUSTUP_TOOLCHAIN=1.99.0 tools/wasm-build.sh",
+    "exit": 0,
+    "seconds": 8.691427707999537
+  },
+  {
+    "check": "wasm-test",
+    "command": "node tools/wasm-test.mjs hello c3-hello c6-hello c6-energy-scan c6-contiki c6-contiki-net c6-rpl-net panel",
+    "exit": 0,
+    "seconds": 39.79261716699875
+  },
+  {
+    "check": "privacy",
+    "command": "node tools/check-evidence-privacy.mjs",
+    "exit": 0,
+    "seconds": 0.4586600000002363
+  },
+  {
+    "check": "bins",
+    "command": "cargo +1.99.0 build --release --bins",
+    "exit": 0,
+    "seconds": 15.654639833001056
+  },
+  {
+    "check": "baseline",
+    "command": "cargo +1.99.0 build --release --bins --manifest-path .ble4/main-current/Cargo.toml",
+    "exit": 0,
+    "seconds": 14.875372625001546
+  },
+  {
+    "check": "external Server",
+    "command": "ESP32SIM_BLE_SERVER_DIR=<BUILD> ESP32SIM_ROM_DIR=<ROM_DIR> cargo +1.99.0 test --release -p esp32sim --test ble external_full_ble_server -- --ignored",
+    "exit": 0,
+    "passed_tests": 5
+  },
+  {
+    "check": "external WASM Server",
+    "command": "node docs/evidence/ble-full-c3-phase4-2026-10-05/external_wasm.mjs web/wasm/esp32sim.wasm <BUILD_DIR> <ROM_ELF>",
+    "exit": 0
+  }
+]

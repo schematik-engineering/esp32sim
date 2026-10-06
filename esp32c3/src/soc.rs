@@ -39,24 +39,26 @@ impl esp_soc::SocBus for SocBus {
         if self.periph.ble_lc.enabled() { self.periph.ble_lc.command(command) }
         else { self.ble.command(command, self.cycles, periph::CPU_HZ) }
     }
+    fn attach_wifi(&mut self, cfg: esp_soc::wifi::ApConfig, nat: Option<esp_soc::nat::Nat>) -> Result<(), String> {
+        self.periph.wifi.link.attach_new(cfg, nat, &self.debug);
+        self.periph.refresh_work();
+        Ok(())
+    }
     fn set_ethernet_relay(&mut self, enabled: bool) -> Result<(), String> {
-        let mac = &mut self.periph.wifi;
-        if mac.relay != enabled { mac.eth_tx.clear(); mac.eth_rx.clear(); mac.relay = enabled; }
+        self.periph.wifi.link.set_relay(enabled);
         self.periph.refresh_work();
         Ok(())
     }
     fn take_ethernet_frames(&mut self) -> Vec<Vec<u8>> {
-        if self.periph.wifi.relay { std::mem::take(&mut self.periph.wifi.eth_tx) } else { Vec::new() }
+        self.periph.wifi.link.take_relay_frames()
     }
     fn receive_ethernet_frame(&mut self, frame: &[u8]) -> Result<(), String> {
-        let mac = &mut self.periph.wifi;
-        if !mac.relay || mac.ap.is_none() { return Err("Ethernet relay requires relay mode and a virtual AP".into()); }
-        if !(14..=1518).contains(&frame.len()) { return Err("Ethernet frame must be 14..=1518 bytes without FCS".into()); }
-        if mac.eth_rx.len() >= 64 { return Err("Ethernet receive queue full".into()); }
-        mac.eth_rx.push(frame.to_vec());
-        Ok(())
+        self.periph.wifi.link.receive_relay_frame(frame)
     }
     fn cycles(&self) -> u64 { self.cycles }
+    fn report(&self) -> String {
+        self.periph.wifi.link.report()
+    }
     fn next_deadline(&self) -> Option<u64> {
         if self.pins_active { return self.pin_deadline(); }
         match self.periph.cycles_until_timer() { u32::MAX => None, cycles => Some(cycles.max(1) as u64) }
@@ -113,7 +115,7 @@ impl esp_soc::SocBus for SocBus {
         let cause = self.periph.rtc.reset_cause;
         let old = std::mem::replace(&mut self.periph, periph::Peripherals::new(mac));
         let p = &mut self.periph;
-        p.wifi.ap = old.wifi.ap; p.wifi.net = old.wifi.net; p.wifi.log = old.wifi.log; p.wifi.relay = old.wifi.relay;
+        p.wifi.link = old.wifi.link.surviving_reboot(); p.wifi.log = old.wifi.log;
         if old.ble_lc.enabled() { p.ble_lc.enable(); p.ble_lc.observe(old.ble_lc.logging()); p.ble_lc.scan(old.ble_lc.scanning()); esp_periph::Dispatch::refresh_optional(p, 0x31); }
         p.refresh_work();
         p.efuse = old.efuse;
