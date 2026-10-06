@@ -1,0 +1,708 @@
+{
+  "system": "Darwin",
+  "architecture": "arm64",
+  "measurement": "child user CPU seconds, seven alternating pairs after one warmup per arm",
+  "conditions": "sequential runs; no load exclusion; no speedup claim",
+  "demos": {
+    "hello": {
+      "args": [
+        "--boot",
+        "rom",
+        "--flash-mb",
+        "8",
+        "--max-seconds",
+        "30",
+        "--no-dump",
+        "--rom",
+        "<FW_DIR>/esp32s3_rev0_rom.elf",
+        "--bootloader",
+        "<FW_DIR>/public/hello-bootloader.bin",
+        "--ptable",
+        "<FW_DIR>/public/hello-ptable.bin",
+        "--app",
+        "<FW_DIR>/public/hello_world.bin"
+      ],
+      "input_sha256": {
+        "esp32s3_rev0_rom.elf": "c0ce0f338d1de1bdc6efbef1591779a2a42c1ab7d759d3c6ae8ae63a7dd34cfd",
+        "public/hello-bootloader.bin": "7efecb4df4463ece11ab286068a505ecd174f66fd4aacc53d887fcb9c18f0579",
+        "public/hello-ptable.bin": "7f00b6c042a89b15b0cac534f82ed988caf29278ff5700b0c511eb1b5bb7c820",
+        "public/hello_world.bin": "d9142e72453e8b71f6903f4dd869a4ee09c34d94cfafcb4f4309f8d2bf9040c9"
+      },
+      "binary_sha256": {
+        "main": "44fff7e33b8ff624d655230ab5374f3bdd3a1364bec3eb5b088048c43fe1a5f7",
+        "pr": "61a6b27e7196c223da508c4762c63a9f015d9b4e08323a5862ce5ae111819e0b"
+      },
+      "runs": [
+        {
+          "pair": 0,
+          "arm": "main",
+          "warmup": true,
+          "user_seconds": 0.26431,
+          "system_seconds": 0.006242999999999999,
+          "load_before": 5.39892578125,
+          "instructions": 18788848,
+          "console_sha256": "119a1216fb34a8e1d99331ebc42de3b9a1e9bb1e36b8851cc6f5b734fb35fb88",
+          "stop": "[emu] stop: Halted \u2014 core0 11990488 + core1 6798360 insns in 0.3s wall = 71.3 Minsn/s; emulated 30.000s (7200000000 cycles); 27229 exceptions, 6030 interrupts",
+          "core_instructions": [
+            11990488,
+            6798360
+          ]
+        },
+        {
+          "pair": 0,
+          "arm": "pr",
+          "warmup": true,
+          "user_seconds": 0.270473,
+          "system_seconds": 0.006438999999999999,
+          "load_before": 5.39892578125,
+          "instructions": 18788848,
+          "console_sha256": "119a1216fb34a8e1d99331ebc42de3b9a1e9bb1e36b8851cc6f5b734fb35fb88",
+          "stop": "[emu] stop: Halted \u2014 core0 11990488 + core1 6798360 insns in 0.3s wall = 69.8 Minsn/s; emulated 30.000s (7200000000 cycles); 27229 exceptions, 6030 interrupts",
+          "core_instructions": [
+            11990488,
+            6798360
+          ]
+        },
+        {
+          "pair": 1,
+          "arm": "main",
+          "warmup": false,
+          "user_seconds": 0.26966199999999996,
+          "system_seconds": 0.005354999999999999,
+          "load_before": 5.39892578125,
+          "instructions": 18788848,
+          "console_sha256": "119a1216fb34a8e1d99331ebc42de3b9a1e9bb1e36b8851cc6f5b734fb35fb88",
+          "stop": "[emu] stop: Halted \u2014 core0 11990488 + core1 6798360 insns in 0.3s wall = 69.7 Minsn/s; emulated 30.000s (7200000000 cycles); 27229 exceptions, 6030 interrupts",
+          "core_instructions": [
+            11990488,
+            6798360
+          ]
+        },
+        {
+          "pair": 1,
+          "arm": "pr",
+          "warmup": false,
+          "user_seconds": 0.262806,
+          "system_seconds": 0.005078000000000003,
+          "load_before": 5.39892578125,
+          "instructions": 18788848,
+          "console_sha256": "119a1216fb34a8e1d99331ebc42de3b9a1e9bb1e36b8851cc6f5b734fb35fb88",
+          "stop": "[emu] stop: Halted \u2014 core0 11990488 + core1 6798360 insns in 0.3s wall = 71.7 Minsn/s; emulated 30.000s (7200000000 cycles); 27229 exceptions, 6030 interrupts",
+          "core_instructions": [
+            11990488,
+            6798360
+          ]
+        },
+        {
+          "pair": 2,
+          "arm": "main",
+          "warmup": false,
+          "user_seconds": 0.26257299999999995,
+          "system_seconds": 0.005545999999999999,
+          "load_before": 5.39892578125,
+          "instructions": 18788848,
+          "console_sha256": "119a1216fb34a8e1d99331ebc42de3b9a1e9bb1e36b8851cc6f5b734fb35fb88",
+          "stop": "[emu] stop: Halted \u2014 core0 11990488 + core1 6798360 insns in 0.3s wall = 71.6 Minsn/s; emulated 30.000s (7200000000 cycles); 27229 exceptions, 6030 interrupts",
+          "core_instructions": [
+            11990488,
+            6798360
+          ]
+        },
+        {
+          "pair": 2,
+          "arm": "pr",
+          "warmup": false,
+          "user_seconds": 0.267023,
+          "system_seconds": 0.005462000000000002,
+          "load_before": 5.39892578125,
+          "instructions": 18788848,
+          "console_sha256": "119a1216fb34a8e1d99331ebc42de3b9a1e9bb1e36b8851cc6f5b734fb35fb88",
+          "stop": "[emu] stop: Halted \u2014 core0 11990488 + core1 6798360 insns in 0.3s wall = 70.5 Minsn/s; emulated 30.000s (7200000000 cycles); 27229 exceptions, 6030 interrupts",
+          "core_instructions": [
+            11990488,
+            6798360
+          ]
+        },
+        {
+          "pair": 3,
+          "arm": "main",
+          "warmup": false,
+          "user_seconds": 0.26681900000000014,
+          "system_seconds": 0.005322999999999994,
+          "load_before": 5.39892578125,
+          "instructions": 18788848,
+          "console_sha256": "119a1216fb34a8e1d99331ebc42de3b9a1e9bb1e36b8851cc6f5b734fb35fb88",
+          "stop": "[emu] stop: Halted \u2014 core0 11990488 + core1 6798360 insns in 0.3s wall = 70.5 Minsn/s; emulated 30.000s (7200000000 cycles); 27229 exceptions, 6030 interrupts",
+          "core_instructions": [
+            11990488,
+            6798360
+          ]
+        },
+        {
+          "pair": 3,
+          "arm": "pr",
+          "warmup": false,
+          "user_seconds": 0.26392100000000007,
+          "system_seconds": 0.005250000000000005,
+          "load_before": 5.39892578125,
+          "instructions": 18788848,
+          "console_sha256": "119a1216fb34a8e1d99331ebc42de3b9a1e9bb1e36b8851cc6f5b734fb35fb88",
+          "stop": "[emu] stop: Halted \u2014 core0 11990488 + core1 6798360 insns in 0.3s wall = 71.3 Minsn/s; emulated 30.000s (7200000000 cycles); 27229 exceptions, 6030 interrupts",
+          "core_instructions": [
+            11990488,
+            6798360
+          ]
+        },
+        {
+          "pair": 4,
+          "arm": "main",
+          "warmup": false,
+          "user_seconds": 0.26243799999999995,
+          "system_seconds": 0.005545999999999995,
+          "load_before": 5.39892578125,
+          "instructions": 18788848,
+          "console_sha256": "119a1216fb34a8e1d99331ebc42de3b9a1e9bb1e36b8851cc6f5b734fb35fb88",
+          "stop": "[emu] stop: Halted \u2014 core0 11990488 + core1 6798360 insns in 0.3s wall = 71.7 Minsn/s; emulated 30.000s (7200000000 cycles); 27229 exceptions, 6030 interrupts",
+          "core_instructions": [
+            11990488,
+            6798360
+          ]
+        },
+        {
+          "pair": 4,
+          "arm": "pr",
+          "warmup": false,
+          "user_seconds": 0.26025199999999993,
+          "system_seconds": 0.0054510000000000045,
+          "load_before": 5.39892578125,
+          "instructions": 18788848,
+          "console_sha256": "119a1216fb34a8e1d99331ebc42de3b9a1e9bb1e36b8851cc6f5b734fb35fb88",
+          "stop": "[emu] stop: Halted \u2014 core0 11990488 + core1 6798360 insns in 0.3s wall = 72.3 Minsn/s; emulated 30.000s (7200000000 cycles); 27229 exceptions, 6030 interrupts",
+          "core_instructions": [
+            11990488,
+            6798360
+          ]
+        },
+        {
+          "pair": 5,
+          "arm": "main",
+          "warmup": false,
+          "user_seconds": 0.2631640000000002,
+          "system_seconds": 0.005256999999999998,
+          "load_before": 5.39892578125,
+          "instructions": 18788848,
+          "console_sha256": "119a1216fb34a8e1d99331ebc42de3b9a1e9bb1e36b8851cc6f5b734fb35fb88",
+          "stop": "[emu] stop: Halted \u2014 core0 11990488 + core1 6798360 insns in 0.3s wall = 71.5 Minsn/s; emulated 30.000s (7200000000 cycles); 27229 exceptions, 6030 interrupts",
+          "core_instructions": [
+            11990488,
+            6798360
+          ]
+        },
+        {
+          "pair": 5,
+          "arm": "pr",
+          "warmup": false,
+          "user_seconds": 0.26069299999999984,
+          "system_seconds": 0.005649999999999995,
+          "load_before": 5.39892578125,
+          "instructions": 18788848,
+          "console_sha256": "119a1216fb34a8e1d99331ebc42de3b9a1e9bb1e36b8851cc6f5b734fb35fb88",
+          "stop": "[emu] stop: Halted \u2014 core0 11990488 + core1 6798360 insns in 0.3s wall = 72.1 Minsn/s; emulated 30.000s (7200000000 cycles); 27229 exceptions, 6030 interrupts",
+          "core_instructions": [
+            11990488,
+            6798360
+          ]
+        },
+        {
+          "pair": 6,
+          "arm": "main",
+          "warmup": false,
+          "user_seconds": 0.25977300000000003,
+          "system_seconds": 0.005603000000000011,
+          "load_before": 5.39892578125,
+          "instructions": 18788848,
+          "console_sha256": "119a1216fb34a8e1d99331ebc42de3b9a1e9bb1e36b8851cc6f5b734fb35fb88",
+          "stop": "[emu] stop: Halted \u2014 core0 11990488 + core1 6798360 insns in 0.3s wall = 72.4 Minsn/s; emulated 30.000s (7200000000 cycles); 27229 exceptions, 6030 interrupts",
+          "core_instructions": [
+            11990488,
+            6798360
+          ]
+        },
+        {
+          "pair": 6,
+          "arm": "pr",
+          "warmup": false,
+          "user_seconds": 0.26146400000000014,
+          "system_seconds": 0.005592999999999987,
+          "load_before": 5.39892578125,
+          "instructions": 18788848,
+          "console_sha256": "119a1216fb34a8e1d99331ebc42de3b9a1e9bb1e36b8851cc6f5b734fb35fb88",
+          "stop": "[emu] stop: Halted \u2014 core0 11990488 + core1 6798360 insns in 0.3s wall = 71.9 Minsn/s; emulated 30.000s (7200000000 cycles); 27229 exceptions, 6030 interrupts",
+          "core_instructions": [
+            11990488,
+            6798360
+          ]
+        },
+        {
+          "pair": 7,
+          "arm": "main",
+          "warmup": false,
+          "user_seconds": 0.26244599999999974,
+          "system_seconds": 0.005431000000000005,
+          "load_before": 5.39892578125,
+          "instructions": 18788848,
+          "console_sha256": "119a1216fb34a8e1d99331ebc42de3b9a1e9bb1e36b8851cc6f5b734fb35fb88",
+          "stop": "[emu] stop: Halted \u2014 core0 11990488 + core1 6798360 insns in 0.3s wall = 71.7 Minsn/s; emulated 30.000s (7200000000 cycles); 27229 exceptions, 6030 interrupts",
+          "core_instructions": [
+            11990488,
+            6798360
+          ]
+        },
+        {
+          "pair": 7,
+          "arm": "pr",
+          "warmup": false,
+          "user_seconds": 0.2659940000000005,
+          "system_seconds": 0.005507999999999999,
+          "load_before": 5.39892578125,
+          "instructions": 18788848,
+          "console_sha256": "119a1216fb34a8e1d99331ebc42de3b9a1e9bb1e36b8851cc6f5b734fb35fb88",
+          "stop": "[emu] stop: Halted \u2014 core0 11990488 + core1 6798360 insns in 0.3s wall = 70.7 Minsn/s; emulated 30.000s (7200000000 cycles); 27229 exceptions, 6030 interrupts",
+          "core_instructions": [
+            11990488,
+            6798360
+          ]
+        }
+      ],
+      "median_user_seconds": {
+        "main": 0.26257299999999995,
+        "pr": 0.262806
+      },
+      "change_percent": 0.0887372273615572
+    },
+    "c3-hello": {
+      "args": [
+        "--boot",
+        "rom",
+        "--flash-mb",
+        "4",
+        "--max-seconds",
+        "30",
+        "--no-dump",
+        "--rom",
+        "<FW_DIR>/esp32c3_rev3_rom.elf",
+        "--bootloader",
+        "<FW_DIR>/public/c3-hello-bootloader.bin",
+        "--ptable",
+        "<FW_DIR>/public/c3-hello-ptable.bin",
+        "--app",
+        "<FW_DIR>/public/c3-hello_world.bin"
+      ],
+      "input_sha256": {
+        "esp32c3_rev3_rom.elf": "19ac22e08707df926fb0cf4c54795d4067b983fae8635f396ded173a6d78fc3c",
+        "public/c3-hello-bootloader.bin": "3eaeaa5fb91d462a6ce6dbd8f8d488c8dc059216bc5841e50b784aea8348eb7b",
+        "public/c3-hello-ptable.bin": "7f00b6c042a89b15b0cac534f82ed988caf29278ff5700b0c511eb1b5bb7c820",
+        "public/c3-hello_world.bin": "3fd8606fd2fb10d2387ed4d238e16e7f80cd4832f380da02f0128f7bf4e0e8be"
+      },
+      "binary_sha256": {
+        "main": "26bca21dcf9f338d16db5b12e7945349470c646b49f51d57cad191556f0b3cd2",
+        "pr": "cfb047834d14b9b8f153f4f3adb64e3e1dbb7c26b1d5c0661f2fa21c3e6f43c4"
+      },
+      "runs": [
+        {
+          "pair": 0,
+          "arm": "main",
+          "warmup": true,
+          "user_seconds": 2.4672659999999995,
+          "system_seconds": 0.009763000000000008,
+          "load_before": 5.20654296875,
+          "instructions": 4800000000,
+          "console_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 2.5s wall = 1943.4 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3028 interrupts"
+        },
+        {
+          "pair": 0,
+          "arm": "pr",
+          "warmup": true,
+          "user_seconds": 2.468173,
+          "system_seconds": 0.01966699999999999,
+          "load_before": 5.20654296875,
+          "instructions": 4800000000,
+          "console_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 2.5s wall = 1932.2 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3028 interrupts"
+        },
+        {
+          "pair": 1,
+          "arm": "main",
+          "warmup": false,
+          "user_seconds": 2.4686710000000005,
+          "system_seconds": 0.008028000000000007,
+          "load_before": 4.86962890625,
+          "instructions": 4800000000,
+          "console_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 2.5s wall = 1939.1 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3028 interrupts"
+        },
+        {
+          "pair": 1,
+          "arm": "pr",
+          "warmup": false,
+          "user_seconds": 2.4996539999999996,
+          "system_seconds": 0.012656,
+          "load_before": 4.86962890625,
+          "instructions": 4800000000,
+          "console_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 2.5s wall = 1912.4 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3028 interrupts"
+        },
+        {
+          "pair": 2,
+          "arm": "main",
+          "warmup": false,
+          "user_seconds": 2.5033010000000004,
+          "system_seconds": 0.007574999999999998,
+          "load_before": 4.6396484375,
+          "instructions": 4800000000,
+          "console_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 2.5s wall = 1913.3 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3028 interrupts"
+        },
+        {
+          "pair": 2,
+          "arm": "pr",
+          "warmup": false,
+          "user_seconds": 2.563537,
+          "system_seconds": 0.013685000000000003,
+          "load_before": 4.6396484375,
+          "instructions": 4800000000,
+          "console_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 2.6s wall = 1860.8 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3028 interrupts"
+        },
+        {
+          "pair": 3,
+          "arm": "main",
+          "warmup": false,
+          "user_seconds": 2.5052909999999997,
+          "system_seconds": 0.009077000000000002,
+          "load_before": 4.42822265625,
+          "instructions": 4800000000,
+          "console_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 2.5s wall = 1908.7 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3028 interrupts"
+        },
+        {
+          "pair": 3,
+          "arm": "pr",
+          "warmup": false,
+          "user_seconds": 2.5709820000000008,
+          "system_seconds": 0.009142999999999984,
+          "load_before": 4.42822265625,
+          "instructions": 4800000000,
+          "console_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 2.6s wall = 1852.6 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3028 interrupts"
+        },
+        {
+          "pair": 4,
+          "arm": "main",
+          "warmup": false,
+          "user_seconds": 2.9157949999999992,
+          "system_seconds": 0.009236999999999995,
+          "load_before": 4.2333984375,
+          "instructions": 4800000000,
+          "console_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 2.9s wall = 1635.9 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3028 interrupts"
+        },
+        {
+          "pair": 4,
+          "arm": "pr",
+          "warmup": false,
+          "user_seconds": 2.6115980000000008,
+          "system_seconds": 0.010083000000000009,
+          "load_before": 4.2333984375,
+          "instructions": 4800000000,
+          "console_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 6.0s wall = 805.3 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3028 interrupts"
+        },
+        {
+          "pair": 5,
+          "arm": "main",
+          "warmup": false,
+          "user_seconds": 2.5550110000000004,
+          "system_seconds": 0.003717999999999999,
+          "load_before": 3.89404296875,
+          "instructions": 4800000000,
+          "console_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 2.6s wall = 1877.2 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3028 interrupts"
+        },
+        {
+          "pair": 5,
+          "arm": "pr",
+          "warmup": false,
+          "user_seconds": 4.432873999999998,
+          "system_seconds": 0.045832999999999985,
+          "load_before": 3.90234375,
+          "instructions": 4800000000,
+          "console_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 4.7s wall = 1019.7 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3028 interrupts"
+        },
+        {
+          "pair": 6,
+          "arm": "main",
+          "warmup": false,
+          "user_seconds": 2.644787000000001,
+          "system_seconds": 0.011743000000000003,
+          "load_before": 4.390625,
+          "instructions": 4800000000,
+          "console_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 3.7s wall = 1313.1 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3028 interrupts"
+        },
+        {
+          "pair": 6,
+          "arm": "pr",
+          "warmup": false,
+          "user_seconds": 3.1317489999999992,
+          "system_seconds": 0.019002999999999992,
+          "load_before": 4.59912109375,
+          "instructions": 4800000000,
+          "console_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 3.2s wall = 1511.8 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3028 interrupts"
+        },
+        {
+          "pair": 7,
+          "arm": "main",
+          "warmup": false,
+          "user_seconds": 4.321525999999999,
+          "system_seconds": 0.03145500000000001,
+          "load_before": 4.59912109375,
+          "instructions": 4800000000,
+          "console_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 7.8s wall = 617.9 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3028 interrupts"
+        },
+        {
+          "pair": 7,
+          "arm": "pr",
+          "warmup": false,
+          "user_seconds": 2.6074630000000028,
+          "system_seconds": 0.006736999999999993,
+          "load_before": 4.56103515625,
+          "instructions": 4800000000,
+          "console_sha256": "3b9d8d3eb053a97670f11896674e70ffc968fd7a803cb2cdc5c051414af94efd",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 2.6s wall = 1825.4 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3028 interrupts"
+        }
+      ],
+      "median_user_seconds": {
+        "main": 2.5550110000000004,
+        "pr": 2.6074630000000028
+      },
+      "change_percent": 2.052907012924887
+    },
+    "c6-hello": {
+      "args": [
+        "--boot",
+        "rom",
+        "--flash-mb",
+        "4",
+        "--max-seconds",
+        "30",
+        "--no-dump",
+        "--rom",
+        "<FW_DIR>/esp32c6_rev0_rom.elf",
+        "--bootloader",
+        "<FW_DIR>/public/c6-hello-bootloader.bin",
+        "--ptable",
+        "<FW_DIR>/public/c6-hello-ptable.bin",
+        "--app",
+        "<FW_DIR>/public/c6-hello_world.bin"
+      ],
+      "input_sha256": {
+        "esp32c6_rev0_rom.elf": "788e1d38724aeb8fd974fa10c4a7b089c02627d35342ce84b9e0b12b239f3551",
+        "public/c6-hello-bootloader.bin": "88fd358b406ebc874cda1f4d14c1fd50d37cd064a1826192ee275ce67741ff75",
+        "public/c6-hello-ptable.bin": "7f00b6c042a89b15b0cac534f82ed988caf29278ff5700b0c511eb1b5bb7c820",
+        "public/c6-hello_world.bin": "e302a3769d3122759ea85ed6caff857da36f558f83f9bf0eb652276657de0131"
+      },
+      "binary_sha256": {
+        "main": "1ad582e2575103a9c74c3e7768d165362425d6f07b68c2c6c1fa6c9c190e6b6f",
+        "pr": "a1434220ab9e7b7798dbb6d87025d3290e61fe29581d43de5311c9f8b98be161"
+      },
+      "runs": [
+        {
+          "pair": 0,
+          "arm": "main",
+          "warmup": true,
+          "user_seconds": 4.675896999999999,
+          "system_seconds": 0.013693999999999984,
+          "load_before": 4.56103515625,
+          "instructions": 4800000000,
+          "console_sha256": "bd69fbb9ac5c677337a293c1ec0ff7941306eec82c499290917a7c42360f86ad",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 4.7s wall = 1024.9 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3029 interrupts"
+        },
+        {
+          "pair": 0,
+          "arm": "pr",
+          "warmup": true,
+          "user_seconds": 3.4241329999999977,
+          "system_seconds": 0.013646000000000047,
+          "load_before": 4.515625,
+          "instructions": 4800000000,
+          "console_sha256": "bd69fbb9ac5c677337a293c1ec0ff7941306eec82c499290917a7c42360f86ad",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 6.5s wall = 740.9 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3029 interrupts"
+        },
+        {
+          "pair": 1,
+          "arm": "main",
+          "warmup": false,
+          "user_seconds": 3.4331940000000003,
+          "system_seconds": 0.016080999999999956,
+          "load_before": 4.134765625,
+          "instructions": 4800000000,
+          "console_sha256": "bd69fbb9ac5c677337a293c1ec0ff7941306eec82c499290917a7c42360f86ad",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 6.6s wall = 726.2 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3029 interrupts"
+        },
+        {
+          "pair": 1,
+          "arm": "pr",
+          "warmup": false,
+          "user_seconds": 3.4137909999999962,
+          "system_seconds": 0.010209999999999997,
+          "load_before": 3.88330078125,
+          "instructions": 4800000000,
+          "console_sha256": "bd69fbb9ac5c677337a293c1ec0ff7941306eec82c499290917a7c42360f86ad",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 3.4s wall = 1397.5 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3029 interrupts"
+        },
+        {
+          "pair": 2,
+          "arm": "main",
+          "warmup": false,
+          "user_seconds": 3.341638000000003,
+          "system_seconds": 0.009859000000000007,
+          "load_before": 3.97265625,
+          "instructions": 4800000000,
+          "console_sha256": "bd69fbb9ac5c677337a293c1ec0ff7941306eec82c499290917a7c42360f86ad",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 3.6s wall = 1330.9 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3029 interrupts"
+        },
+        {
+          "pair": 2,
+          "arm": "pr",
+          "warmup": false,
+          "user_seconds": 4.618026,
+          "system_seconds": 0.01095299999999999,
+          "load_before": 3.97265625,
+          "instructions": 4800000000,
+          "console_sha256": "bd69fbb9ac5c677337a293c1ec0ff7941306eec82c499290917a7c42360f86ad",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 4.6s wall = 1033.1 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3029 interrupts"
+        },
+        {
+          "pair": 3,
+          "arm": "main",
+          "warmup": false,
+          "user_seconds": 12.315066999999999,
+          "system_seconds": 0.041081000000000034,
+          "load_before": 4.0546875,
+          "instructions": 4800000000,
+          "console_sha256": "bd69fbb9ac5c677337a293c1ec0ff7941306eec82c499290917a7c42360f86ad",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 12.7s wall = 378.6 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3029 interrupts"
+        },
+        {
+          "pair": 3,
+          "arm": "pr",
+          "warmup": false,
+          "user_seconds": 5.125790000000009,
+          "system_seconds": 0.021158999999999983,
+          "load_before": 5.02490234375,
+          "instructions": 4800000000,
+          "console_sha256": "bd69fbb9ac5c677337a293c1ec0ff7941306eec82c499290917a7c42360f86ad",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 5.4s wall = 887.7 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3029 interrupts"
+        },
+        {
+          "pair": 4,
+          "arm": "main",
+          "warmup": false,
+          "user_seconds": 3.356051999999991,
+          "system_seconds": 0.006626000000000021,
+          "load_before": 5.0224609375,
+          "instructions": 4800000000,
+          "console_sha256": "bd69fbb9ac5c677337a293c1ec0ff7941306eec82c499290917a7c42360f86ad",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 3.4s wall = 1426.4 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3029 interrupts"
+        },
+        {
+          "pair": 4,
+          "arm": "pr",
+          "warmup": false,
+          "user_seconds": 3.464549000000005,
+          "system_seconds": 0.01286499999999996,
+          "load_before": 4.9404296875,
+          "instructions": 4800000000,
+          "console_sha256": "bd69fbb9ac5c677337a293c1ec0ff7941306eec82c499290917a7c42360f86ad",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 3.8s wall = 1272.9 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3029 interrupts"
+        },
+        {
+          "pair": 5,
+          "arm": "main",
+          "warmup": false,
+          "user_seconds": 3.4624280000000027,
+          "system_seconds": 0.01277600000000001,
+          "load_before": 4.9404296875,
+          "instructions": 4800000000,
+          "console_sha256": "bd69fbb9ac5c677337a293c1ec0ff7941306eec82c499290917a7c42360f86ad",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 3.8s wall = 1278.2 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3029 interrupts"
+        },
+        {
+          "pair": 5,
+          "arm": "pr",
+          "warmup": false,
+          "user_seconds": 3.361120999999997,
+          "system_seconds": 0.005648000000000042,
+          "load_before": 4.78466796875,
+          "instructions": 4800000000,
+          "console_sha256": "bd69fbb9ac5c677337a293c1ec0ff7941306eec82c499290917a7c42360f86ad",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 3.4s wall = 1425.8 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3029 interrupts"
+        },
+        {
+          "pair": 6,
+          "arm": "main",
+          "warmup": false,
+          "user_seconds": 3.378421000000003,
+          "system_seconds": 0.016809999999999936,
+          "load_before": 4.7216796875,
+          "instructions": 4800000000,
+          "console_sha256": "bd69fbb9ac5c677337a293c1ec0ff7941306eec82c499290917a7c42360f86ad",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 3.6s wall = 1319.4 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3029 interrupts"
+        },
+        {
+          "pair": 6,
+          "arm": "pr",
+          "warmup": false,
+          "user_seconds": 5.79780199999999,
+          "system_seconds": 0.050186000000000064,
+          "load_before": 4.7216796875,
+          "instructions": 4800000000,
+          "console_sha256": "bd69fbb9ac5c677337a293c1ec0ff7941306eec82c499290917a7c42360f86ad",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 8.4s wall = 570.2 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3029 interrupts"
+        },
+        {
+          "pair": 7,
+          "arm": "main",
+          "warmup": false,
+          "user_seconds": 3.4061840000000103,
+          "system_seconds": 0.01614899999999997,
+          "load_before": 16.625,
+          "instructions": 4800000000,
+          "console_sha256": "bd69fbb9ac5c677337a293c1ec0ff7941306eec82c499290917a7c42360f86ad",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 3.7s wall = 1305.3 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3029 interrupts"
+        },
+        {
+          "pair": 7,
+          "arm": "pr",
+          "warmup": false,
+          "user_seconds": 3.438564999999997,
+          "system_seconds": 0.01674399999999998,
+          "load_before": 16.33447265625,
+          "instructions": 4800000000,
+          "console_sha256": "bd69fbb9ac5c677337a293c1ec0ff7941306eec82c499290917a7c42360f86ad",
+          "stop": "[emu] stop: Halted \u2014 4800000000 insns in 3.7s wall = 1283.0 Minsn/s; emulated 30.000s (4800000000 cycles); 0 exceptions, 3029 interrupts"
+        }
+      ],
+      "median_user_seconds": {
+        "main": 3.4061840000000103,
+        "pr": 3.464549000000005
+      },
+      "change_percent": 1.7135010909567594
+    }
+  }
+}

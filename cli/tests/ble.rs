@@ -141,3 +141,63 @@ fn external_full_ble_server_responds_to_active_scan() {
     // proves repeated guest consumption, beyond simply printing configured SCAN_RSP.
     assert!(trace.matches("r_lld_rxdesc_free(a0=").count() >= packets.len() / 3, "{trace}");
 }
+
+#[test]
+#[ignore = "set ESP32SIM_BLE_SERVER_DIR to the unchanged Arduino 3.3.11 C3 Server build and ESP32SIM_ROM_DIR to the ROM directory"]
+fn external_full_ble_server_connects_and_times_out() {
+    let build = PathBuf::from(std::env::var_os("ESP32SIM_BLE_SERVER_DIR").expect("set ESP32SIM_BLE_SERVER_DIR to the Arduino C3 Server build"));
+    let rom = PathBuf::from(std::env::var_os("ESP32SIM_ROM_DIR").expect("set ESP32SIM_ROM_DIR to the C3 rev3 ROM directory")).join("esp32c3_rev3_rom.elf");
+    assert!(rom.is_file(), "missing C3 rev3 ROM input");
+    let mut command = Command::new(env!("CARGO_BIN_EXE_esp32sim-c3"));
+    command.args(["--boot", "rom", "--rom"]).arg(rom).args(["--ble", "full", "--ble-connect",
+        "--ble-stop-after-ms", "2500", "--ble-observe", "--flash-mb", "4", "--max-seconds", "6", "--no-dump",
+        "--trace-fn", "r_llc_disconnect_end"]);
+    for (flag, suffix) in [("--bootloader", "bootloader.bin"), ("--ptable", "partitions.bin"), ("--app", "bin"), ("--elf", "elf")] {
+        let file = build.join(format!("Server.ino.{suffix}"));
+        assert!(file.is_file(), "missing Arduino Server input {}", file.display());
+        command.arg(flag).arg(file);
+    }
+    let result = command.output().expect("run C3 Server specimen");
+    let console = String::from_utf8_lossy(&result.stdout);
+    let trace = String::from_utf8_lossy(&result.stderr);
+    assert!(result.status.success(), "{trace}");
+    assert!(!console.contains("assert") && !trace.contains("[ble-error]"), "{console}\n{trace}");
+    assert!(trace.contains("0 exceptions"), "{trace}");
+    let number = |line: &str, key: &str| -> u64 {
+        line.split_whitespace().find_map(|s| s.strip_prefix(key)).unwrap().parse().unwrap()
+    };
+    let connect = trace.lines().find(|l| l.contains("type=CONNECT_IND")).unwrap();
+    let events: Vec<_> = trace.lines().filter(|l| l.starts_with("[ble-connection]")).collect();
+    let anchor = number(events[0], "anchor_hus=");
+    // CONNECT_IND airtime 352 us, then 1.25 ms + WinOffset(6)*1.25 ms.
+    assert_eq!(anchor - number(connect, "hus="), 2 * (352 + 8750));
+    for (i, event) in events.iter().enumerate() {
+        assert_eq!(number(event, "channel="), ((i as u64 + 1) * 5) % 37);
+        assert_eq!(number(event, "anchor_hus="), anchor + i as u64 * 60_000);
+    }
+    let data: Vec<_> = trace.lines().filter(|l| l.contains("type=DATA")).collect();
+    assert!(data.len() >= 140);
+    let mut central_sn = 0;
+    let mut peripheral_sn = 0;
+    let mut last_tx = 0;
+    for pair in data.as_chunks::<2>().0 {
+        assert!(pair[0].starts_with("[ble-central]") && pair[1].starts_with("[ble-air]"));
+        assert_eq!(number(pair[0], "channel="), number(pair[1], "channel="));
+        assert_eq!(number(pair[1], "hus=") - number(pair[0], "hus="), 2 * (80 + 150));
+        let header = |line: &str| u8::from_str_radix(&line.split("pdu=").nth(1).unwrap()[..2], 16).unwrap();
+        let a = header(pair[0]);
+        let b = header(pair[1]);
+        assert_eq!((a >> 3) & 1, central_sn);
+        assert_eq!((a >> 2) & 1, peripheral_sn);
+        assert_eq!((b >> 3) & 1, peripheral_sn);
+        assert_eq!((b >> 2) & 1, central_sn ^ 1);
+        central_sn ^= 1;
+        peripheral_sn ^= 1;
+        last_tx = number(pair[0], "hus=");
+    }
+    assert!(last_tx - anchor >= 4_000_000);
+    assert!(trace.lines().any(|l| l.contains("r_llc_disconnect_end(a0=0x1") && l.contains("a2=0x8")), "{trace}");
+    let resumed = trace.lines().find(|l| l.contains("[ble-state] disconnected advertising_resumed")).unwrap();
+    assert!((3_900_000..=4_200_000).contains(&(number(resumed, "hus=") - last_tx)));
+    assert!(trace[trace.find(resumed).unwrap()..].contains("type=ADV_IND"));
+}

@@ -1,6 +1,6 @@
 //! Opt-in C3 link controller, derived from the rev3 ROM and Arduino 3.3.11 / IDF 5.5.5.
-//! All register fields below are inferred, not public-header definitions or silicon validated.
-//! See docs/evidence/ble-full-c3-2026-10-05/polls-disassembly.txt and the phase-1 / phase-2 receipts.
+//! All register and descriptor fields below are inferred, not public-header definitions or silicon validated.
+//! See docs/evidence/ble-full-c3-2026-10-05/polls-disassembly.txt and the phase-1 through phase-4 receipts.
 use std::collections::VecDeque;
 use emu_core::ClockDomain;
 use esp_periph::{Device, RegRam, WriteEffect};
@@ -30,6 +30,9 @@ struct State {
     dropped: u64,
     pub_log: bool,
     scanning: bool,
+    connecting: bool,
+    stop_after_ms: Option<u32>,
+    connection: Option<Connection>,
     packets: VecDeque<String>,
 }
 
@@ -37,6 +40,7 @@ impl BleLc {
     pub fn enable(&mut self) { self.state = Some(Box::default()); }
     pub fn observe(&mut self, log: bool) { if let Some(s) = &mut self.state { s.pub_log = log; } }
     pub fn scan(&mut self, enabled: bool) { if let Some(s) = &mut self.state { s.scanning = enabled; } }
+    pub fn connect(&mut self, stop_after_ms: Option<u32>) { if let Some(s) = &mut self.state { s.connecting = true; s.stop_after_ms = stop_after_ms; } }
     pub fn scanning(&self) -> bool { self.state.as_ref().is_some_and(|s| s.scanning) }
     pub fn logging(&self) -> bool { self.state.as_ref().is_some_and(|s| s.pub_log) }
     pub fn take_observation(&mut self) -> Option<String> {
@@ -54,6 +58,7 @@ struct Event {
     due: u64,
     advertising: Option<Advertising>,
     phase: ScanPhase,
+    connection_phase: u8,
 }
 
 #[derive(Default)]
@@ -160,7 +165,7 @@ impl BleLc {
                 let target = coarse * 625 + 624u64.saturating_sub(half(sram, entry + 6) as u64);
                 let delta = (target + PERIOD - now / HALF_US_CYCLES % PERIOD) % PERIOD;
                 let due = if delta >= PERIOD / 2 { now } else { (now / HALF_US_CYCLES + delta) * HALF_US_CYCLES };
-                self.state.as_mut().unwrap().event = Some(Event { entry, due, advertising: None, phase: ScanPhase::Advertising });
+                self.state.as_mut().unwrap().event = Some(Event { entry, due, advertising: None, phase: ScanPhase::Advertising, connection_phase: 0 });
             }
         }
         let Some(mut event) = self.state.as_mut().unwrap().event.take() else { return };
@@ -168,7 +173,24 @@ impl BleLc {
             self.state.as_mut().unwrap().event = Some(event);
             return;
         }
+        let cs = self.mapped(half(sram, event.entry + 8) as u32 * 2, 90, sram);
+        if let Some(cs) = cs {
+            if half(sram, cs) & 31 == 3 {
+                match self.connection_event(&mut event, cs, sram) {
+                    Ok(true) => self.state.as_mut().unwrap().event = Some(event),
+                    Ok(false) => {},
+                    Err(reason) => {
+                        self.state.as_mut().unwrap().observe(format!("[ble-error] {reason}"));
+                        self.complete(event.entry, 4, sram);
+                    }
+                }
+                return;
+            }
+        }
         if event.advertising.is_none() {
+            if self.state.as_mut().unwrap().connection.take().is_some() {
+                self.state.as_mut().unwrap().observe(format!("[ble-state] disconnected advertising_resumed hus={}", event.due / HALF_US_CYCLES));
+            }
             match self.advertising(event.entry, sram) {
                 Ok(advertising) => {
                     let s = self.state.as_mut().unwrap();
@@ -191,17 +213,25 @@ impl BleLc {
         let advertising = event.advertising.as_mut().unwrap();
         match event.phase {
             ScanPhase::Request(channel) => {
-                let pdu = scan_request(&advertising.pdu);
-                self.state.as_mut().unwrap().observe(format!("[ble-central] hus={} channel={channel} type=SCAN_REQ pdu={}",
-                    event.due / HALF_US_CYCLES, hex(&pdu)));
+                let pdu = if self.state.as_ref().unwrap().connecting { connect_request(&advertising.pdu) } else { scan_request(&advertising.pdu) };
+                self.state.as_mut().unwrap().observe(format!("[ble-central] hus={} channel={channel} type={} pdu={}",
+                    event.due / HALF_US_CYCLES, if pdu[0] & 15 == 5 { "CONNECT_IND" } else { "SCAN_REQ" }, hex(&pdu)));
                 event.due += airtime(pdu.len());
                 event.phase = ScanPhase::Receive(channel);
             }
             ScanPhase::Receive(channel) => {
-                let pdu = scan_request(&advertising.pdu);
-                if let Err(reason) = self.receive(advertising.activity, channel, event.due, &pdu, sram) {
+                let pdu = if self.state.as_ref().unwrap().connecting { connect_request(&advertising.pdu) } else { scan_request(&advertising.pdu) };
+                if let Err(reason) = self.receive(advertising.activity, channel, event.due - airtime(pdu.len()), &pdu, sram) {
                     self.state.as_mut().unwrap().observe(format!("[ble-error] {reason}"));
                     self.complete(event.entry, 4, sram);
+                    return;
+                }
+                if pdu[0] & 15 == 5 {
+                    let anchor = event.due + 17500 * HALF_US_CYCLES;
+                    let s = self.state.as_mut().unwrap();
+                    s.connection = Some(Connection { anchor, first_anchor: anchor, ..Connection::default() });
+                    s.connecting = false;
+                    self.complete(event.entry, 3, sram);
                     return;
                 }
                 event.due += 300 * HALF_US_CYCLES;
@@ -216,7 +246,8 @@ impl BleLc {
                 let channel = advertising.channels.trailing_zeros() as u8;
                 advertising.channels &= !(1 << channel);
                 self.emit(event.due, 37 + channel, &advertising.pdu);
-                if self.scanning() && matches!(advertising.pdu[0] & 15, 0 | 6) && !advertising.scan_response.is_empty() {
+                if (self.state.as_ref().unwrap().connecting && advertising.pdu[0] & 15 == 0)
+                    || (self.scanning() && matches!(advertising.pdu[0] & 15, 0 | 6) && !advertising.scan_response.is_empty()) {
                     // Model choice: a virtual scanner responds exactly T_IFS after the PDU ends.
                     event.due += airtime(advertising.pdu.len()) + 300 * HALF_US_CYCLES;
                     event.phase = ScanPhase::Request(37 + channel);
@@ -240,8 +271,8 @@ impl BleLc {
     }
 
     fn receive(&mut self, activity: u16, channel: u8, cycles: u64, pdu: &[u8], sram: &mut [u8]) -> Result<(), &'static str> {
-        if pdu.len() != 14 || pdu[0] & 15 != 3 || pdu[1] != 12 || !(37..=39).contains(&channel) {
-            return Err("invalid scanner PDU");
+        if pdu.len() < 2 || pdu.len() != pdu[1] as usize + 2 || channel > 39 {
+            return Err("invalid received PDU");
         }
         // Inferred head/link: r_lld_core_init 0x4203cd80 / 0x4203ccb0.
         let logical = self.ram.read(0x24) & 0x7fff;
@@ -259,18 +290,142 @@ impl BleLc {
         // r_rf_rssi_convert 0x4002e026 sign-extends the low byte. Fixed -40 dBm is
         // a virtual-radio choice, not a signal-strength measurement.
         // Inferred timestamp: r_lld_con_rx_sync_time_update 0x4001a08e..ce / 0x4001a138..158.
-        // Timestamp at receive completion is provisional; advertising does not consume it.
-        let hus = cycles / HALF_US_CYCLES;
+        // Inferred 1M sync offset: r_lld_core_init 0x4203cdd6..ee writes
+        // lld_exp_sync_pos_tab[0] = 40 + LC+0x90[14:8] microseconds.
+        // r_lld_adv_pkt_rx_connect_post 0x40015e24..ca subtracts it and normalizes.
+        let hus = cycles / HALF_US_CYCLES + 2 * (40 + ((self.ram.read(0x90) >> 8) & 127) as u64);
         let coarse = hus / 625;
         for (off, value) in [(2, 0), (4, half(pdu, 0)), (6, (channel as u16) << 8 | (-40i8 as u8 as u16)),
             (8, coarse as u16), (10, (coarse >> 16) as u16 & 0xfff),
             (12, activity << 11 | (624 - hus % 625) as u16), (14, 0)] {
             sram[rx + off..rx + off + 2].copy_from_slice(&value.to_le_bytes());
         }
+        // RX+14 is inferred resolving-list pointer, zero for this public peer:
+        // r_lld_adv_pkt_rx_send_scan_req_evt 0x40016470.
         // Publish ownership last; r_lld_rxdesc_free recycles buffers and clears this bit.
         sram[rx..rx + 2].copy_from_slice(&(link | 0x8000).to_le_bytes());
         self.ram.write(0x24, (link & 0x7fff) as u32);
         Ok(())
+    }
+
+    // The virtual central selects one fixed, valid CONNECT_IND parameter set.
+    // Guest event entries determine receive windows; central anchors never follow
+    // a late guest window. Missing windows must not silently shift the radio clock.
+    fn connection_event(&mut self, event: &mut Event, cs: usize, sram: &mut [u8]) -> Result<bool, &'static str> {
+        let mut c = self.state.as_mut().unwrap().connection.take().ok_or("connection event without central")?;
+        let activity = half(sram, cs + 2) & 31;
+        match event.connection_phase {
+            0 => {
+                // Inferred programmed unmapped channel: r_lld_con_evt_start_cbk 0x4001ae4e..aeaa.
+                let control = half(sram, cs + 22);
+                if control & (1 << 14) != 0 { return Err("CSA#2 not supported") }
+                // Inferred channel map +34..38 and hop +22[12:8]: r_lld_con_start
+                // 0x4001baf2..bb8c / 0x4001ba30..36. The guest programs the
+                // previous unmapped channel; hardware adds one hop for this event.
+                let map = sram[cs + 34..cs + 39].iter().enumerate().fold(0u64, |v, (i, b)| v | ((*b as u64) << (8 * i)));
+                c.channel = csa1((control & 63) as u8, ((control >> 8) & 31) as u8, map)?;
+                if c.channel != csa1(((c.events * 5) % 37) as u8, 5, (1 << 37) - 1)? {
+                    return Err("central/guest channel mismatch");
+                }
+                let s = self.state.as_mut().unwrap();
+                if c.events == 0 { s.observe("[ble-state] connected interval_us=30000 csa=1".into()); }
+                s.observe(format!("[ble-connection] event={} window_hus={} anchor_hus={} channel={}",
+                    c.events, event.due / HALF_US_CYCLES, c.anchor / HALF_US_CYCLES, c.channel));
+                put_half(sram, event.entry, (half(sram, event.entry) & !0x38) | (2 << 3));
+                // Inferred CS+26: r_lld_con_evt_start_cbk 0x4001aec0..af14 /
+                // 0x4001b172..18c uses 2-us units, or 625-us units with bit 15.
+                let window = half(sram, cs + 26);
+                let width = (window & 0x7fff) as u64 * if window & 0x8000 == 0 { 4 } else { 1250 };
+                if c.anchor < event.due || c.anchor > event.due + width * HALF_US_CYCLES {
+                    return Err("central anchor outside receive window");
+                }
+                event.due = c.anchor;
+                event.connection_phase = 1;
+            }
+            1 => {
+                if self.state.as_ref().unwrap().stop_after_ms.is_some_and(|ms| c.anchor - c.first_anchor >= ms as u64 * crate::periph::CPU_HZ / 1000) {
+                    if !c.stopped {
+                        self.state.as_mut().unwrap().observe(format!("[ble-central] stopped hus={}", c.anchor / HALF_US_CYCLES));
+                        c.stopped = true;
+                    }
+                    self.complete(event.entry, 3, sram);
+                    c.anchor += 60_000 * HALF_US_CYCLES;
+                    c.events += 1;
+                    self.state.as_mut().unwrap().connection = Some(c);
+                    return Ok(false);
+                }
+                let pdu = [c.central.header(1), 0];
+                self.state.as_mut().unwrap().observe(format!("[ble-central] hus={} channel={} type=DATA pdu={}", event.due / HALF_US_CYCLES, c.channel, hex(&pdu)));
+                c.central.sent = true;
+                event.due += airtime(2);
+                event.connection_phase = 2;
+            }
+            2 => {
+                let pdu = [c.central.header(1), 0];
+                // Inferred TX ownership/link/header: r_lld_con_tx 0x4001a410..16,
+                // 0x4001a570..58e; r_lld_con_tx_prog 0x4001ac2e..66.
+                if c.peripheral.acknowledge(pdu[0]) {
+                    if let Some(packet) = c.pending.take() {
+                        if let Some(tx) = packet.descriptor {
+                            let next = half(sram, tx) & 0x7fff;
+                            put_half(sram, tx, next | 0x8000);
+                            put_half(sram, cs + 28, next);
+                            self.state.as_mut().unwrap().raise(1 << 6);
+                        }
+                    }
+                }
+                if c.peripheral.accept(pdu[0]) {
+                    self.receive(activity, c.channel, event.due - airtime(2), &pdu, sram)?;
+                    // r_rwble_isr_hack 0x40386aee..b08 -> r_sch_prog_rx_isr,
+                    // then r_lld_con_rx_isr. ET must already be active (state 2).
+                    self.state.as_mut().unwrap().raise(1 << 2);
+                }
+                event.due += 300 * HALF_US_CYCLES;
+                event.connection_phase = 3;
+            }
+            3 => {
+                if c.pending.is_none() {
+                    let logical = half(sram, cs + 28) as u32;
+                    let tx = self.mapped(logical, 14, sram).ok_or("unmapped connection TX")?;
+                    let packet = if half(sram, tx) & 0x8000 == 0 {
+                        let header = half(sram, tx + 2);
+                        let len = (header >> 8) as usize;
+                        let data = self.mapped(half(sram, tx + 4) as u32, len, sram).ok_or("unmapped connection payload")?;
+                        let mut pdu = header.to_le_bytes().to_vec();
+                        pdu.extend_from_slice(&sram[data..data + len]);
+                        TxPacket { pdu, descriptor: Some(tx) }
+                    } else {
+                        TxPacket { pdu: vec![1, 0], descriptor: None }
+                    };
+                    c.pending = Some(packet);
+                }
+                // r_lld_con_tx 0x4001a410..16 only consumes descriptors with bit 15
+                // set. Keep this descriptor and its payload until the peer ACKs it.
+                let packet = c.pending.as_ref().unwrap();
+                let mut pdu = packet.pdu.clone();
+                pdu[0] = c.peripheral.header(pdu[0]);
+                c.peripheral.sent = true;
+                self.state.as_mut().unwrap().observe(format!("[ble-air] hus={} channel={} type=DATA pdu={}", event.due / HALF_US_CYCLES, c.channel, hex(&pdu)));
+                c.central.acknowledge(pdu[0]);
+                c.central.accept(pdu[0]);
+                event.due += airtime(pdu.len());
+                if pdu[0] & 16 != 0 && event.due + 300 * HALF_US_CYCLES + airtime(2) < c.anchor + 60_000 * HALF_US_CYCLES {
+                    event.due += 300 * HALF_US_CYCLES;
+                    event.connection_phase = 1;
+                } else {
+                    event.connection_phase = 4;
+                }
+            }
+            _ => {
+                self.complete(event.entry, 3, sram);
+                c.anchor += 60_000 * HALF_US_CYCLES;
+                c.events += 1;
+                self.state.as_mut().unwrap().connection = Some(c);
+                return Ok(false);
+            }
+        }
+        self.state.as_mut().unwrap().connection = Some(c);
+        Ok(true)
     }
 
     fn complete(&mut self, entry: usize, status: u16, sram: &mut [u8]) {
@@ -282,6 +437,62 @@ impl BleLc {
         // r_ip_funcs_p+0x6c0 resolves to r_sch_prog_end_isr_hack.
         self.state.as_mut().unwrap().raise(1 << 5);
     }
+}
+
+#[derive(Default)]
+struct Connection {
+    anchor: u64,
+    first_anchor: u64,
+    events: u32,
+    channel: u8,
+    central: Sequence,
+    peripheral: Sequence,
+    pending: Option<TxPacket>,
+    stopped: bool,
+}
+struct TxPacket {
+    pdu: Vec<u8>,
+    descriptor: Option<usize>,
+}
+
+#[derive(Default)]
+struct Sequence { sn: u8, nesn: u8, sent: bool }
+impl Sequence {
+    fn header(&self, base: u8) -> u8 { (base & !12) | (self.sn << 3) | (self.nesn << 2) }
+    fn acknowledge(&mut self, header: u8) -> bool {
+        if self.sent && (header >> 2) & 1 != self.sn {
+            self.sn ^= 1;
+            self.sent = false;
+            true
+        } else { false }
+    }
+    fn accept(&mut self, header: u8) -> bool {
+        if (header >> 3) & 1 == self.nesn {
+            self.nesn ^= 1;
+            true
+        } else { false }
+    }
+}
+
+// Bluetooth CSA#1: add hop, then remap through enabled channels in ascending order.
+fn csa1(previous: u8, hop: u8, map: u64) -> Result<u8, &'static str> {
+    if previous >= 37 || !(5..=16).contains(&hop) || map >> 37 != 0 || map.count_ones() < 2 {
+        return Err("invalid CSA#1 parameters");
+    }
+    let unmapped = (previous + hop) % 37;
+    if map & (1 << unmapped) != 0 { return Ok(unmapped) }
+    let index = unmapped as u32 % map.count_ones();
+    Ok((0..37).filter(|channel| map & (1 << channel) != 0).nth(index as usize).unwrap())
+}
+
+fn put_half(sram: &mut [u8], off: usize, value: u16) { sram[off..off + 2].copy_from_slice(&value.to_le_bytes()); }
+
+fn connect_request(advertising: &[u8]) -> Vec<u8> {
+    let mut pdu = vec![5 | ((advertising[0] & 0x40) << 1), 34, 1, 0, 0, 0, 0, 2];
+    pdu.extend_from_slice(&advertising[2..8]);
+    pdu.extend_from_slice(&[0x70, 0x83, 0x32, 0x9a, 0x56, 0x34, 0x12, 1, 6, 0,
+        24, 0, 0, 0, 200, 0, 0xff, 0xff, 0xff, 0xff, 0x1f, 5]);
+    pdu
 }
 
 fn airtime(len: usize) -> u64 { 8 * (len as u64 + 8) * 2 * HALF_US_CYCLES }
@@ -390,6 +601,7 @@ impl Device for BleLc {
             s.alarm = None;
             s.event = None;
             s.kicks.clear();
+            s.connection = None;
             s.raw = 0;
             s.fifo.clear();
             self.ram.write(0, self.ram.read(0) & !REQUEST);
@@ -569,6 +781,88 @@ mod tests {
         assert_eq!(d.receive(0, 37, 0, &scan_request(&[0; 8]), &mut ram), Err("RX descriptor still owned by guest"));
         assert_eq!(snapshot, ram);
         assert!(d.receive(0, 0, 0, &[3, 12], &mut ram).is_err());
+    }
+
+    #[test]
+    fn csa1_hops_and_remaps_sparse_channels() {
+        let all = (1 << 37) - 1;
+        assert_eq!((0..9).map(|n| csa1((n * 5) % 37, 5, all).unwrap()).collect::<Vec<_>>(),
+            [5, 10, 15, 20, 25, 30, 35, 3, 8]);
+        let map = (1 << 0) | (1 << 10) | (1 << 36);
+        assert_eq!(csa1(0, 5, map), Ok(36)); // 5 % 3 -> third used channel
+        assert_eq!(csa1(5, 5, map), Ok(10)); // already enabled
+        assert_eq!(csa1(32, 5, map), Ok(0)); // modulo-37 wrap
+        for (prev, hop, map) in [(37, 5, all), (0, 4, all), (0, 17, all), (0, 5, 1), (0, 5, 1 << 37)] {
+            assert!(csa1(prev, hop, map).is_err());
+        }
+    }
+
+    #[test]
+    fn sequence_retransmits_until_ack_and_rejects_duplicate_payload() {
+        let mut central = Sequence::default();
+        let mut peripheral = Sequence::default();
+        central.sent = true;
+        let request = central.header(1);
+        assert!(peripheral.accept(request));
+        assert!(!peripheral.accept(request));
+        peripheral.sent = true;
+        let response = peripheral.header(0x13);
+        assert_eq!(response, 0x17); // MD preserved, ACK next central SN=1.
+        assert!(central.acknowledge(response));
+        assert!(!central.acknowledge(response));
+        assert!(central.accept(response));
+        assert!(!central.accept(response));
+        assert!(!peripheral.acknowledge(request)); // retransmit response unchanged
+        assert_eq!(peripheral.header(0x13), response);
+        assert!(peripheral.acknowledge(central.header(1)));
+        assert_eq!(peripheral.sn, 1);
+    }
+
+    #[test]
+    fn sync_timestamp_recovers_packet_start_across_half_slots_and_wrap() {
+        for start in [0, 536, 537, 624, 625, PERIOD - 44, PERIOD + 625] {
+            let (mut d, mut ram) = advertising_fixture();
+            let base = crate::bus::DRAM_IN_SRAM;
+            d.write(0x90, 4 << 8); // Guest lld_exp_sync_pos_tab[0] = 44 us.
+            d.write(0x24, 0x1000);
+            put_half(&mut ram, base + 0x1000, 0x1014);
+            put_half(&mut ram, base + 0x1012, 0x7800);
+            d.receive(1, 5, start * HALF_US_CYCLES, &[1, 0], &mut ram).unwrap();
+            let rx = base + 0x1000;
+            let coarse = half(&ram, rx + 8) as u64 | ((half(&ram, rx + 10) as u64) << 16);
+            let fine = half(&ram, rx + 12) as u64 & 1023;
+            // r_lld_adv_pkt_rx_connect_post subtracts 2*44, then borrows 625.
+            let recovered = (coarse * 625 + 624 - fine + PERIOD - 88) % PERIOD;
+            assert_eq!(recovered, start % PERIOD);
+            assert_eq!(half(&ram, rx + 12) >> 11, 1);
+        }
+    }
+
+    #[test]
+    fn tx_descriptor_is_released_only_after_peer_ack() {
+        let (mut d, mut ram) = advertising_fixture();
+        let base = crate::bus::DRAM_IN_SRAM;
+        d.write(0x24, 0x1000);
+        put_half(&mut ram, base + 0x1000, 0x1014);
+        put_half(&mut ram, base + 0x1012, 0x7800);
+        d.state.as_mut().unwrap().connection = Some(Connection {
+            channel: 5,
+            peripheral: Sequence { sent: true, ..Sequence::default() },
+            pending: Some(TxPacket { pdu: vec![3, 1, 0x0c], descriptor: Some(base + 0x1400) }),
+            ..Connection::default()
+        });
+        let mut event = Event { entry: base, due: airtime(2), advertising: None,
+            phase: ScanPhase::Advertising, connection_phase: 2 };
+        d.connection_event(&mut event, base + 0x400, &mut ram).unwrap();
+        assert_eq!(half(&ram, base + 0x1400) & 0x8000, 0);
+        assert!(d.state.as_ref().unwrap().connection.as_ref().unwrap().pending.is_some());
+        d.state.as_mut().unwrap().connection.as_mut().unwrap().central.nesn = 1;
+        event.connection_phase = 2;
+        d.connection_event(&mut event, base + 0x400, &mut ram).unwrap();
+        assert_ne!(half(&ram, base + 0x1400) & 0x8000, 0);
+        assert_eq!(half(&ram, base + 0x41c), 0x140e);
+        assert!(d.state.as_ref().unwrap().connection.as_ref().unwrap().pending.is_none());
+        assert_ne!(d.state.as_ref().unwrap().raw & (1 << 6), 0);
     }
 
     #[test]
