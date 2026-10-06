@@ -47,7 +47,10 @@ impl BleLc {
         let command: Command = command.parse()?;
         let s = self.state.as_mut().ok_or("full BLE is disabled")?;
         match command {
-            Command::Connect => s.connecting = true,
+            Command::Connect => {
+                if s.connection.is_some() { return Err("central is already connected".into()) }
+                s.connecting = true;
+            }
             Command::ReadUuid(service, characteristic) => {
                 if s.read_request.is_some() || s.connection.as_ref().is_some_and(|c| c.gatt.is_some()) {
                     return Err("a BLE read is already pending".into());
@@ -56,6 +59,16 @@ impl BleLc {
             }
             _ => return Err("full BLE supports connect and read-uuid SERVICE CHARACTERISTIC".into()),
         }
+        Ok(())
+    }
+    pub fn pending_commands(&self) -> usize {
+        self.state.as_ref().map_or(0, |s| usize::from(s.connecting) + usize::from(s.read_request.is_some())
+            + usize::from(s.connection.as_ref().is_some_and(|c| c.gatt.is_some())))
+    }
+    pub fn stop_central(&mut self) -> Result<(), &'static str> {
+        let s = self.state.as_mut().ok_or("full BLE is disabled")?;
+        if s.connection.is_none() { return Err("central is not connected") }
+        s.stop_after_ms = Some(0);
         Ok(())
     }
     pub fn scanning(&self) -> bool { self.state.as_ref().is_some_and(|s| s.scanning) }

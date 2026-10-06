@@ -154,3 +154,26 @@ implementation. The external GATT test requires both discovery responses and
 the returned text, plus three seconds without disconnect or assertion.
 
 Step-3 CPU: C3 2.526651 → 2.513093 s (−0.537%), S3 +0.057%, C6 +0.017%; seven alternating pairs, identical work/output and unchanged goldens. All required checks pass: 609 CI-style / 594 plain tests, four external Server tests, native/WASM Clippy and eight WASM demos.
+
+## Step 4: scripts and WASM
+
+Full-mode CLI scripts now route `ble connect` and
+`ble read-uuid SERVICE CHARACTERISTIC` to the radio central. Commands can be
+issued after boot and after connection; pending reads are counted by the CLI's
+existing completion reporting. The native script acceptance connects at 0.5 s
+and requests the UUID read at 0.7 s.
+
+WASM exports `esp32sim_ble_command(emu, ptr, len)` for those same UTF-8
+commands, and `esp32sim_ble_central_stop(emu)` to stop traffic on an active
+connection. Both return 0 on success and 1 on invalid state/input.
+The existing full-mode, scan and observation exports are reused. Calls do not
+install HCI hooks. Only C3 full mode accepts these controls.
+
+`external_wasm.mjs MODULE BUILD_DIR ROM_ELF` exercises active scanning,
+connect, a UUID read requested after connection, more than two seconds of
+packet exchange, central stop, guest timeout and advertising restart.
+It polls observations throughout and rejects assertions, model errors and
+queue drops. `surface-checks.json`, `surface-cpu.json` and
+`wasm-result.json` record the final step-4 checks and production module.
+
+Step-4 CPU: C3 2.490646 → 2.503725 s (+0.525%), S3 +1.155%, C6 +0.141%; seven alternating pairs, equal work/output. Only C3 has the requested ±1% acceptance bound; no speedup or universal zero-variance claim is made. 609 full / 594 plain tests, five external native tests, production WASM specimen and all required checks pass.

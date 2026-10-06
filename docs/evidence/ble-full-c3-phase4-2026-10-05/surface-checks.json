@@ -1,0 +1,69 @@
+[
+  {
+    "check": "clippy-native",
+    "command": "cargo +1.99.0 clippy --workspace --all-targets -- -D warnings",
+    "exit": 0,
+    "seconds": 0.7379650419989048
+  },
+  {
+    "check": "clippy-wasm",
+    "command": "cargo +1.99.0 clippy --release --target wasm32-unknown-unknown -p esp32sim-wasm --features jit-tests -- -D warnings",
+    "exit": 0,
+    "seconds": 0.8069300839997595
+  },
+  {
+    "check": "test-ci",
+    "command": "cargo +1.99.0 test --release --workspace -- --include-ignored --skip external_",
+    "exit": 0,
+    "seconds": 52.20156241699988,
+    "passed_tests": 609
+  },
+  {
+    "check": "test-plain",
+    "command": "cargo +1.99.0 test --release --workspace",
+    "exit": 0,
+    "seconds": 5.381156333000035,
+    "passed_tests": 594
+  },
+  {
+    "check": "wasm-build",
+    "command": "tools/wasm-build.sh",
+    "exit": 0,
+    "seconds": 9.250102250000054
+  },
+  {
+    "check": "wasm-test",
+    "command": "node tools/wasm-test.mjs hello c3-hello c6-hello c6-energy-scan c6-contiki c6-contiki-net c6-rpl-net panel",
+    "exit": 0,
+    "seconds": 36.403202041999975
+  },
+  {
+    "check": "privacy",
+    "command": "node tools/check-evidence-privacy.mjs",
+    "exit": 0,
+    "seconds": 0.370688083999994
+  },
+  {
+    "check": "bins",
+    "command": "cargo +1.99.0 build --release --bins",
+    "exit": 0,
+    "seconds": 12.960473915998591
+  },
+  {
+    "check": "baseline",
+    "command": "cargo +1.99.0 build --release --bins --manifest-path .ble4/main/Cargo.toml",
+    "exit": 0,
+    "seconds": 0.029867708999518072
+  },
+  {
+    "check": "external Server",
+    "command": "ESP32SIM_BLE_SERVER_DIR=<BUILD> ESP32SIM_ROM_DIR=<ROM_DIR> cargo +1.99.0 test --release -p esp32sim --test ble external_full_ble_server -- --ignored",
+    "exit": 0,
+    "passed_tests": 5
+  },
+  {
+    "check": "external WASM Server",
+    "command": "node docs/evidence/ble-full-c3-phase4-2026-10-05/external_wasm.mjs web/wasm/esp32sim.wasm <BUILD_DIR> <ROM_ELF>",
+    "exit": 0
+  }
+]

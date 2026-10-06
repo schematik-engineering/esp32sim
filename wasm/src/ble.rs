@@ -1,4 +1,4 @@
-//! Active scanning and observation of the C3 full link controller.
+//! Commands and observation of the C3 full link controller.
 use super::{Emu, MachineKind};
 
 /// Enable the full controller before boot. Returns 1 for other chips or after boot.
@@ -47,4 +47,28 @@ pub unsafe extern "C" fn esp32sim_ble_scan(e: *mut Emu, enabled: u32) -> u32 {
     if !m.bus.periph.ble_lc.enabled() { return 1 }
     m.bus.periph.ble_lc.scan(enabled != 0);
     0
+}
+
+
+/// Send connect or read-uuid SERVICE CHARACTERISTIC to C3 full mode.
+/// Returns 0 on success, 1 for invalid commands, other chips or disabled full mode.
+/// # Safety
+/// `e` must be live and exclusive; `ptr` must be readable for `len` bytes.
+#[no_mangle]
+pub unsafe extern "C" fn esp32sim_ble_command(e: *mut Emu, ptr: *const u8, len: usize) -> u32 {
+    let e = unsafe { &mut *e };
+    let command = unsafe { super::text(ptr, len) };
+    let MachineKind::C3(m) = &mut e.m else { return 1 };
+    u32::from(m.bus.periph.ble_lc.command(command).is_err())
+}
+
+/// Stop central transmissions so the guest's supervision timeout can expire.
+/// Returns 1 unless the virtual central is connected.
+/// # Safety
+/// `e` must be a live emulator with exclusive access for this call.
+#[no_mangle]
+pub unsafe extern "C" fn esp32sim_ble_central_stop(e: *mut Emu) -> u32 {
+    let e = unsafe { &mut *e };
+    let MachineKind::C3(m) = &mut e.m else { return 1 };
+    u32::from(m.bus.periph.ble_lc.stop_central().is_err())
 }

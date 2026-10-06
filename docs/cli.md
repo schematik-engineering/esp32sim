@@ -207,3 +207,21 @@ Register fields, RX sync placement and receive-window timing remain inferred.
 The Server specimen resumes advertising after a timeout but currently logs a
 UUID-flattening error and advertises a changed service UUID; reconnect behavior
 is not accepted.
+
+Full-mode scripts accept the same UUID command parser:
+
+```text
+0.5 ble connect
+0.7 ble read-uuid 4fafc201-1fb5-459e-8fcc-c5c9c331914b beb5483e-36e1-4688-b7f5-ea07361b26a8
+```
+
+Run with `--ble full --ble-observe --script FILE`. Full-mode `read-uuid`
+supports one outstanding read. HCI-only commands such as `discover` and
+handle-based `write` are not supported by the full radio central.
+
+WASM callers enable `esp32sim_ble_full(emu)` before boot, toggle the scanner
+with `esp32sim_ble_scan(emu, enabled)`, and send UTF-8 commands using
+`esp32sim_ble_command(emu, ptr, len)`. Stop central transmissions with
+`esp32sim_ble_central_stop(emu)`; the guest decides when supervision expires.
+These controls return 0 on success and 1 on invalid input/state. Poll
+`esp32sim_ble_take` / `esp32sim_ble_ptr` for packet, connection and ATT results.
