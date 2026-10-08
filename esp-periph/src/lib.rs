@@ -64,3 +64,4 @@ pub const RTC_SLOW_HZ: u64 = 150_000;
 #[doc(hidden)] pub use mmio::{__divider, __ClockDomain, __ClockTree, __Dividers};
 
 mod clocked_queue;
+pub mod dma;

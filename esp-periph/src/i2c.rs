@@ -27,15 +27,16 @@ pub trait I2cDevice {
 
 pub const INT_END_DETECT: u32 = 1 << 3;
 pub const INT_TRANS_COMPLETE: u32 = 1 << 7;
+pub const INT_TIMEOUT: u32 = 1 << 8;
 pub const INT_NACK: u32 = 1 << 10;
 
-pub struct I2c {
+pub struct I2c<const N: usize = 8> {
     pub regs: RegRam,
     tx: VecDeque<u8>,
     rx: VecDeque<u8>,
     pub int_raw: u32,
     pub int_ena: u32,
-    cmd: [u32; 8],
+    cmd: [u32; N],
     devices: Vec<(u8, Box<dyn I2cDevice>)>,
     cur: Vec<usize>,
     pins: Option<(u8, u8)>,
@@ -51,9 +52,12 @@ pub struct I2c {
     pub external_clock_config: Option<u32>,
 }
 
-impl I2c {
-    pub fn new() -> Self {
-        I2c { regs: RegRam::new(), tx: VecDeque::new(), rx: VecDeque::new(), int_raw: 0, int_ena: 0, cmd: [0; 8], devices: Vec::new(), cur: Vec::new(), pins: None, expect_addr: false, nack: false,
+impl I2c { pub fn new() -> Self { Self::with_slots() } }
+/// ESP-IDF v5.5.4 esp32 i2c_reg.h: sixteen commands; i2c_ll.h: opcodes 0/1/2/3/4.
+impl I2c<16> { pub fn new_classic() -> Self { Self::with_slots() } }
+impl<const N: usize> I2c<N> {
+    fn with_slots() -> Self {
+        I2c { regs: RegRam::new(), tx: VecDeque::new(), rx: VecDeque::new(), int_raw: 0, int_ena: 0, cmd: [0; N], devices: Vec::new(), cur: Vec::new(), pins: None, expect_addr: false, nack: false,
               log: false, transactions: 0, active: false, command_index: 0, byte_index: 0, remaining: 0, external_clock_config: None }
     }
     /// A device attached at an occupied address and pin pair replaces the one there: a board swapped before
@@ -90,13 +94,13 @@ impl I2c {
     pub fn read(&mut self, off: u32) -> u32 {
         match off {
             // IDF v5.5.4 S3 i2c_reg.h:173-179: BUS_BUSY bit 4.
-            0x08 => (self.nack as u32) | ((self.active as u32) << 4) | ((self.rx.len() as u32 & 0x3f) << 8) | ((self.tx.len() as u32 & 0x3f) << 18),   // SR: resp_rec, bus_busy, rxfifo_cnt, txfifo_cnt
+            0x08 => (self.nack as u32) | (u32::from(N == 16 && self.int_raw & INT_TIMEOUT != 0) << 2) | ((self.active as u32) << 4) | ((self.rx.len() as u32 & 0x3f) << 8) | ((self.tx.len() as u32 & 0x3f) << 18),   // SR: resp_rec, bus_busy, rxfifo_cnt, txfifo_cnt
             0x14 => ((self.rx.len() as u32 & 0x1f) << 5) | ((self.tx.len() as u32 & 0x1f) << 15),                        // FIFO_ST: waddr = count, raddr = 0
             0x1c => self.rx.pop_front().unwrap_or(0) as u32,
             0x20 => self.int_raw,
             0x28 => self.int_ena,
             0x2c => self.int_raw & self.int_ena,
-            0x58..=0x74 => self.cmd[((off - 0x58) / 4) as usize],
+            0x58..=0x94 if ((off - 0x58) / 4) < N as u32 => self.cmd[((off - 0x58) / 4) as usize],
             _ => self.regs.read(off),
         }
     }
@@ -118,13 +122,15 @@ impl I2c {
             0x1c => { if self.tx.len() < 32 { self.tx.push_back(v as u8); } }
             0x24 => self.int_raw &= !v,
             0x28 => self.int_ena = v,
-            0x58..=0x74 => self.cmd[((off - 0x58) / 4) as usize] = v & !(1 << 31),
+            0x58..=0x94 if ((off - 0x58) / 4) < N as u32 => self.cmd[((off - 0x58) / 4) as usize] = v & !(1 << 31),
             _ => self.regs.write(off, v),
         }
     }
 
     fn op(&self) -> u32 {
-        (self.cmd[self.command_index] >> 11) & 7
+        match ((self.cmd[self.command_index] >> 11) & 7, N == 16) {
+            (0, true) => 6, (2, true) => 3, (3, true) => 2, (op, _) => op,
+        }
     }
 
     // IDF v5.5.4 components/hal/esp32s3/include/hal/i2c_ll.h:205-235:
@@ -150,7 +156,7 @@ impl I2c {
     // S3:160-171 and C3:164-175 use the same convention.
     // S3 i2c_reg.h:16-26, 932-1006 gives 9-bit periods and 7-bit wait-high.
     fn schedule(&mut self) {
-        if self.command_index >= 8 { self.active = false; return; }
+        if self.command_index >= N { self.active = false; return; }
         let mask = 0x1ff;
         let cycles = match self.op() {
             1 | 3 if self.cmd[self.command_index] & 255 != 0 => {
@@ -175,6 +181,7 @@ impl I2c {
         self.command_index = 0;
         self.byte_index = 0;
         self.schedule();
+        if N == 16 { self.advance(u64::MAX); }
     }
 
     fn advance(&mut self, mut ticks: u64) {
@@ -262,7 +269,7 @@ impl I2cDevice for Reg8Device {
     fn read(&mut self) -> u8 { let v = self.regs[self.ptr as usize]; self.ptr = self.ptr.wrapping_add(1); v }
 }
 
-impl Device for I2c {
+impl<const N: usize> Device for I2c<N> {
     fn read(&mut self, off: u32) -> u32 { I2c::read(self, off) }
     fn write(&mut self, off: u32, v: u32) -> WriteEffect { I2c::write(self, off, v); WriteEffect::NONE }
     fn irq_sources(&self) -> u64 { self.irq() as u64 }
@@ -271,4 +278,24 @@ impl Device for I2c {
     fn has_deadline(&self) -> bool { true }
     fn next_deadline(&self) -> Option<u64> { self.active.then_some(self.remaining) }
     fn debug(&mut self, on: bool) { self.log = on; }
+}
+
+#[cfg(test)]
+mod classic_tests {
+    use super::*;
+    #[test]
+    fn classic_executes_sixteen_slots_and_old_stop_opcode() {
+        let mut classic = I2c::new_classic();
+        for i in 0..15 { classic.write(0x58 + 4 * i, 0); }
+        classic.write(0x94, 3 << 11);
+        classic.write(4, 1 << 5);
+        assert_ne!(classic.read(0x94) & (1 << 31), 0);
+        assert_ne!(classic.int_raw & INT_TRANS_COMPLETE, 0);
+        let mut modern = I2c::new();
+        modern.write(0x94, 3 << 11);
+        modern.write(0x58, 2 << 11);
+        modern.write(4, 1 << 5);
+        assert_eq!(modern.read(0x94), 3 << 11);
+        assert_ne!(modern.int_raw & INT_TRANS_COMPLETE, 0);
+    }
 }

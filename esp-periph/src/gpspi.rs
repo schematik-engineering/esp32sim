@@ -2,6 +2,17 @@
 use crate::device::{Device, WriteEffect};
 use crate::regram::RegRam;
 
+/// Store received bytes in the selected W register bank, padding absent input with ones.
+pub fn fill_w(w: &mut [u32; 16], base: usize, len: usize, rx: &[u8]) {
+    w[base..].fill(u32::MAX);
+    for i in 0..len.min((16 - base) * 4) {
+        let b = rx.get(i).copied().unwrap_or(0xff);
+        let word = base + i / 4;
+        let shift = 8 * (i % 4);
+        w[word] = (w[word] & !(0xff << shift)) | ((b as u32) << shift);
+    }
+}
+
 /// One complete transfer waiting for the board attached to a GP-SPI host.
 pub struct GpSpiTransfer {
     pub tx: Vec<u8>,
@@ -137,14 +148,7 @@ impl GpSpi {
     /// Complete a transfer with the board's MISO response.
     pub fn finish_transfer(&mut self, transfer: GpSpiTransfer, rx: &[u8]) {
         if transfer.rx_len != 0 {
-            for k in transfer.rx_word_base..16 { self.w[k] = 0xffff_ffff; }
-            let capacity = (16 - transfer.rx_word_base) * 4;
-            for i in 0..transfer.rx_len.min(capacity) {
-                let b = rx.get(i).copied().unwrap_or(0xff);
-                let word = transfer.rx_word_base + i / 4;
-                let shift = 8 * (i % 4);
-                self.w[word] = (self.w[word] & !(0xff << shift)) | ((b as u32) << shift);
-            }
+            fill_w(&mut self.w, transfer.rx_word_base, transfer.rx_len, rx);
         }
         if self.log { eprintln!("[spi2] transfer tx={} rx={}: {:02x?}", transfer.tx.len(), transfer.rx_len, &transfer.tx[..transfer.tx.len().min(16)]); }
         self.transfers += 1;
