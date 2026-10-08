@@ -1,0 +1,114 @@
+[
+  {
+    "mutation": "minimum low",
+    "file": "esp-soc/src/devices/ws2812.rs",
+    "before": "ns < MIN_PULSE_NS",
+    "after": "false",
+    "test": "cargo +1.99.0 test --release -p esp-soc --lib gpio_timing_limits",
+    "killed": true
+  },
+  {
+    "mutation": "high range",
+    "file": "esp-soc/src/devices/ws2812.rs",
+    "before": "!(MIN_PULSE_NS..=MAX_HIGH_NS).contains(&ns)",
+    "after": "false",
+    "test": "cargo +1.99.0 test --release -p esp-soc --lib gpio_timing_limits",
+    "killed": true
+  },
+  {
+    "mutation": "bit threshold",
+    "file": "esp-soc/src/devices/ws2812.rs",
+    "before": "ns >= ONE_HIGH_NS",
+    "after": "ns > ONE_HIGH_NS",
+    "test": "cargo +1.99.0 test --release -p esp-soc --lib gpio_stream_bounds",
+    "killed": true
+  },
+  {
+    "mutation": "reset interval",
+    "file": "esp-soc/src/devices/ws2812.rs",
+    "before": "RESET_US * u64::from(self.gpio_hz)",
+    "after": "(RESET_US - 1) * u64::from(self.gpio_hz)",
+    "test": "cargo +1.99.0 test --release -p esp-soc --lib gpio_pulses_require",
+    "killed": true
+  },
+  {
+    "mutation": "output enable",
+    "file": "esp-soc/src/devices/ws2812.rs",
+    "before": "!enabled || hz == 0",
+    "after": "hz == 0",
+    "test": "cargo +1.99.0 test --release -p esp-soc --lib gpio_pulses_require",
+    "killed": true
+  },
+  {
+    "mutation": "bounded bits",
+    "file": "esp-soc/src/devices/ws2812.rs",
+    "before": "self.gpio.bits.len() < self.leds.len() * 24",
+    "after": "true",
+    "test": "cargo +1.99.0 test --release -p esp-soc --lib gpio_stream_bounds",
+    "killed": true
+  },
+  {
+    "mutation": "invalid frame",
+    "file": "esp-soc/src/devices/ws2812.rs",
+    "before": "if !self.gpio.invalid {",
+    "after": "if true {",
+    "test": "cargo +1.99.0 test --release -p esp-soc --lib gpio_trailing_glitch",
+    "killed": true
+  },
+  {
+    "mutation": "repeated high",
+    "file": "esp-soc/src/devices/ws2812.rs",
+    "before": "if self.gpio.high_since.is_none() {",
+    "after": "if true {",
+    "test": "cargo +1.99.0 test --release -p esp-soc --lib gpio_stream_bounds",
+    "killed": true
+  },
+  {
+    "mutation": "nonzero clock",
+    "file": "esp-soc/src/devices/ws2812.rs",
+    "before": "assert!(hz != 0, \"GPIO waveform clock must be nonzero\");",
+    "after": "",
+    "test": "cargo +1.99.0 test --release -p esp-soc --lib gpio_clock_must",
+    "killed": true
+  },
+  {
+    "mutation": "run quantum",
+    "file": "esp-soc/src/machine.rs",
+    "before": "std::mem::replace(&mut self.quantum, 1)",
+    "after": "std::mem::replace(&mut self.quantum, 64)",
+    "test": "cargo +1.99.0 test --release -p esp32sim --test gpio_waveform",
+    "killed": true
+  },
+  {
+    "mutation": "until-cycle quantum",
+    "file": "esp-soc/src/machine.rs",
+    "before": "uses_gpio_waveform() { 1 }",
+    "after": "uses_gpio_waveform() { self.quantum }",
+    "test": "cargo +1.99.0 test --release -p esp32sim --test gpio_waveform",
+    "killed": true
+  },
+  {
+    "mutation": "restore quantum",
+    "file": "esp-soc/src/machine.rs",
+    "before": "self.quantum = quantum;",
+    "after": "self.quantum = 1; let _ = quantum;",
+    "test": "cargo +1.99.0 test --release -p esp32sim --test gpio_waveform",
+    "killed": true
+  },
+  {
+    "mutation": "browser bypass",
+    "file": "esp-soc/src/machine.rs",
+    "before": "if self.bus.board_ref().uses_gpio_waveform()\n            || u64",
+    "after": "if false\n            || u64",
+    "test": "cargo +1.99.0 test --release -p esp32sim --test gpio_waveform",
+    "killed": true
+  },
+  {
+    "mutation": "opt-in gate",
+    "file": "esp-soc/src/machine.rs",
+    "before": "if self.bus.board_ref().uses_gpio_waveform() {",
+    "after": "if true {",
+    "test": "cargo +1.99.0 test --release -p esp32sim --test gpio_waveform",
+    "killed": true
+  }
+]

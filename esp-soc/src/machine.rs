@@ -498,6 +498,12 @@ impl<S: Soc> Machine<S> {
     pub fn run(&mut self, max_insns: u64) -> Stop {
         self.web_poll_input();
         self.refresh_irq();
+        if self.bus.board_ref().uses_gpio_waveform() {
+            let quantum = std::mem::replace(&mut self.quantum, 1);
+            let stop = self.run_unmodeled::<false>(max_insns);
+            self.quantum = quantum;
+            return stop;
+        }
         if self.cost.is_some() { self.run_modeled(max_insns) } else if self.approximate_jit_frontiers { self.run_approximate_jit_frontiers(max_insns) } else if self.approximate_jit_timing.is_some() { self.run_unmodeled::<true>(max_insns) } else { self.run_unmodeled::<false>(max_insns) }
     }
 
@@ -508,7 +514,8 @@ impl<S: Soc> Machine<S> {
     /// still has to enforce architectural boundaries such as
     /// CCOMPARE and register-window overflow for the block it proposes.
     pub fn browser_external_block_budget(&self, requested: u32) -> Option<u32> {
-        if u64::from(requested) < self.quantum
+        if self.bus.board_ref().uses_gpio_waveform()
+            || u64::from(requested) < self.quantum
             || self.cost.is_some()
             || self.approximate_jit_timing.is_some()
             || self.probes.0 != 0
@@ -910,6 +917,7 @@ impl<S: Soc> Machine<S> {
     /// Nothing else about a run changes: stubs, probes, observers, scripts and the console work
     /// as in `run`; `max_cycles` is not consulted.
     pub fn run_until_cycle(&mut self, target: u64) -> RunUntil {
+        let quantum = if self.bus.board_ref().uses_gpio_waveform() { 1 } else { self.quantum };
         self.web_poll_input();
         self.refresh_irq();
         self.stub_bloom = self.stubs.keys().chain(S::function_hooks(&self.bus)).fold(0, |m, &pc| m | pc_bit(pc));
@@ -939,7 +947,7 @@ impl<S: Soc> Machine<S> {
                 if let Some((at, _)) = self.script.events.get(self.script.pos) {
                     deadline = deadline.min(at.saturating_sub(now).max(1));
                 }
-                let mut budget = left.min(self.quantum).min(deadline) as u32;
+                let mut budget = left.min(quantum).min(deadline) as u32;
                 let (mut used_total, mut yielded, mut stop) = (0u64, false, None);
                 while budget > 0 {
                     let (used, s) = if blocks { self.step_blocks(0, budget) } else { (1, self.step_core(0)) };
