@@ -48,6 +48,7 @@ pub struct SocBus {
     /// GPIO edges for observers, while one wants them: (cycle, pin, level)
     pub gpio_events: Option<Vec<(u64, u8, bool)>>,
     pub debug: esp_soc::DebugFlags,
+    pub(crate) pcm_sources: Option<Box<esp_periph::i2s::PcmSources>>,
 }
 
 impl SocBus {
@@ -72,7 +73,7 @@ impl SocBus {
             lp_sram: vec![0; (LP_SRAM_HIGH - LP_SRAM_LOW) as usize],
             flash: vec![0xff; flash_size],
             mmu: [0; MMU_ENTRIES], mmu_index: 0, mmu_power_ctrl: 0,
-            periph: Peripherals::new(mac), board: Box::new(esp_soc::NoBoard), uart_pins: false,
+            periph: Peripherals::new(mac), pcm_sources: None, board: Box::new(esp_soc::NoBoard), uart_pins: false,
             cycles: 0, last_fault: None, irq_dirty: true, gpio_events: None, debug: Default::default(),
         }
     }
@@ -141,6 +142,7 @@ impl SocBus {
         }
         let v = if size == 4 { v } else { merge(self.periph.read32(a)) };
         let old_drive = (self.periph.gpio.enable, self.periph.gpio.out);
+        if a >> 12 == 0x6000e { self.periph.adc.now_cycles = self.cycles; }
         self.periph.write32(a, v);
         if old_drive != (self.periph.gpio.enable, self.periph.gpio.out) {
             self.deliver_gpio_output();
@@ -415,7 +417,8 @@ impl SocBus {
     fn i2s_rx_step(&mut self, cycles: u64) {
         let Some(ch) = self.periph.gdma.gdma.in_channel_for(3) else { return };
         self.periph.i2s0.rx_pcr_clock(self.periph.pcr.read(0x78), self.periph.pcr.read(0x7c));
-        let bytes = self.periph.i2s0.rx_data(cycles, false);
+        let signals = esp_periph::i2s::RxSignals { data: 15, input_select_bit: 7, output_mask: 0x1ff };
+        let bytes = self.periph.i2s0.receive(cycles, self.cycles, false, &self.periph.gpio, signals, self.pcm_sources.as_deref_mut());
         let eof = self.periph.i2s0.read(0x64);
         let mut channel = self.periph.gdma.gdma.inp[ch];
         let mut irq_changed = false;
