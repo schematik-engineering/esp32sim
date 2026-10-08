@@ -40,10 +40,6 @@ impl Gpio {
         if rising || falling { self.status |= 1u64 << pin; return true; }
         false
     }
-    /// The pin the matrix routes peripheral output signal `sig` to, if any.
-    pub fn pin_for_signal(&self, sig: u32) -> Option<u8> {
-        self.func_out_sel.iter().position(|&s| s & 0x1ff == sig).map(|p| p as u8)
-    }
     pub fn level(&self, pin: u8) -> bool {
         if pin as usize >= self.pin.len() { return false; }
         if self.enable & (1u64 << pin) != 0 { self.out & (1u64 << pin) != 0 } else { self.input & (1u64 << pin) != 0 }

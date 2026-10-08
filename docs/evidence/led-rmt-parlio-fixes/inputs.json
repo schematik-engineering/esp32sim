@@ -1,0 +1,38 @@
+[
+  {
+    "path": "cli/tests/led_outputs.rs",
+    "sha256": "8c201387477d98c217d1b1cf4a3d8cf8efbfcfdbf5991ce3dcd2117de434758e"
+  },
+  {
+    "path": "esp32s3/src/bus/tests.rs",
+    "sha256": "12132076fe4efe2efbfa9fc3023708cce567fdf54b217c0b25719925778a7114"
+  },
+  {
+    "path": "esp32c6/src/parlio.rs",
+    "sha256": "c464790525ee644c4c58872ce3e88af82fd4c92d4a77a996f442c07a9f379fb5"
+  },
+  {
+    "path": "web/wasm/fw/esp32c6_rev0_rom.elf",
+    "sha256": "788e1d38724aeb8fd974fa10c4a7b089c02627d35342ce84b9e0b12b239f3551"
+  },
+  {
+    "path": "web/wasm/fw/esp32s3_rev0_rom.elf",
+    "sha256": "c0ce0f338d1de1bdc6efbef1591779a2a42c1ab7d759d3c6ae8ae63a7dd34cfd"
+  },
+  {
+    "path": "web/wasm/fw/esp32c3_rev3_rom.elf",
+    "sha256": "19ac22e08707df926fb0cf4c54795d4067b983fae8635f396ded173a6d78fc3c"
+  },
+  {
+    "path": "esp32c6/src/bus.rs",
+    "sha256": "52c06c0aa93e3f6d6e3bcefb7ed391cd639159ed58cbb02a0ddfa2c2ae917755"
+  },
+  {
+    "path": "esp-soc/src/devices/ws2812.rs",
+    "sha256": "b0df3c17f26834ffa63b4ab4df5d5f3c7a4fa30b303b50c8cea1d4d985794b7f"
+  },
+  {
+    "path": "esp-periph/src/rmt.rs",
+    "sha256": "b11f1711d5d098d9f3821daf7d0d33f2373492b188a5092e58a4229842abb39a"
+  }
+]
