@@ -287,3 +287,6 @@ Invalid samples leave queue and time intact. Push between emulator runs at the
 bus's current cycle count. Conversion uses `AnalogInputs.cpu_hz`. Buffers retain
 two seconds, drop oldest samples on overflow, and hold the last value on
 underrun. Both forms preserve main's completed-conversion observation counters.
+On classic ESP32, `touchpad <gpio> <0|1>` drives a capacitive pad separately
+from the panel's `touch <x> <y> <0|1>` action. For example, `0 touchpad 4 1`
+applies a touch at time zero. `adc` and `adcwave` also support classic ADC pads.
