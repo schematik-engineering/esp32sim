@@ -39,10 +39,12 @@ impl I2s {
     /// Raw PDM, TDM >2 slots, slave clocks, endian/bit-order/companding modes do not advance.
     pub fn receive(&mut self, cycles: u64, now: u64, pdm2pcm: bool,
         gpio: &crate::Gpio, signals: super::RxSignals, sources: Option<&mut super::PcmSources>) -> Vec<u8> {
+        self.rx_source = None;
         let cpu_hz = self.cpu_hz;
         if let Some(sources) = sources {
             sources.advance_to(now.saturating_sub(cycles), cpu_hz);
             let selected = if sources.active() { sources.select(gpio, signals, self.rx_conf & (1 << 20) != 0) } else { None };
+            self.rx_source = selected;
             self.rx_data(cycles, pdm2pcm, |offset| selected.map_or([0; 2], |id| sources.sample(id, offset, cpu_hz)))
         } else {
             let mut input = std::mem::take(&mut self.rx_input);

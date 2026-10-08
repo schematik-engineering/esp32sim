@@ -172,8 +172,12 @@ mod tests {
         rx.write(0x20, 4);
         rx.rx_input.push(&[[12, 34]]);
         assert_eq!(rx.receive(20000, 20000, false, &gpio, signals, Some(&mut sources)), [0; 4]);
+        assert_eq!(rx.rx_source, Some(15));
         sources.inputs[15] = None;
         assert_eq!(rx.receive(20000, 20000, false, &gpio, signals, Some(&mut sources)), [0; 4]);
+        assert_eq!(rx.rx_source, None);
+        rx.receive(20000, 40000, false, &gpio, signals, None);
+        assert_eq!(rx.rx_source, None);
 
     }
 

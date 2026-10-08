@@ -24,11 +24,13 @@ pub struct I2s {
     pub tx_started_log: bool,
     cpu_hz: u64,
     pub rx_input: PcmInput,
+    /// Routed source selected on the last receive call; None for legacy input.
+    pub rx_source: Option<usize>,
     rx_acc: u64,
     pub rx_buffer: Vec<u8>,
 }
 impl I2s {
-    pub fn new(cpu_hz: u64) -> Self { I2s { cpu_hz, rx_buffer: Vec::new(), rx_input: PcmInput::default(), rx_acc: 0, rx_conf: 0, tx_conf: 0, int_raw: 0, int_ena: 0, ram: RegRam::new(), tx_conf1: 0, tx_clkm_conf: 0, tx_clkm_div_conf: 0, tx_tdm_ctrl: 0xffff, sample_rate: 44100, bytes_per_frame: 1, acc: 0, pcm: Vec::new(), frames_out: 0, tx_started_log: false } }
+    pub fn new(cpu_hz: u64) -> Self { I2s { cpu_hz, rx_source: None, rx_buffer: Vec::new(), rx_input: PcmInput::default(), rx_acc: 0, rx_conf: 0, tx_conf: 0, int_raw: 0, int_ena: 0, ram: RegRam::new(), tx_conf1: 0, tx_clkm_conf: 0, tx_clkm_div_conf: 0, tx_tdm_ctrl: 0xffff, sample_rate: 44100, bytes_per_frame: 1, acc: 0, pcm: Vec::new(), frames_out: 0, tx_started_log: false } }
     pub fn tx_running(&self) -> bool { self.tx_conf & (1 << 2) != 0 }
     /// Packed DMA sample width, independent of padding in the wire's time slots.
     pub fn sample_bytes(&self) -> usize { (((self.tx_conf1 >> 13) & 0x1f) + 1).div_ceil(8) as usize }
