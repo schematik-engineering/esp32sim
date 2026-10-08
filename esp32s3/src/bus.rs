@@ -500,6 +500,9 @@ impl SocBus {
         }
         if a >> 12 == 0x60008 { self.periph.rtc.now_cycles = self.cycles; }
         self.periph.write32(a, v);
+        if ((0x6000_4000..0x6000_5000).contains(&a) || (0x6000_9000..0x6000_a000).contains(&a)) && self.board.uses_gpio_waveform() {
+            self.board.gpio_waveform_at(self.cycles, esp_soc::pins::ChipPins::S3.routes(&self.periph.gpio, &self.periph.io_mux));
+        }
         if a == 0x6001_602c || (0x6003_f000..0x6004_0000).contains(&a) { self.stage_rmt_dma(); }
         if old_gpio_out != self.periph.gpio.out || old_gpio_enable != self.periph.gpio.enable {
             let changes = &self.periph.gpio.changes;

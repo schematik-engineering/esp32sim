@@ -106,6 +106,8 @@ pub trait BoardModel {
     fn uses_gpio_edges(&self) -> bool { true }
     /// Use instruction-sized, unmodeled quanta for GPIO pulse decoding, overriding timing models.
     fn uses_gpio_waveform(&self) -> bool { false }
+    /// Routed GPIO drive, including mux/enable changes without a latch transition.
+    fn gpio_waveform_at(&mut self, _cycle: VirtualCycle, _routes: crate::pins::PinRoutes<'_>) {}
     /// Earliest autonomous transition strictly after the board's current cycle.
     fn next_deadline(&self) -> Option<VirtualCycle> { None }
     /// Advance monotonically through every board transition due by `cycle`.

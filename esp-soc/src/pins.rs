@@ -33,6 +33,17 @@ pub struct PinRoutes<'a> {
     mux: &'a RegRam,
 }
 impl PinRoutes<'_> {
+    /// GPIO-latch drive after matrix selection and output/enable inversion.
+    pub fn software_output(&self, pin: u8) -> Option<bool> {
+        let pin = usize::from(pin);
+        if !self.function(pin, self.chip.matrix_function) { return None; }
+        let signal = (self.chip.output_mask + 1) / 4;
+        let route = self.gpio.func_out_sel[pin];
+        if route & (signal * 2 - 1) != signal { return None; }
+        let enabled = (self.gpio.enable & (1u64 << pin) != 0) ^ (route & (signal * 8) != 0);
+        enabled.then(|| (self.gpio.out & (1u64 << pin) != 0) ^ (route & (signal * 2) != 0))
+    }
+
     pub fn valid_pin(&self, pin: usize) -> bool { pin < 64 && self.chip.valid & (1u64 << pin) != 0 }
     fn mux(&self, pin: usize) -> u32 { self.mux.read(self.chip.mux_offsets.map_or(4 + 4 * pin as u32, |offsets| offsets[pin])) }
     pub fn function(&self, pin: usize, function: u32) -> bool { self.valid_pin(pin) && self.mux(pin) & (7 << 12) == function << 12 }
@@ -113,5 +124,26 @@ impl PinRoutes<'_> {
             }
         }
         pins
+    }
+}
+
+#[cfg(test)]
+mod waveform_tests {
+    use super::*;
+    #[test]
+    fn software_drive_respects_mux_route_enable_and_inversion() {
+        let mut gpio = Gpio::new();
+        let mut mux = RegRam::new();
+        gpio.enable = 2;
+        gpio.out = 2;
+        assert_eq!(ChipPins::S3.routes(&gpio, &mux).software_output(1), None);
+        mux.write(8, 1 << 12);
+        assert_eq!(ChipPins::S3.routes(&gpio, &mux).software_output(1), Some(true));
+        gpio.func_out_sel[1] = 256 | 512;
+        assert_eq!(ChipPins::S3.routes(&gpio, &mux).software_output(1), Some(false));
+        gpio.func_out_sel[1] |= 2048;
+        assert_eq!(ChipPins::S3.routes(&gpio, &mux).software_output(1), None);
+        gpio.func_out_sel[1] = 12;
+        assert_eq!(ChipPins::S3.routes(&gpio, &mux).software_output(1), None);
     }
 }

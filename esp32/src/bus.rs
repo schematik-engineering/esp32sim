@@ -234,6 +234,9 @@ impl SocBus {
         let old_enable = self.periph.gpio.gpio.enable;
         if (0x3ff4_8800..=0x3ff4_88ff).contains(&a) { self.periph.adc.now_cycles = self.cycles; }
         self.periph.write32(a, v);
+        if ((0x3ff4_4000..0x3ff4_5000).contains(&a) || (0x3ff4_9000..0x3ff4_a000).contains(&a)) && self.board.uses_gpio_waveform() {
+            self.board.gpio_waveform_at(self.cycles, self.periph.gpio.routes());
+        }
         if self.pins_active {
             if let Some(port) = [0x3ff4_0000, 0x3ff5_0000, 0x3ff6_e000].iter().position(|&base| a == base) {
                 self.board.uart_tx(self.cycles, self.periph.uart_route(port), v as u8);

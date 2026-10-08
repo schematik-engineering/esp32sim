@@ -163,6 +163,7 @@ pub struct ClassicGpio {
     rtc_pads: u64,
 }
 impl ClassicGpio {
+    pub(crate) fn routes(&self) -> esp_soc::pins::PinRoutes<'_> { esp_soc::pins::ChipPins::ESP32.routes(&self.gpio, &self.io_mux) }
     fn new() -> Self {
         Self {
             gpio: Gpio::new(),

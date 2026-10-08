@@ -147,6 +147,9 @@ impl SocBus {
         let old_drive = (self.periph.gpio.enable, self.periph.gpio.out);
         if a >> 12 == 0x6000e { self.periph.adc.now_cycles = self.cycles; }
         self.periph.write32(a, v);
+        if ((0x6009_0000..0x6009_2000).contains(&a)) && self.board.uses_gpio_waveform() {
+            self.board.gpio_waveform_at(self.cycles, esp_soc::pins::ChipPins::C6.routes(&self.periph.gpio, &self.periph.io_mux));
+        }
         // IDF v5.5.5 components/soc/esp32c6/include/soc/gdma_channel.h:15: SHA trigger 7.
         // Bases: the same version's register/soc/reg_base.h:39-42.
         // SHA and GDMA writes are the only events that can make this transfer ready.
