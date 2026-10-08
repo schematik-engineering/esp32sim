@@ -295,6 +295,8 @@ mod classic_tests {
         modern.write(0x94, 3 << 11);
         modern.write(0x58, 2 << 11);
         modern.write(4, 1 << 5);
+        assert_eq!(modern.int_raw & INT_TRANS_COMPLETE, 0);
+        modern.tick(80_000);
         assert_eq!(modern.read(0x94), 3 << 11);
         assert_ne!(modern.int_raw & INT_TRANS_COMPLETE, 0);
     }
