@@ -47,6 +47,12 @@ for name, old, new in [
 ]:
     CASES.append((name, 'esp-periph/src/gdma/receive.rs', old, new, BUS, 'shared_receive_reports_interrupt_changes'))
 
+# Controller input shares PcmSource storage in EX215; the EX214 contracts are unchanged.
+CASES = [(name, 'esp-periph/src/i2s/sources.rs' if name in {'input bound', 'tone clear', 'tone replaces queue', 'push replaces tone'} else file,
+          old.replace('self.frames', 'self.queue.frames') if name in {'input bound', 'tone replaces queue'} else old,
+          new.replace('self.frames', 'self.queue.frames') if name in {'input bound', 'tone replaces queue'} else new, command, test)
+         for name, file, old, new, command, test in CASES]
+
 def run():
     results = []
     for name, file, old, new, command, test in CASES:
