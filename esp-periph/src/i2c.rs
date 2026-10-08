@@ -113,8 +113,8 @@ impl<const N: usize> I2c<N> {
             // TRANS_START bit 5 (72-78), FSM_RST bit 10 (111-117).
             // Reset cancellation of a pending callback is inferred.
             0x04 => {
-                let reset = v & (1 << 10) != 0;
-                self.regs.write(off, v & !((1 << 5) | (1 << 10)));
+                let reset = N != 16 && v & (1 << 10) != 0;
+                self.regs.write(off, v & !(1 << 5) & if N == 16 { u32::MAX } else { !(1 << 10) });
                 if reset { self.active = false; self.cur.clear(); self.expect_addr = false; self.nack = false; }
                 if v & (1 << 5) != 0 { self.run(); }
             }               // CTR.TRANS_START

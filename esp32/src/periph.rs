@@ -687,6 +687,7 @@ impl Peripherals {
         };
         if let Some(bus) = i2c.filter(|_| addr & 0xfff == 0x04 && v & (1 << 5) != 0) {
             let (scl, sda) = I2C_SIGNALS[bus];
+            self.i2c[bus].set_pins(self.gpio.input_pin(sda).zip(self.gpio.input_pin(scl)));
             if self.gpio.signal_input(scl) != Some(true) || self.gpio.signal_input(sda) != Some(true) {
                 self.i2c[bus].int_raw |= esp_periph::i2c::INT_TIMEOUT;
                 v &= !(1 << 5);
@@ -861,6 +862,30 @@ mod tests {
         assert_ne!(p.read32(BASE + 0x08) & (1 << 2), 0);
         p.write32(BASE + 0x94, command(4, 0));
         assert_eq!(p.read32(BASE + 0x94), command(4, 0));
+    }
+
+    #[test]
+    fn classic_i2c_address_uses_routed_pins() {
+        struct Sensor(u8);
+        impl esp_periph::i2c::I2cDevice for Sensor {
+            fn pins(&self) -> Option<(u8, u8)> { Some((self.0, 22)) }
+            fn start(&mut self, _: bool) -> bool { true }
+            fn write(&mut self, _: u8) -> bool { true }
+            fn read(&mut self) -> u8 { 5 }
+        }
+        let mut p = Peripherals::new([0; 6]);
+        configure_i2c0_pins(&mut p);
+        for (sda, ack) in [(20, false), (21, true)] {
+            p.i2c[0].clear_devices();
+            p.i2c[0].attach(0x6b, Box::new(Sensor(sda)));
+            p.write32(0x3ff5_3024, u32::MAX);
+            p.write32(0x3ff5_301c, 0x6b << 1);
+            p.write32(0x3ff5_3058, command(0, 0));
+            p.write32(0x3ff5_305c, command(1, 1));
+            p.write32(0x3ff5_3060, command(3, 0));
+            p.write32(0x3ff5_3004, 1 << 5);
+            assert_eq!(p.read32(0x3ff5_3020) & esp_periph::i2c::INT_NACK == 0, ack);
+        }
     }
 
     #[test]
