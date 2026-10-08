@@ -1,6 +1,6 @@
 use super::GdmaInCh;
 use emu_core::Bus;
-pub const GDMA_DESCRIPTOR_STEP_BUDGET: usize = 4096;
+use super::GDMA_DESCRIPTOR_STEP_BUDGET;
 pub use crate::dma::{DescriptorWalk, DmaDescriptorFault, DmaDescriptorWord};
 
 impl GdmaInCh {
