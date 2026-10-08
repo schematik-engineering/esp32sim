@@ -165,7 +165,8 @@ impl SocBus {
                 continue;
             }
             let Ok((_, d)) = self.read_dma_descriptor(desc) else { continue };
-            if !d.owner_dma || d.length > d.size { continue; }
+            // libpp authentication TX uses length 30 with size 28; bound the actual DMA read below.
+            if !d.owner_dma { continue; }
             let Some(range) = dma_range(d.buf, d.length as usize) else {
                 continue;
             };
@@ -251,7 +252,6 @@ mod tests {
         let mut b = SocBus::new(0, [0; 6]);
         b.periph.write32(0x3ff0_00cc, 0x406);
         for (control, buffer) in [(24 << 12 | 24, 0x3ffb_1000),
-            (1 << 31 | 25 << 12 | 24, 0x3ffb_1000),
             (1 << 31 | 24 << 12 | 24, DRAM_HIGH - 4)] {
             b.dma_write_word(0x3ffb_0000, control);
             b.dma_write_word(0x3ffb_0004, buffer);
@@ -260,6 +260,19 @@ mod tests {
             assert_eq!(b.periph.wifi.events, 0);
             assert_eq!(b.periph.wifi.link.tx_frames(), 0);
         }
+    }
+
+    #[test]
+    fn authentication_tx_uses_length_even_when_libpp_size_is_smaller() {
+        let mut b = SocBus::new(0, [0; 6]);
+        b.periph.write32(0x3ff0_00cc, 0x406);
+        b.dma_write_word(0x3ffb_0000, (1 << 31) | (30 << 12) | 28);
+        b.dma_write_word(0x3ffb_0004, 0x3ffb_1000);
+        b.dma_write_word(0x3ffb_1000, 0xb0);
+        b.periph.wifi.write(0xd20, 0xc00b_0000);
+        b.wifi_step();
+        assert_ne!(b.periph.wifi.events & EVENT_TX, 0);
+        assert_eq!(b.periph.wifi.link.tx_frames(), 1);
     }
 
     #[test]
