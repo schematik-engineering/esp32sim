@@ -48,6 +48,7 @@ pub struct SocBus {
     /// GPIO edges for observers, while one wants them: (cycle, pin, level)
     pub gpio_events: Option<Vec<(u64, u8, bool)>>,
     pub debug: esp_soc::DebugFlags,
+    pub(crate) pcm_sources: Option<Box<esp_periph::i2s::PcmSources>>,
 }
 
 impl SocBus {
@@ -72,7 +73,7 @@ impl SocBus {
             lp_sram: vec![0; (LP_SRAM_HIGH - LP_SRAM_LOW) as usize],
             flash: vec![0xff; flash_size],
             mmu: [0; MMU_ENTRIES], mmu_index: 0, mmu_power_ctrl: 0,
-            periph: Peripherals::new(mac), board: Box::new(esp_soc::NoBoard), uart_pins: false,
+            periph: Peripherals::new(mac), pcm_sources: None, board: Box::new(esp_soc::NoBoard), uart_pins: false,
             cycles: 0, last_fault: None, irq_dirty: true, gpio_events: None, debug: Default::default(),
         }
     }
@@ -141,6 +142,7 @@ impl SocBus {
         }
         let v = if size == 4 { v } else { merge(self.periph.read32(a)) };
         let old_drive = (self.periph.gpio.enable, self.periph.gpio.out);
+        if a >> 12 == 0x6000e { self.periph.adc.now_cycles = self.cycles; }
         self.periph.write32(a, v);
         if old_drive != (self.periph.gpio.enable, self.periph.gpio.out) {
             self.deliver_gpio_output();
@@ -380,6 +382,7 @@ impl SocBus {
         let mut no_psram = Vec::new();
         self.periph.spi1.0.execute(&mut self.flash, &mut no_psram);
         self.periph.spi1.0.dirty.clear();
+        self.periph.refresh_work();
     }
 
     /// Write straight into flash (image loaders, not the guest).
@@ -410,8 +413,29 @@ impl SocBus {
 
     /// Run the SPI1 controller if the guest just kicked it, advance device time, deliver what
     /// the devices produced to the board.
-    fn devices(&mut self, cycles: u32) {
+    // ESP-IDF v5.5.5 components/soc/esp32c6/include/soc/gdma_channel.h:13, I2S0 trigger 3.
+    fn i2s_rx_step(&mut self, cycles: u64) {
+        let Some(ch) = self.periph.gdma.gdma.in_channel_for(3) else { return };
+        self.periph.i2s0.rx_pcr_clock(self.periph.pcr.read(0x78), self.periph.pcr.read(0x7c));
+        let signals = esp_periph::i2s::RxSignals { data: 15, input_select_bit: 7, output_mask: 0x1ff };
+        let bytes = self.periph.i2s0.receive(cycles, self.cycles, false, &self.periph.gpio, signals, self.pcm_sources.as_deref_mut());
+        let eof = self.periph.i2s0.read(0x64);
+        let mut channel = self.periph.gdma.gdma.inp[ch];
+        let mut irq_changed = false;
+        let _ = channel.receive(self, &bytes, Some(eof), false, Self::is_periph, &mut irq_changed);
+        self.periph.i2s0.rx_buffer = bytes;
+        self.irq_dirty |= irq_changed;
+        self.periph.gdma.gdma.inp[ch] = channel;
+    }
+
+    #[inline(never)]
+    fn pending_work(&mut self, cycles: u32) {
         if self.periph.spi_exec { self.run_spi(); }
+        if self.periph.i2s0.rx_running() { self.i2s_rx_step(u64::from(cycles)); }
+    }
+
+    fn devices(&mut self, cycles: u32) {
+        if self.periph.work_pending { self.pending_work(cycles); }
         self.periph.tick(cycles as u64);
         self.periph.gpio.input_changes.clear();
         self.board.advance_to(self.cycles);

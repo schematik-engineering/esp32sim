@@ -98,6 +98,7 @@ pub struct SocBus {
     approximate_cache_yield_miss: bool,
     cache_resource: CacheResource,
     pub(crate) fetch_cache: xtensa_lx7::state::SharedFetchCache,
+    pub(crate) pcm_sources: Option<Box<esp_periph::i2s::PcmSources>>,
 }
 
 /// One shared external resource, occupied only by priced fills/writebacks.
@@ -147,7 +148,7 @@ impl SocBus {
             ble: Default::default(),
             sram: vec![0; SRAM_SIZE], irom: vec![0; (IROM_MASK_HIGH - IROM_MASK_LOW) as usize], drom: vec![0; (DROM_MASK_HIGH - DROM_MASK_LOW) as usize],
             rtc_fast: vec![0; 8192], rtc_slow: vec![0; 8192], flash: vec![0xff; flash_size], psram: vec![0; psram_size],
-            mmu: [MMU_INVALID; MMU_ENTRIES], periph: Peripherals::new(mac), board: Box::new(crate::board::Atech14::new()), uart_pins: false, cycles: 0, last_fault: None, spi2_dma_fault: None, irq_dirty: false, gpio_events: None, debug: Default::default(),
+            mmu: [MMU_INVALID; MMU_ENTRIES], periph: Peripherals::new(mac), pcm_sources: None, board: Box::new(crate::board::Atech14::new()), uart_pins: false, cycles: 0, last_fault: None, spi2_dma_fault: None, irq_dirty: false, gpio_events: None, debug: Default::default(),
             spi2_timing: false, spi2_scheduled: None, spi2_pins: None,
             tlb: vec![TlbEntry::EMPTY; TLB_SIZE], page_ver: Vec::new(), ver_base: [0; 7], flash_epoch: BUS_EPOCHS.fetch_add(1, std::sync::atomic::Ordering::Relaxed) << 32, code_blk: Vec::new(), tick_pending: 0, tick_budget: 0, defer_mmio: false, mmio_deferred: false, vq_violations: 0,
             approximate_cache: None, approximate_cache_pending: 0, approximate_cache_fast_internal: false, approximate_cache_inline: false,
@@ -490,6 +491,7 @@ impl SocBus {
         if a == PERIPH_BASE + 0x24_000 && v & (1 << 24) != 0 && !self.periph.spi2.has_pending_transfer() {
             self.spi2_pins = self.board.uses_spi_pins().then(|| self.periph.spi2_pins());
         }
+        if a >> 12 == 0x60008 { self.periph.rtc.now_cycles = self.cycles; }
         self.periph.write32(a, v);
         if old_gpio_out != self.periph.gpio.out || old_gpio_enable != self.periph.gpio.enable {
             let changes = &self.periph.gpio.changes;
@@ -776,7 +778,7 @@ impl Bus for SocBus {
 impl SocBus {
     fn cadence_active(&self) -> bool {
         let p = &self.periph;
-        p.i2s0.tx_running() || p.i2s1.tx_running()
+        p.i2s0.tx_running() || p.i2s1.tx_running() || p.i2s0.rx_running() || p.i2s1.rx_running()
             || p.lcd_cam.cam_active() || p.lcd_cam.lcd_running()
             // EX157: a running GDMA IN channel is passive. Its only producers are the camera
             // (capture or VSYNC enabled), AES (dma_pending) and mem-to-mem (needs the OUT side running),

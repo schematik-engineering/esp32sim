@@ -53,6 +53,7 @@ pub struct SocBus {
     /// GPIO edges for observers, while one wants them: (cycle, pin, level)
     pub gpio_events: Option<Vec<(u64, u8, bool)>>,
     pub debug: esp_soc::DebugFlags,
+    pub(crate) pcm_sources: Option<Box<esp_periph::i2s::PcmSources>>,
 }
 
 impl SocBus {
@@ -66,7 +67,7 @@ impl SocBus {
             flash: vec![0xff; flash_size],
             mmu: [MMU_INVALID; MMU_ENTRIES],
             periph: Peripherals::new(mac), board: Box::new(esp_soc::NoBoard), uart_pins: false, board_edges: false, pins_active: false,
-            cycles: 0, last_fault: None, irq_dirty: true, gpio_events: None, debug: Default::default(),
+            pcm_sources: None, cycles: 0, last_fault: None, irq_dirty: true, gpio_events: None, debug: Default::default(),
         }
     }
 
@@ -112,6 +113,7 @@ impl SocBus {
             _ => { let old = self.periph.read32(a); let sh = (addr & 2) * 8; (old & !(0xffff << sh)) | ((v & 0xffff) << sh) }
         };
         let drive = (self.periph.gpio.enable, self.periph.gpio.out);
+        if a >> 12 == 0x60040 { self.periph.adc.now_cycles = self.cycles; }
         self.periph.write32(a, v);
         if a & !0xfff == 0x6001_6000 { self.pins_active = self.board_edges || self.uart_pins || self.periph.rmt.rmt.is_running(); }
         if drive != (self.periph.gpio.enable, self.periph.gpio.out) {
@@ -316,14 +318,29 @@ impl SocBus {
         Ok(())
     }
 
+    // ESP-IDF v5.5.5 components/soc/esp32c3/include/soc/gdma_channel.h:13, I2S0 trigger 3.
+    fn i2s_rx_step(&mut self, cycles: u64) {
+        let Some(ch) = self.periph.gdma.state.in_channel_for(3) else { return };
+        let signals = esp_periph::i2s::RxSignals { data: 15, input_select_bit: 6, output_mask: 0x1ff };
+        let bytes = self.periph.i2s0.receive(cycles, self.cycles, false, &self.periph.gpio, signals, self.pcm_sources.as_deref_mut());
+        let eof = self.periph.i2s0.read(0x64);
+        let mut channel = self.periph.gdma.state.inp[ch];
+        let mut irq_changed = false;
+        let _ = channel.receive(self, &bytes, Some(eof), false, Self::is_periph, &mut irq_changed);
+        self.periph.i2s0.rx_buffer = bytes;
+        self.irq_dirty |= irq_changed;
+        self.periph.gdma.state.inp[ch] = channel;
+    }
+
     #[inline(always)]
     fn devices(&mut self, cycles: u32) {
-        if self.periph.work_pending { self.pending_work(); }
+        if self.periph.work_pending { self.pending_work(cycles); }
         self.periph.tick(cycles as u64);
     }
 
     #[inline(never)]
-    fn pending_work(&mut self) {
+    fn pending_work(&mut self, cycles: u32) {
+        if self.periph.i2s0.rx_running() { self.i2s_rx_step(u64::from(cycles)); }
         if self.periph.ble_lc.enabled() {
             self.periph.ble_lc.service(&mut self.sram);
             esp_periph::Dispatch::refresh_optional(&mut self.periph, 0x31);

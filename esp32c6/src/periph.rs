@@ -361,6 +361,8 @@ pub struct Peripherals {
     last_status: [u32; 4],
     pub ledc: Ledc,
     pub mcpwm: Mcpwm,
+    pub i2s0: esp_periph::I2s,
+    pub work_pending: bool,
 }
 
 // Every peripheral, where it sits (4 KB block number from 0x60000000), and its interrupt sources.
@@ -376,6 +378,7 @@ device_set! { Peripherals; inline always; clock: (clock) CPU_HZ, [(ClockDomain::
     0x08 "TIMG0" (timg[0]) => [src::TG0_T0];
     0x09 "TIMG1" (timg[1]) => [src::TG1_T0];
     0x0a "SYSTIMER" (systimer) => [src::SYSTIMER_T0, src::SYSTIMER_T1, src::SYSTIMER_T2];
+    0x0c "I2S" optional (i2s0) => [src::I2S];
     0x0f "USB_SERIAL_JTAG" (usb) => [src::USB_SERIAL_JTAG];
     0x10 "INTMTX" (intmtx) => [];
     0x14 "MCPWM" optional (mcpwm) => [src::MCPWM0];
@@ -410,7 +413,6 @@ impl DeviceSet for Peripherals {
     fn misc(&self) -> &Misc { &self.misc }
     fn misc_mut(&mut self) -> &mut Misc { &mut self.misc }
     fn pre_access(&mut self, block: u32, _off: u32, _write: bool) {
-        if block == 0x0e { self.adc.now_cycles = self.clock.cycles(); }
         if block == 0xb2 { self.rng.now = self.clock.cycles() as u32; }
         if block == 0xa3 { self.radio.log_unknown = self.misc.log_unknown; }
     }
@@ -430,6 +432,7 @@ impl Peripherals {
             intmtx: IntMatrix::new(), intc: Intc::new(), cache: Cache::new(), lpsys: LpSys::new(), pcr: Pcr::new(), ana_mst: AnaMst::new(), assist_debug: AssistDebug::new(),
             rng: Rng::new(), cpu_sub: RegRam::new(),
             misc: Misc::new(), spi_exec: false, clock: Self::new_clock(),
+            i2s0: esp_periph::I2s::new(CPU_HZ), work_pending: false,
             last_status: [0; 4],
         }
     }
@@ -486,7 +489,10 @@ impl Peripherals {
             self.mcpwm.clock_enabled = conf & 3 == 1 && clock & (1 << 22) != 0 && source != 0;
             self.refresh_optional(0x14);
         }
+        self.refresh_work();
     }
+
+    pub fn refresh_work(&mut self) { self.work_pending = self.spi_exec || self.i2s0.rx_running(); }
 
     /// The CPU-subsystem window (0x20001000): the machine-level PLIC is the interrupt controller;
     /// the user-level PLIC and the CLINT read back what was written.
