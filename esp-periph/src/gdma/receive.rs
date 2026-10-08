@@ -1,44 +1,7 @@
-use super::{DmaDesc, GdmaInCh};
-use emu_core::{Bus, Fault};
+use super::GdmaInCh;
+use emu_core::Bus;
 pub const GDMA_DESCRIPTOR_STEP_BUDGET: usize = 4096;
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DmaDescriptorWord {
-    Control,
-    Buffer,
-    Next,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DmaDescriptorFault {
-    Read { descriptor: u32, word: DmaDescriptorWord, fault: Fault },
-    BufferRead { descriptor: u32, address: u32, fault: Fault },
-    Writeback { descriptor: u32, fault: Fault },
-    NotOwned { descriptor: u32 },
-    Cycle { descriptor: u32 },
-    StepBudgetExceeded { budget: usize },
-    PayloadTooShort { expected: usize, actual: usize },
-}
-
-/// Bound work even when guest descriptors make no progress. Streaming rings are valid: the
-/// bound applies to one pump call, not the lifetime of an I2S or LCD channel.
-pub struct DescriptorWalk { pub remaining: usize, budget: usize }
-impl DescriptorWalk {
-    pub fn new(budget: usize) -> Self { Self { remaining: budget, budget } }
-    pub fn read(&mut self, bus: &mut impl Bus, addr: u32) -> Result<(u32, DmaDesc), DmaDescriptorFault> {
-        if self.remaining == 0 { return Err(DmaDescriptorFault::StepBudgetExceeded { budget: self.budget }); }
-        self.remaining -= 1;
-        try_dma_desc(bus, addr)
-    }
-}
-
-/// Read a descriptor through the same decoder as the infallible host-memory API.
-fn try_dma_desc(bus: &mut impl Bus, addr: u32) -> Result<(u32, DmaDesc), DmaDescriptorFault> {
-    let mut word = |offset, word| bus.read32_unpriced(addr.wrapping_add(offset))
-        .map_err(|fault| DmaDescriptorFault::Read { descriptor: addr, word, fault });
-    let dw0 = word(0, DmaDescriptorWord::Control)?;
-    let (buf, next) = (word(4, DmaDescriptorWord::Buffer)?, word(8, DmaDescriptorWord::Next)?);
-    Ok((dw0, DmaDesc::decode(addr, dw0, buf, next)))
-}
+pub use crate::dma::{DescriptorWalk, DmaDescriptorFault, DmaDescriptorWord};
 
 impl GdmaInCh {
     pub fn fail_receive(&mut self, irq_changed: &mut bool) {
@@ -82,7 +45,7 @@ impl GdmaInCh {
                 if pos < data.len() { self.int_raw |= 1 << 4; }
                 return false;
             }
-            let Ok((control, d)) = walk.read(bus, r.desc) else { return false };
+            let Ok((control, d)) = walk.read(|addr| crate::dma::read_descriptor(|a| bus.read32_unpriced(a), addr), r.desc) else { return false };
             if (r.conf1 & (1 << 12) != 0 && !d.owner_dma) || d.size == 0 || r.buf_pos > d.size { return false; }
             let Some(until_eof) = eof_bytes.unwrap_or(u32::MAX).checked_sub(r.rx_eof_pos).filter(|n| *n != 0) else { return false };
             let n = (d.size - r.buf_pos).min(until_eof) as usize;
