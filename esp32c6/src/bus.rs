@@ -412,9 +412,9 @@ impl SocBus {
     /// the devices produced to the board.
     fn devices(&mut self, cycles: u32) {
         if self.periph.spi_exec { self.run_spi(); }
+        self.board.advance_to(self.cycles);
         self.periph.tick(cycles as u64);
         self.periph.gpio.input_changes.clear();
-        self.board.advance_to(self.cycles);
         for edge in self.board.take_edges() {
             if let Some(events) = &mut self.gpio_events { events.push((edge.cycle, edge.pin, edge.level)); }
             let old = self.periph.gpio.input;
