@@ -321,7 +321,7 @@ impl SocBus {
     // ESP-IDF v5.5.5 components/soc/esp32c3/include/soc/gdma_channel.h:13, I2S0 trigger 3.
     fn i2s_rx_step(&mut self, cycles: u64) {
         let Some(ch) = self.periph.gdma.state.in_channel_for(3) else { return };
-        let signals = esp_periph::i2s::RxSignals { data: 15, input_select_bit: 6, output_mask: 0x1ff };
+        let signals = esp_periph::i2s::RxSignals { data: 15, clock: [16, 17], input_select_bit: 6, output_mask: 0x1ff };
         let bytes = self.periph.i2s0.receive(cycles, self.cycles, false, &self.periph.gpio, signals, self.pcm_sources.as_deref_mut());
         let eof = self.periph.i2s0.read(0x64);
         let mut channel = self.periph.gdma.state.inp[ch];

@@ -55,6 +55,7 @@ pub struct SocBus {
     page_ver: Vec<u32>,
     pub(crate) pins_active: bool,
     pub ble: esp_soc::ble::vhci::Ble,
+    pub(crate) pcm_sources: Option<Box<esp_periph::i2s::PcmSources>>,
 }
 
 impl SocBus {
@@ -80,6 +81,7 @@ impl SocBus {
             page_ver: vec![0; 0x10021],
             pins_active: false,
             ble: Default::default(),
+            pcm_sources: Default::default(),
         }
     }
     fn load<const N: usize>(&mut self, a: u32) -> Result<[u8; N], Fault> {
@@ -189,7 +191,7 @@ impl SocBus {
         (0x6000_0000..0x6004_0000).contains(&addr)
             .then(|| addr - 0x6000_0000 + 0x3ff4_0000)
     }
-    fn is_periph(addr: u32) -> bool {
+    pub(crate) fn is_periph(addr: u32) -> bool {
         (PERIPH_BASE..PERIPH_END).contains(&addr) || Self::ahb_to_apb(addr).is_some()
     }
     fn mmu_slot(addr: u32) -> Option<(usize, usize)> {
@@ -490,6 +492,7 @@ impl Bus for SocBus {
             for input in self.board.uart_rx(self.cycles) { self.periph.uart_pin_input(&input); self.irq_dirty = true; }
         }
         self.periph.tick(cycles as u64);
+        self.i2s_step(cycles as u64);
         self.flush_rmt();
         self.flush_gpio();
 
