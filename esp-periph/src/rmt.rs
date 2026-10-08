@@ -2,6 +2,15 @@ use crate::device::{Device, WriteEffect};
 use crate::regram::RegRam;
 use emu_core::ClockDomain;
 
+/// Decode the relative high/low duration used by the shared WS2812 board interface.
+#[inline]
+pub fn symbol_bit(sym: u32) -> bool {
+    let (d0, l0, d1, l1) = (sym & 0x7fff, sym & 0x8000 != 0, (sym >> 16) & 0x7fff, sym & 0x8000_0000 != 0);
+    let high = if l0 { d0 } else { 0 } + if l1 { d1 } else { 0 };
+    let low = if !l0 { d0 } else { 0 } + if !l1 { d1 } else { 0 };
+    high > low
+}
+
 // ------------------------------------------------------------------ RMT (TX channels 0-3) — enough for WS2812 via the legacy driver
 pub const RMT_MEM_WORDS: usize = 48;
 #[derive(Clone, Default)]
@@ -114,15 +123,12 @@ impl Rmt {
                 }
                 if c.rd != 0 && c.rd.is_multiple_of(mem_words) && c.conf0 & (1 << 3) != 0 { c.bits.clear(); }
                 let sym = self.mem[base + (c.rd % mem_words)];
-                let (d0, l0, d1, l1) = ((sym & 0x7fff) as i64, sym & 0x8000 != 0, ((sym >> 16) & 0x7fff) as i64, sym & 0x8000_0000 != 0);
+                let (d0, d1) = ((sym & 0x7fff) as i64, ((sym >> 16) & 0x7fff) as i64);
                 if d0 == 0 { // end marker
                     c.end_pending = true;
                     continue;
                 }
-                // decode WS2812 bit: compare high vs low durations
-                let high = if l0 { d0 } else { 0 } + if l1 { d1 } else { 0 };
-                let low = if !l0 { d0 } else { 0 } + if !l1 { d1 } else { 0 };
-                c.bits.push(high > low);
+                c.bits.push(symbol_bit(sym));
                 c.acc_cycles -= (d0 + d1) * cycles_per_tick;
                 c.rd += 1;
                 c.since_thr += 1;

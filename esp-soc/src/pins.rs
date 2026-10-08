@@ -2,16 +2,28 @@
 use esp_periph::{Gpio, GpSpi, RegRam};
 use crate::board::SpiPins;
 
+// IDF v5.5.4 components/soc/esp32/register/soc/io_mux_reg.h:90-359.
+pub const ESP32_IOMUX_OFFSETS: [u32; 40] = [
+    0x44, 0x88, 0x40, 0x84, 0x48, 0x6c, 0x60, 0x64,
+    0x68, 0x54, 0x58, 0x5c, 0x34, 0x38, 0x30, 0x3c,
+    0x4c, 0x50, 0x70, 0x74, 0x78, 0x7c, 0x80, 0x8c,
+    0x90, 0x24, 0x28, 0x2c, u32::MAX, u32::MAX, u32::MAX, u32::MAX,
+    0x1c, 0x20, 0x14, 0x18, 0x04, 0x08, 0x0c, 0x10,
+];
+
 pub struct ChipPins {
     pub valid: u64,
     pub input_select: u32,
     /// OUT_SEL and OUT_INV, excluding output-enable control bits.
     pub output_mask: u32,
+    mux_offsets: Option<&'static [u32]>,
+    matrix_function: u32,
 }
 impl ChipPins {
-    pub const C3: Self = Self { valid: (1 << 22) - 1, input_select: 0x40, output_mask: 0x1ff };
-    pub const C6: Self = Self { valid: (1 << 31) - 1, input_select: 0x80, output_mask: 0x1ff };
-    pub const S3: Self = Self { valid: ((1u64 << 49) - 1) & !(15 << 22), input_select: 0x80, output_mask: 0x3ff };
+    pub const C3: Self = Self { valid: (1 << 22) - 1, input_select: 0x40, output_mask: 0x1ff, mux_offsets: None, matrix_function: 1 };
+    pub const C6: Self = Self { valid: (1 << 31) - 1, input_select: 0x80, output_mask: 0x1ff, mux_offsets: None, matrix_function: 1 };
+    pub const S3: Self = Self { valid: ((1u64 << 49) - 1) & !(15 << 22), input_select: 0x80, output_mask: 0x3ff, mux_offsets: None, matrix_function: 1 };
+    pub const ESP32: Self = Self { valid: ((1u64 << 40) - 1) & !((1 << 20) | (1 << 24) | (15 << 28)), input_select: 0x80, output_mask: 0x3ff, mux_offsets: Some(&ESP32_IOMUX_OFFSETS), matrix_function: 2 };
     pub fn routes<'a>(&'a self, gpio: &'a Gpio, mux: &'a RegRam) -> PinRoutes<'a> { PinRoutes { chip: self, gpio, mux } }
 }
 
@@ -22,7 +34,7 @@ pub struct PinRoutes<'a> {
 }
 impl PinRoutes<'_> {
     pub fn valid_pin(&self, pin: usize) -> bool { pin < 64 && self.chip.valid & (1u64 << pin) != 0 }
-    fn mux(&self, pin: usize) -> u32 { self.mux.read(4 + 4 * pin as u32) }
+    fn mux(&self, pin: usize) -> u32 { self.mux.read(self.chip.mux_offsets.map_or(4 + 4 * pin as u32, |offsets| offsets[pin])) }
     pub fn function(&self, pin: usize, function: u32) -> bool { self.valid_pin(pin) && self.mux(pin) & (7 << 12) == function << 12 }
     pub fn input_function(&self, pin: usize, function: u32) -> bool { self.function(pin, function) && self.mux(pin) & (1 << 9) != 0 }
     /// Matrix input selection and FUN_IE, independent of the output function.
@@ -32,9 +44,9 @@ impl PinRoutes<'_> {
         let pin = (sel & (invert - 1)) as usize;
         (sel & (self.chip.input_select | invert) == self.chip.input_select && self.valid_pin(pin) && self.mux(pin) & (1 << 9) != 0).then_some(pin as u8)
     }
-    pub fn matrix_input(&self, signal: usize) -> Option<u8> { self.input_pin(signal).filter(|&pin| self.function(pin as usize, 1)) }
+    pub fn matrix_input(&self, signal: usize) -> Option<u8> { self.input_pin(signal).filter(|&pin| self.function(pin as usize, self.chip.matrix_function)) }
     pub fn matrix_output(&self, pin: usize, signal: u32) -> bool {
-        if !self.function(pin, 1) { return false; }
+        if !self.function(pin, self.chip.matrix_function) { return false; }
         let sel = self.gpio.func_out_sel[pin];
         let oen = self.chip.output_mask + 1;
         sel & (self.chip.output_mask | oen << 1) == signal && (sel & oen == 0 || self.gpio.enable & (1 << pin) != 0)

@@ -10,23 +10,8 @@ const GDMA_DESCRIPTOR_STEP_BUDGET: usize = 4096;
 /// Which end of a memory-to-memory copy faulted.
 pub(super) enum M2mFault { Source, Destination }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DmaDescriptorWord {
-    Control,
-    Buffer,
-    Next,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum DmaDescriptorFault {
-    Read { descriptor: u32, word: DmaDescriptorWord, fault: Fault },
-    BufferRead { descriptor: u32, address: u32, fault: Fault },
-    Writeback { descriptor: u32, fault: Fault },
-    NotOwned { descriptor: u32 },
-    Cycle { descriptor: u32 },
-    StepBudgetExceeded { budget: usize },
-    PayloadTooShort { expected: usize, actual: usize },
-}
+pub use esp_periph::dma::{DmaDescriptorFault, DmaDescriptorWord};
+use esp_periph::dma::DescriptorWalk;
 
 pub(super) struct Spi2DmaCompletion {
     pub(super) channel: usize,
@@ -39,18 +24,6 @@ pub(super) struct Spi2DmaCompletion {
     payload: Vec<u8>,
 }
 
-
-/// Bound work even when guest descriptors make no progress. Streaming rings are valid: the
-/// bound applies to one pump call, not the lifetime of an I2S or LCD channel.
-struct DescriptorWalk { remaining: usize, budget: usize }
-impl DescriptorWalk {
-    fn new(budget: usize) -> Self { Self { remaining: budget, budget } }
-    fn read(&mut self, bus: &mut SocBus, addr: u32) -> Result<(u32, crate::periph::DmaDesc), DmaDescriptorFault> {
-        if self.remaining == 0 { return Err(DmaDescriptorFault::StepBudgetExceeded { budget: self.budget }); }
-        self.remaining -= 1;
-        bus.try_dma_desc(addr)
-    }
-}
 
 impl SocBus {
     pub(super) fn complete_spi2_dma(&mut self) {
@@ -168,7 +141,7 @@ impl SocBus {
             if !current.running || current.desc == 0 {
                 break;
             }
-            let (control, descriptor) = walk.read(self, current.desc)?;
+            let (control, descriptor) = walk.read(|addr| self.try_dma_desc(addr), current.desc)?;
             if !visited.insert(current.desc) {
                 return Err(DmaDescriptorFault::Cycle { descriptor: current.desc });
             }
@@ -273,7 +246,7 @@ impl SocBus {
         'transfer: while need > 0 {
             let c = self.periph.gdma.out[ch];
             if !c.running || c.desc == 0 { break; }
-            let Ok((_, d)) = walk.read(self, c.desc) else { self.fail_dma_out(ch); break };
+            let Ok((_, d)) = walk.read(|addr| self.try_dma_desc(addr), c.desc) else { self.fail_dma_out(ch); break };
             let remaining = d.length.saturating_sub(c.buf_pos) as usize;
             if remaining == 0 {
                 // descriptor complete: hand back to software, raise EOF/DONE, advance
@@ -310,11 +283,7 @@ impl SocBus {
 
     /// One DMA descriptor as the engines see it, with its first word, or the fault reading it.
     fn try_dma_desc(&mut self, addr: u32) -> Result<(u32, crate::periph::DmaDesc), DmaDescriptorFault> {
-        let mut word = |offset, word| self.read32_unpriced(addr.wrapping_add(offset))
-            .map_err(|fault| DmaDescriptorFault::Read { descriptor: addr, word, fault });
-        let dw0 = word(0, DmaDescriptorWord::Control)?;
-        let (buf, next) = (word(4, DmaDescriptorWord::Buffer)?, word(8, DmaDescriptorWord::Next)?);
-        Ok((dw0, crate::periph::DmaDesc { addr, size: dw0 & 0xfff, length: (dw0 >> 12) & 0xfff, eof: dw0 & (1 << 30) != 0, owner_dma: dw0 & (1 << 31) != 0, buf, next }))
+        esp_periph::dma::read_descriptor(|addr| self.read32_unpriced(addr), addr)
     }
 
     fn fail_dma_out(&mut self, ch: usize) {
@@ -470,16 +439,16 @@ impl SocBus {
             let mut walk = DescriptorWalk::new(GDMA_DESCRIPTOR_STEP_BUDGET);
             loop {
                 // Resume a legal long copy on the next pump instead of faulting at the work budget.
-                if walk.remaining < 2 {
+                if walk.remaining() < 2 {
                     if !copied { o.int_raw |= OUT_DSCR_ERR; o.running = false; }
                     break;
                 }
-                let Ok((out_dw0, od)) = walk.read(self, o.desc) else { o.int_raw |= OUT_DSCR_ERR; o.running = false; break };
+                let Ok((out_dw0, od)) = walk.read(|addr| self.try_dma_desc(addr), o.desc) else { o.int_raw |= OUT_DSCR_ERR; o.running = false; break };
                 if !od.owner_dma { o.int_raw |= OUT_DSCR_ERR; break; }                 // parked until software hands it over
                 let remaining = od.length.saturating_sub(o.buf_pos);
                 if remaining > 0 || (od.eof && r.desc != 0) {
                     if r.desc == 0 { r.int_raw |= IN_DSCR_EMPTY; break; }
-                    let Ok((in_dw0, id)) = walk.read(self, r.desc) else { r.int_raw |= IN_DSCR_ERR; r.running = false; break };
+                    let Ok((in_dw0, id)) = walk.read(|addr| self.try_dma_desc(addr), r.desc) else { r.int_raw |= IN_DSCR_ERR; r.running = false; break };
                     if !id.owner_dma || (remaining > 0 && id.size <= r.buf_pos) { r.int_raw |= IN_DSCR_ERR; break; }
                     let n = remaining.min(id.size.saturating_sub(r.buf_pos));
                     if n > 0 {
@@ -597,7 +566,7 @@ impl SocBus {
             while want > 0 {
                 let c = self.periph.gdma.out[ch];
                 if !c.running || c.desc == 0 { break; }
-                let Ok((_, d)) = walk.read(self, c.desc) else { self.fail_dma_out(ch); break };
+                let Ok((_, d)) = walk.read(|addr| self.try_dma_desc(addr), c.desc) else { self.fail_dma_out(ch); break };
                 let (length, eof, buf, next) = (d.length, d.eof, d.buf, d.next);
                 let remaining = length.saturating_sub(c.buf_pos) as usize;
                 if remaining == 0 {
@@ -637,26 +606,21 @@ impl SocBus {
     /// (4096 * 4095 bytes maximum); a visited set rejects cycles independently of owner checking.
     fn gather_dma_out(&mut self, ch: usize, limit: usize) -> Result<Vec<u8>, DmaDescriptorFault> {
         let mut input = Vec::new();
-        let mut desc = self.periph.gdma.out[ch].desc;
-        let mut visited = HashSet::new();
-        let mut walk = DescriptorWalk::new(GDMA_DESCRIPTOR_STEP_BUDGET);
-        while desc != 0 && input.len() < limit {
-            if !visited.insert(desc) { return Err(DmaDescriptorFault::Cycle { descriptor: desc }); }
-            let (control, d) = walk.read(self, desc)?;
-            if self.periph.gdma.out[ch].conf1 & (1 << 12) != 0 && !d.owner_dma { return Err(DmaDescriptorFault::NotOwned { descriptor: desc }); }
-            let take = (d.length as usize).min(limit - input.len());
-            self.append_mapped_bytes(d.buf, take, &mut input).map_err(|(address, fault)|
-                DmaDescriptorFault::BufferRead { descriptor: desc, address, fault })?;
-            self.write32_unpriced(desc, control & !(1 << 31)).map_err(|fault|
-                DmaDescriptorFault::Writeback { descriptor: desc, fault })?;
-            self.periph.gdma.out[ch].int_raw |= 1 << 0;
-            if d.eof {
-                self.periph.gdma.out[ch].int_raw |= 1 << 1;
-                self.periph.gdma.out[ch].eof_desc = desc;
-                break;
-            }
-            desc = d.next;
-        }
+        if limit == 0 { return Ok(input); }
+        esp_periph::dma::walk_chain(self, self.periph.gdma.out[ch].desc, GDMA_DESCRIPTOR_STEP_BUDGET,
+            |bus, desc| bus.try_dma_desc(desc),
+            |bus, control, d| {
+                let desc = d.addr;
+                if bus.periph.gdma.out[ch].conf1 & (1 << 12) != 0 && !d.owner_dma { return Err(DmaDescriptorFault::NotOwned { descriptor: desc }); }
+                let take = (d.length as usize).min(limit - input.len());
+                bus.append_mapped_bytes(d.buf, take, &mut input).map_err(|(address, fault)|
+                    DmaDescriptorFault::BufferRead { descriptor: desc, address, fault })?;
+                bus.write32_unpriced(desc, control & !(1 << 31)).map_err(|fault|
+                    DmaDescriptorFault::Writeback { descriptor: desc, fault })?;
+                bus.periph.gdma.out[ch].int_raw |= 1 << 0;
+                if d.eof { bus.periph.gdma.out[ch].int_raw |= 1 << 1; bus.periph.gdma.out[ch].eof_desc = desc; }
+                Ok(input.len() < limit)
+            })?;
         Ok(input)
     }
 
@@ -673,7 +637,7 @@ impl SocBus {
                 if pos < data.len() { self.periph.gdma.inp[ch].int_raw |= 1 << 4; }
                 return Err(());
             }
-            let (control, d) = walk.read(self, r.desc).map_err(|_| ())?;
+            let (control, d) = walk.read(|addr| self.try_dma_desc(addr), r.desc).map_err(|_| ())?;
             if (r.conf1 & (1 << 12) != 0 && !d.owner_dma) || d.size == 0 || r.buf_pos > d.size { return Err(()); }
             let until_eof = eof_bytes.unwrap_or(u32::MAX).checked_sub(r.rx_eof_pos).filter(|n| *n != 0).ok_or(())?;
             let n = (d.size - r.buf_pos).min(until_eof) as usize;
