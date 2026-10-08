@@ -65,3 +65,6 @@ pub const RTC_SLOW_HZ: u64 = 150_000;
 
 mod clocked_queue;
 pub mod dma;
+
+pub mod regi2c;
+pub use regi2c::Regi2c;
