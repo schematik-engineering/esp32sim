@@ -494,7 +494,7 @@ impl SocBus {
 
     fn devices(&mut self, cycles: u32) {
         if self.periph.work_pending { self.pending_work(cycles); }
-        self.board.advance_to(self.cycles);
+        if self.periph.i2c.is_active() { self.board.advance_to(self.cycles); }
         self.periph.tick(cycles as u64);
         self.periph.gpio.input_changes.clear();
         if self.board_edges { self.irq_dirty |= esp_soc::gpio::deliver_board_inputs(&mut *self.board, &mut self.periph.gpio, &mut self.gpio_events, self.cycles); }
