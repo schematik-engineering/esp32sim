@@ -28,3 +28,6 @@ The public `c3-crypto-tls*` and `c6-crypto-tls*` images exercise unstubbed Wi-Fi
 startup and hardware-assisted TLS. [Source and reproducible build recipe](../../../examples/crypto-tls/README.md),
 [linked licences](public/crypto-tls-NOTICE.txt), and [runtime licence texts](public/crypto-tls-runtime-licenses.txt)
 accompany them. They are native CI fixtures; no new browser manifest is required.
+The classic ESP32 hello inputs are `public/classic-hello-*`, built from
+[`examples/hello_world-classic`](../../../examples/hello_world-classic/README.md).
+`classic-hello-NOTICE.txt` lists only linked firmware components.
