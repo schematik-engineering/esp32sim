@@ -17,6 +17,7 @@ pub mod load;
 pub mod machine;
 pub mod nat;
 pub mod net;
+pub mod relay;
 pub mod observe;
 pub mod observers;
 pub mod picture;

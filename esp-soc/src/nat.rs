@@ -171,6 +171,7 @@ struct Udp {
 }
 
 pub struct Nat {
+    restricted: bool,
     tcp: Vec<Tcp>,
     udp: Vec<Udp>,
     isn: u32,
@@ -183,14 +184,19 @@ pub struct Nat {
 
 impl Nat {
     pub fn new(log: bool) -> Self {
-        Self { tcp: Vec::new(), udp: Vec::new(), isn: 0x1000, resolver: host_resolver(), log,
+        Self { restricted: false, tcp: Vec::new(), udp: Vec::new(), isn: 0x1000, resolver: host_resolver(), log,
             tcp_opened: 0, tcp_refused: 0, udp_flows: 0, udp_evicted: 0, udp_send_errors: 0, bytes_to_host: 0, bytes_to_guest: 0 }
+    }
+
+    pub fn restricted() -> Self {
+        Self { restricted: true, ..Self::new(false) }
     }
 
     /// Forward a UDP datagram through a connected socket, which accepts replies only from its peer.
     #[allow(clippy::too_many_arguments, reason = "packet fields stay explicit at the protocol boundary")]
     pub fn udp_out(&mut self, gmac: &[u8; 6], gip: &[u8; 4], sport: u16, dip: &[u8; 4], reply_src: &[u8; 4],
                    dport: u16, payload: &[u8], now_us: u64) {
+        if self.restricted && (!crate::relay::public_ipv4(ip(dip)) || dport == 0 || payload.len() > 1472) { return; }
         let idx = self.udp.iter().position(|f| f.guest_ip == *gip && f.guest_port == sport && f.dst_ip == *dip && f.dst_port == dport);
         let idx = match idx {
             Some(i) => i,
@@ -240,6 +246,7 @@ impl Nat {
         let window = u16::from_be_bytes([seg[14], seg[15]]);
         let idx = self.tcp.iter().position(|c| c.guest_ip == *gip && c.guest_port == sport && c.dst_port == dport && c.dst_ip == *dip);
         if flags & (SYN | ACK | RST) == SYN && idx.is_none() {
+            if self.restricted && (!crate::relay::public_ipv4(ip(dip)) || dport == 0 || self.tcp.len() >= crate::relay::MAX_FLOWS) { self.tcp_refused += 1; return Vec::new(); }
             let evict = if self.tcp.len() >= MAX_FLOWS {
                 // Finished flows remember final ACKs only while their bounded slots are spare.
                 let Some(i) = self.tcp.iter().position(|c| matches!(c.transport, Transport::TimeWait | Transport::Closed)) else { return Vec::new() };
