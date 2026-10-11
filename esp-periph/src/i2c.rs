@@ -182,6 +182,8 @@ impl I2c {
         self.command_index = 0;
         self.byte_index = 0;
         self.schedule();
+        // Control build only: complete the whole command list now (zero bus time).
+        self.advance(u64::MAX);
     }
 
     fn advance(&mut self, mut ticks: u64) {
