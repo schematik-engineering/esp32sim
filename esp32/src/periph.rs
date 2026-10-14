@@ -153,6 +153,10 @@ impl Device for ClassicSpi {
 const IOMUX: u32 = 0x1000;
 use esp_soc::pins::ESP32_IOMUX_OFFSETS as IOMUX_OFFSETS;
 
+#[cfg(test)]
+#[path = "gpio_irq_tests.rs"]
+mod gpio_irq_tests;
+
 /// Classic GPIO and IO_MUX share pad state, so they are one device mounted at both blocks.
 pub struct ClassicGpio {
     pub gpio: Gpio,
@@ -161,6 +165,12 @@ pub struct ClassicGpio {
     signal_out: [bool; 256],
     signal_oe: [bool; 256],
     rtc_pads: u64,
+    // Derived on pad/configuration changes, never by the IRQ polling path.
+    level_pins: u64,
+    level_status: u64,
+    irq_routes: [u64; 4],
+    #[cfg(test)]
+    level_refreshes: usize,
 }
 impl ClassicGpio {
     pub(crate) fn routes(&self) -> esp_soc::pins::PinRoutes<'_> { esp_soc::pins::ChipPins::ESP32.routes(&self.gpio, &self.io_mux) }
@@ -172,6 +182,11 @@ impl ClassicGpio {
             signal_out: [false; 256],
             signal_oe: [false; 256],
             rtc_pads: 0,
+            level_pins: 0,
+            level_status: 0,
+            irq_routes: [0; 4],
+            #[cfg(test)]
+            level_refreshes: 0,
         }
     }
     // Classic PINn and matrix select banks precede the shared S3 offsets.
@@ -254,11 +269,16 @@ impl ClassicGpio {
         std::array::from_fn(|pin| self.driven(pin))
     }
     fn note_driven(&mut self, old: [Option<bool>; 40]) {
+        let mut changed = false;
         for (pin, was) in old.into_iter().enumerate() {
             let now = self.driven(pin);
             if now != was {
                 self.gpio.changes.push((pin as u8, now.unwrap_or(false)));
+                changed = true;
             }
+        }
+        if changed {
+            self.refresh_level_status();
         }
     }
     fn input_word(&self) -> u64 {
@@ -266,9 +286,14 @@ impl ClassicGpio {
             word | ((self.input_enabled(pin) && self.pad_level(pin)) as u64) << pin
         })
     }
-    fn raw_status(&self) -> u64 {
-        let mut status = self.gpio.status & ((1 << 40) - 1);
-        for pin in 0..40 {
+    fn refresh_level_status(&mut self) {
+        #[cfg(test)]
+        { self.level_refreshes += 1; }
+        let mut status = 0;
+        let mut pins = self.level_pins;
+        while pins != 0 {
+            let pin = pins.trailing_zeros() as usize;
+            pins &= pins - 1;
             let typ = (self.gpio.pin[pin] >> 7) & 7;
             if self.input_enabled(pin)
                 && ((typ == 4 && !self.pad_level(pin)) || (typ == 5 && self.pad_level(pin)))
@@ -276,22 +301,20 @@ impl ClassicGpio {
                 status |= 1 << pin;
             }
         }
-        status
+        self.level_status = status;
+    }
+    fn raw_status(&self) -> u64 {
+        (self.gpio.status & ((1 << 40) - 1)) | self.level_status
     }
     fn irq_status(&self, core: usize, nmi: bool) -> u64 {
-        let ena = match (core, nmi) {
-            (0, false) => 1 << 2,
-            (0, true) => 1 << 3,
-            (1, false) => 1,
-            (1, true) => 1 << 1,
-            _ => 0,
+        let route = match (core, nmi) {
+            (0, false) => 2,
+            (0, true) => 3,
+            (1, false) => 0,
+            (1, true) => 1,
+            _ => return 0,
         };
-        let raw = self.raw_status();
-        (0..40).fold(0, |status, pin| {
-            status
-                | (((raw & (1 << pin) != 0) && ((self.gpio.pin[pin] >> 13) & ena != 0)) as u64)
-                    << pin
-        })
+        self.raw_status() & self.irq_routes[route]
     }
     pub fn irq(&self, core: usize, nmi: bool) -> bool {
         self.irq_status(core, nmi) != 0
@@ -303,13 +326,16 @@ impl ClassicGpio {
         self.external |= 1 << pin;
         let status = self.gpio.status;
         let irq = self.gpio.set_input(pin, level);
-        if self.rtc_pads & (1 << pin) != 0 { self.gpio.status = status; false } else { irq }
+        let irq = if self.rtc_pads & (1 << pin) != 0 { self.gpio.status = status; false } else { irq };
+        self.refresh_level_status();
+        irq
     }
     pub fn release_input(&mut self, pin: u8) {
         if pin >= 40 { return; }
         self.external &= !(1 << pin);
         self.gpio.set_input(pin, true);
         self.sync_pull(pin as usize);
+        self.refresh_level_status();
     }
     pub fn restore_inputs(&mut self, old: &Self) {
         for pin in 0..40 { if old.external & (1 << pin) != 0 { self.set_input(pin, old.gpio.input & (1 << pin) != 0); } }
@@ -404,14 +430,41 @@ impl Device for ClassicGpio {
             self.io_mux.write(off, v);
             if let Some(pin) = IOMUX_OFFSETS.iter().position(|&candidate| candidate == off) {
                 self.sync_pull(pin);
+                self.refresh_level_status();
             }
         } else {
             let pending = self.gpio.changes.len();
-            self.gpio.write(Self::gpio_off(off), v);
+            // Translation stays inside the 4 KiB GPIO window. Make that bound
+            // explicit so shared Gpio::write retains fixed-chip register indexing.
+            let translated = Self::gpio_off(off) & 0xfff;
+            self.gpio.write(translated, v);
             self.gpio.changes.truncate(pending);
             self.gpio.out &= (1 << 40) - 1;
             self.gpio.enable &= (1 << 34) - 1;
             self.gpio.status &= (1 << 40) - 1;
+            // Shared GPIO output/enable writes also resolve the fallback input
+            // word, even when IO_MUX does not select a driven digital output.
+            if matches!(translated, 0x4 | 0x8 | 0xc | 0x10 | 0x14 | 0x18 | 0x20 | 0x24 | 0x28 | 0x2c | 0x30 | 0x34) {
+                self.refresh_level_status();
+            }
+            if (0x74..=0x110).contains(&translated) {
+                let pin = ((translated - 0x74) / 4) as usize;
+                let bit = 1u64 << pin;
+                let cfg = self.gpio.pin[pin];
+                self.level_pins = (self.level_pins & !bit)
+                    | if matches!((cfg >> 7) & 7, 4 | 5) { bit } else { 0 };
+                // IDF v5.5.4 components/soc/esp32/register/soc/gpio_reg.h:303,322:
+                // INT_ENA bits 13..17, INT_TYPE bits 7..9; identical in v4.4.7
+                // components/soc/esp32/include/soc/gpio_reg.h:311,330.
+                // Preserve the existing model's
+                // APP/APP_NMI/PRO/PRO_NMI routes (bits 13..16).
+                // INT_ENA stays independent of INT_TYPE: software-set pending
+                // bits remain visible with type 0, as before.
+                for (route, mask) in self.irq_routes.iter_mut().enumerate() {
+                    *mask = (*mask & !bit) | if cfg & (1 << (13 + route)) != 0 { bit } else { 0 };
+                }
+                self.refresh_level_status();
+            }
         }
         self.note_driven(old);
         WriteEffect::NONE
@@ -644,6 +697,7 @@ impl Peripherals {
             _ => "?",
         }
     }
+
     pub fn read32(&mut self, addr: u32) -> u32 {
         match addr {
             0x3ff4_8400..=0x3ff4_84ff => return self.adc.rtc_io.read(addr - 0x3ff4_8400),
@@ -673,6 +727,7 @@ impl Peripherals {
                 let old = self.gpio.driven_levels();
                 self.adc.rtc_io.write(addr - 0x3ff4_8400, v);
                 self.gpio.rtc_pads = self.adc.rtc_pad_mask();
+                self.gpio.refresh_level_status();
                 self.gpio.note_driven(old);
                 return;
             }
@@ -718,13 +773,21 @@ impl Peripherals {
         if matches!(addr >> 12, 0x3ff00 | 0x3ff59) { self.sync_ledc_outputs(); }
         if matches!(addr >> 12, 0x3ff00 | 0x3ff56) { self.sync_rmt_outputs(); }
     }
-    pub fn tick(&mut self, cycles: u64) {
-        Dispatch::tick(self, cycles);
+    pub fn tick(&mut self, cycles: u64) -> bool {
+        let gpio_before = self.gpio.raw_status();
+        // On this fork pin TIMG/LEDC/RMT are still clocked by Dispatch, which
+        // compares each advanced device's sources. Preserve that clock contract.
+        let irq_changed = Dispatch::tick(self, cycles);
         self.sync_ledc_outputs();
         self.sync_rmt_outputs();
+        // Routed PWM/RMT outputs can also change GPIO edge/level interrupts.
+        irq_changed | (gpio_before != self.gpio.raw_status())
     }
     pub fn source_status(&self, core: usize) -> [u32; 3] {
         let all = Dispatch::source_status(self);
+        self.with_gpio_sources(core, &all)
+    }
+    fn with_gpio_sources(&self, core: usize, all: &[u32; 4]) -> [u32; 3] {
         let mut status = [all[0], all[1], all[2]];
         if self.gpio.irq(core, false) {
             status[SRC_GPIO / 32] |= 1 << (SRC_GPIO % 32);
@@ -736,6 +799,14 @@ impl Peripherals {
     }
     pub fn cpu_lines(&self, core: usize) -> u32 {
         self.dport.cpu_lines(core, &self.source_status(core))
+    }
+    pub(crate) fn all_cpu_lines(&self, out: &mut [u32]) {
+        // Only GPIO has per-core source enables. Sample the other live devices
+        // once per presentation, rather than once per CPU.
+        let all = Dispatch::source_status(self);
+        for (core, lines) in out.iter_mut().enumerate() {
+            *lines = self.dport.cpu_lines(core, &self.with_gpio_sources(core, &all));
+        }
     }
     pub fn cycles_until_timer(&self) -> u32 {
         Dispatch::cycles_until_deadline(self)
