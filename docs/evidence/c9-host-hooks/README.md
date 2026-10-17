@@ -5,12 +5,12 @@ Base: `7352bc817954a6e5e287d5b2118c36315635c659`.
 This local composition adds two previously prepared host hooks, not a second
 source bank, DMA implementation, camera path or scheduler:
 
-1. Routed GPIO waveform notifications and `PinRoutes::software_output`, ported
-   from `39ae1c34` / `db6b9d1b`. A raw GPIO-latch callback cannot observe mux,
+1. Routed GPIO waveform notifications and `PinRoutes::software_output`.
+   A raw GPIO-latch callback cannot observe mux,
    route or enable-only changes. Keep attachment/reset notifications and the
    opt-in guard on all four chip buses. The board method is appended after the
    camera methods so their vtable positions stay fixed.
-2. `I2s::rx_source()`, ported from `56e8bf8b`. This reports the source chosen by
+2. `I2s::rx_source()`. This reports the source chosen by
    the last receive interval; the read-only source bank cannot attribute that
    choice. Store slot + 1 in the existing lazy receiver allocation and clear it
    on reset/fallback, without changing hot I2s or bus layouts.
