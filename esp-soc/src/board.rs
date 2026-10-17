@@ -137,6 +137,13 @@ pub trait BoardModel {
     fn camera_frame_start(&mut self, _claim: bool) -> Option<VirtualCycle> { None }
     /// Physical route changes invalidate the fresh-frame opportunity.
     fn invalidate_camera_frame_start(&mut self) {}
+
+    /// Opt-in software drive after GPIO/IO_MUX writes and board attachment (including reset).
+    /// Unlike raw latch changes, this observes route, mux and enable-only transitions.
+    /// `uses_gpio_waveform` enables this callback as well as instruction-sized scheduling.
+    /// Peripheral-generated waveforms remain on their existing callbacks.
+    fn gpio_waveform_at(&mut self, _cycle: VirtualCycle, _routes: crate::pins::PinRoutes<'_>) {}
+
 }
 
 pub type Board = Box<dyn BoardModel>;

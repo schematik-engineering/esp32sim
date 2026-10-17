@@ -54,6 +54,9 @@ pub struct SocBus {
 impl SocBus {
     /// Attach controller devices and restore inputs driven by the persistent board.
     pub fn attach_board_devices(&mut self) {
+        if self.board.uses_gpio_waveform() {
+            self.board.gpio_waveform_at(self.cycles, esp_soc::pins::ChipPins::C6.routes(&self.periph.gpio, &self.periph.io_mux));
+        }
         self.uart_pins = self.board.uses_uart_pins();
         self.board_edges = self.board.uses_gpio_edges();
         for (bus, address, device) in self.board.i2c_devices() {
@@ -145,6 +148,9 @@ impl SocBus {
         let v = if size == 4 { v } else { merge(self.periph.read32(a)) };
         let old_drive = (self.periph.gpio.enable, self.periph.gpio.out);
         self.periph.write32(a, v);
+        if matches!(a & !0xfff, 0x6009_0000 | 0x6009_1000) && self.board.uses_gpio_waveform() {
+            self.board.gpio_waveform_at(self.cycles, esp_soc::pins::ChipPins::C6.routes(&self.periph.gpio, &self.periph.io_mux));
+        }
         if self.periph.sha.dma_pending { self.sha_dma_write(a); }
         if matches!(a >> 12, 0x60015 | 0x60080) || a == PERIPH_BASE + 0x960ac { self.parlio_dma_write(a); }
         if old_drive != (self.periph.gpio.enable, self.periph.gpio.out) {
