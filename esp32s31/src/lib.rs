@@ -1,6 +1,8 @@
 //! Strict, single-HP-core ESP32-S31 reset probe. Not native-ROM-to-application support.
 //! No guessed MMIO defaults, CLIC delivery, MMU, cache timing, FPU, or secondary core.
 use emu_core::{Bus, Core, Fault, StepKind};
+mod boot_regs;
+mod mhcr;
 use riscv_rv32::{
     decode::{decode, Op},
     Cpu,
@@ -83,6 +85,7 @@ pub struct S31Bus {
     lp: Vec<u8>,
     reset_cause: u32,
     clic_config: u32,
+    boot_regs: boot_regs::BootRegs,
     /// First fault only, including width and direction; unknown MMIO never reads as zero.
     pub fault: Option<AccessFault>,
 }
@@ -101,6 +104,7 @@ impl S31Bus {
             lp: vec![0; (LP_SRAM.1 - LP_SRAM.0) as usize],
             reset_cause: POWER_ON_RESET,
             clic_config: 1,
+            boot_regs: boot_regs::BootRegs::default(),
             fault: None,
         }
     }
@@ -228,6 +232,9 @@ impl Bus for S31Bus {
         Ok(u16::from_le_bytes(self.read(a)?))
     }
     fn read32(&mut self, a: u32) -> Result<u32, Fault> {
+        if let Some(value) = self.boot_regs.read(a) {
+            return Ok(value);
+        }
         match a {
             HPCORE0_RESET_CAUSE => return Ok(self.reset_cause),
             CLIC_CONFIG => return Ok(self.clic_config),
@@ -242,6 +249,9 @@ impl Bus for S31Bus {
         self.write(a, &v.to_le_bytes())
     }
     fn write32(&mut self, a: u32, v: u32) -> Result<(), Fault> {
+        if let Some(result) = self.boot_regs.write(a, v) {
+            return result.or_else(|fault| self.fail(a, 4, true, fault));
+        }
         match a {
             HPCORE0_RESET_CAUSE => {
                 // WT clear bits; cause and flag are RO, reserved bits ignored.
@@ -300,6 +310,7 @@ pub struct Probe {
     // PMACFG0..15 then PMAADDR0..15. None is unknown, not a reset value.
     // Attributes are retained, NOT enforced; S31Bus remains the access authority.
     pma: [Option<u32>; 32],
+    mhcr: mhcr::Mhcr,
 }
 impl Default for Probe {
     fn default() -> Self {
@@ -314,6 +325,7 @@ impl Probe {
             cpu,
             bus: S31Bus::new(),
             pma: [None; 32],
+            mhcr: mhcr::Mhcr::default(),
         }
     }
     pub fn run(&mut self, budget: u64) -> Stop {
@@ -339,6 +351,9 @@ impl Probe {
             };
             if insn.is_illegal() {
                 return stop(StopReason::Opcode, self.cpu.retired_count);
+            }
+            if self.mhcr.execute(&insn, &mut self.cpu) {
+                continue;
             }
             if matches!(
                 insn.op,
@@ -851,10 +866,15 @@ mod tests {
         assert_eq!(
             p.run(1_000_000),
             Stop {
-                pc: 0x2f8046a4,
-                raw: 0x7c17a7f3,
-                retired: 6955,
-                reason: StopReason::Csr(0x7c1),
+                pc: 0x2f80d052,
+                raw: 0x00004064,
+                retired: 7049,
+                reason: StopReason::Access(AccessFault {
+                    address: 0x20814044,
+                    width: 4,
+                    write: false,
+                    fault: Fault::Unmapped,
+                }),
             }
         );
     }
