@@ -139,6 +139,28 @@ impl S31Bus {
         Ok(())
     }
 
+    /// Supplement only the public ELF's data hole with caller-provided ROM reads.
+    /// Fixed range prevents accidentally treating an arbitrary file as a full ROM.
+    /// No zero padding, writable ROM, or replacement of ELF-backed bytes.
+    pub fn load_rom_data(&mut self, bytes: &[u8]) -> Result<(), String> {
+        const START: usize = 0x3f700;
+        const END: usize = 0x48000;
+        if bytes.len() != END - START {
+            return Err(
+                "S31 ROM data must cover [0x2f83f700,0x2f848000), exactly 35072 bytes".into(),
+            );
+        }
+        if !self.rom_present[..4].iter().all(|&b| b) {
+            return Err("load the public S31 ROM ELF before its data supplement".into());
+        }
+        if self.rom_present[START..END].iter().any(|&b| b) {
+            return Err("S31 ROM data would overwrite already loaded bytes".into());
+        }
+        self.rom[START..END].copy_from_slice(bytes);
+        self.rom_present[START..END].fill(true);
+        Ok(())
+    }
+
     fn fail<T>(
         &mut self,
         address: u32,
@@ -587,6 +609,51 @@ mod tests {
             assert_eq!(b.read32(0x2f800000).unwrap(), 0x7100106f);
         }
         assert!(b.load_rom(b"not ELF").is_err());
+    }
+    #[test]
+    fn rom_data_exact_range_readonly_and_atomic_validation() {
+        // Synthetic pattern for loader boundaries, NOT silicon ROM contents.
+        let data: Vec<u8> = (0..0x8900).map(|i| (i % 251) as u8).collect();
+        let mut b = S31Bus::new();
+        assert!(b.load_rom_data(&data).is_err());
+        b.load_rom(&rom_fixture()).unwrap();
+        for bad in [&data[..0x88ff], &[0u8; 0x8901][..]] {
+            assert!(b.load_rom_data(bad).is_err());
+            assert_eq!(b.read32(0x2f83f700), Err(Fault::Unmapped));
+        }
+        b.fault = None;
+        assert_eq!(b.load_rom_data(&data), Ok(()));
+        for (i, &byte) in data.iter().enumerate() {
+            assert_eq!(b.read8(0x2f83f700 + i as u32), Ok(byte));
+        }
+        assert_eq!(b.read32(0x2f83f700), Ok(u32::from_le_bytes([0, 1, 2, 3])));
+        assert_eq!(b.read8(0x2f83f6ff), Err(Fault::Unmapped));
+        assert_eq!(b.read8(0x2f848000), Err(Fault::Unmapped));
+        assert_eq!(b.write32(0x2f83f700, 0), Err(Fault::Prohibited));
+        assert!(b.load_rom_data(&vec![0xff; 0x8900]).is_err());
+        assert_eq!(b.read32(0x2f83f700), Ok(0x03020100));
+        // A new ELF load clears supplements rather than retaining stale bytes.
+        b.load_rom(&rom_fixture()).unwrap();
+        assert_eq!(b.read32(0x2f83f700), Err(Fault::Unmapped));
+    }
+    #[test]
+    #[ignore = "set S31_ROM and S31_ROM_DATA to the pinned ELF and local ROM dump"]
+    fn external_rom_data_stop() {
+        let rom = std::fs::read(std::env::var_os("S31_ROM").expect("set S31_ROM")).unwrap();
+        let data =
+            std::fs::read(std::env::var_os("S31_ROM_DATA").expect("set S31_ROM_DATA")).unwrap();
+        let mut p = Probe::new();
+        p.bus.load_rom(&rom).unwrap();
+        p.bus.load_rom_data(&data).unwrap();
+        assert_eq!(
+            p.run(1_000_000),
+            Stop {
+                pc: 0x2f83e838,
+                raw: 0xbdc79073,
+                retired: 6331,
+                reason: StopReason::Csr(0xbdc),
+            }
+        );
     }
     #[test]
     #[ignore = "set S31_ROM to the pinned public esp32s31_rev0_rom.elf"]

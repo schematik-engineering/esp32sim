@@ -17,13 +17,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         return Ok(());
     }
-    if args.len() != 7
+    if !matches!(args.len(), 7 | 9)
+        || (args.len() == 9 && args[7] != "--rom-data")
         || args[1] != "--chip"
         || args[2] != esp32s31::CHIP
         || args[3] != "--rom"
         || args[5] != "--max-instructions"
     {
-        return Err("usage: esp32sim-s31 --chip esp32s31 --rom ROM.elf --max-instructions N (or --decode-stdin)".into());
+        return Err("usage: esp32sim-s31 --chip esp32s31 --rom ROM.elf --max-instructions N [--rom-data FILE] (or --decode-stdin)".into());
     }
     let budget = args[6].parse::<u64>()?;
     if budget == 0 {
@@ -31,6 +32,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let mut p = esp32s31::Probe::new();
     p.bus.load_rom(&std::fs::read(&args[4])?)?;
+    if args.len() == 9 {
+        let data = std::fs::read(&args[8]).map_err(|e| {
+            format!("cannot read S31 ROM data supplement: {e}; run s31/dump-rom-data.py and pass --rom-data FILE")
+        })?;
+        p.bus.load_rom_data(&data)?;
+    }
     let s = p.run(budget);
     match s.reason {
         esp32s31::StopReason::Access(f) => println!("[s31] chip={} pc=0x{:08x} opcode=0x{:08x} retired={} stop=access address=0x{:08x} width={} write={} fault={:?}", esp32s31::CHIP, s.pc, s.raw, s.retired, f.address, f.width, f.write, f.fault),
