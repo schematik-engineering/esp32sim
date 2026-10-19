@@ -30,8 +30,8 @@ fn external_stack_guard_uses_two_entropy_loads_without_bypass() {
             samples.push(value);
         }
         if s.reason != StopReason::Budget {
-            assert_eq!(s.pc, 0x2f805a5c);
-            assert_eq!(s.retired, 7254);
+            assert_eq!(s.pc, 0x2f8019a4);
+            assert_eq!(s.retired, 7384);
             assert_eq!(samples.len(), 2);
             assert_eq!(p.bus.read32(0x2f07fa38), Ok(samples[0] ^ samples[1]));
             assert_eq!(p.bus.read32(0x20814000).unwrap() & (3 << 30), 0);
@@ -193,7 +193,7 @@ fn new_controls_fail_closed_on_widths_and_neighbors() {
         assert_eq!(b.fetch(address), Err(Fault::Unmapped));
         assert_eq!(b.read32(address + 1), Err(Fault::Unmapped));
     }
-    for address in [0x20801018, 0x20801020, 0x2c000008, 0x2070410c] {
+    for address in [0x20801018, 0x20801020, 0x2c000008, 0x20704110] {
         let mut b = S31Bus::new();
         assert_eq!(b.read32(address), Err(Fault::Unmapped));
         assert_eq!(b.write32(address, 0), Err(Fault::Unmapped));

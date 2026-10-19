@@ -873,13 +873,13 @@ mod tests {
         assert_eq!(
             p.run(1_000_000),
             Stop {
-                pc: 0x2f805a5c,
-                raw: 0x00004398,
-                retired: 7254,
+                pc: 0x2f8019a4,
+                raw: 0x00050023,
+                retired: 7384,
                 reason: StopReason::Access(AccessFault {
-                    address: 0x2070410c,
-                    width: 4,
-                    write: false,
+                    address: 0x10801055,
+                    width: 1,
+                    write: true,
                     fault: Fault::Unmapped,
                 }),
             }
