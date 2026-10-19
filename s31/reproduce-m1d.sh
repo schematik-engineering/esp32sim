@@ -24,7 +24,7 @@ for n in 1 2; do
     "$CARGO_TARGET_DIR/release/esp32sim-s31" --chip esp32s31 --rom "$S31_ROM" --max-instructions 1000000 --rom-data "$S31_ROM_DATA" > "$OUT/stop-$n.txt"
 done
 cmp "$OUT/stop-1.txt" "$OUT/stop-2.txt"
-printf '%s\n' '[s31] chip=esp32s31 pc=0x2f83e844 opcode=0xbcc49073 retired=6334 stop=Csr(3020)' > "$OUT/expected.txt"
+printf '%s\n' '[s31] chip=esp32s31 pc=0x2f8046a4 opcode=0x7c17a7f3 retired=6955 stop=Csr(1985)' > "$OUT/expected.txt"
 cmp "$OUT/expected.txt" "$OUT/stop-1.txt"
 printf 'Two identical runs: '; printf '%s\n' "$(< "$OUT/stop-1.txt")"
 python3 -m unittest discover -s s31 -p 'test_*.py' -v

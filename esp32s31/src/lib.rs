@@ -297,9 +297,9 @@ pub struct Stop {
 pub struct Probe {
     pub cpu: Cpu,
     pub bus: S31Bus,
-    // No reset readback is invented. Only the first ROM-used address write is
-    // supported; PMACFG12 still stops before enabling any memory attributes.
-    pma_addr12: Option<u32>,
+    // PMACFG0..15 then PMAADDR0..15. None is unknown, not a reset value.
+    // Attributes are retained, NOT enforced; S31Bus remains the access authority.
+    pma: [Option<u32>; 32],
 }
 impl Default for Probe {
     fn default() -> Self {
@@ -313,7 +313,7 @@ impl Probe {
         Self {
             cpu,
             bus: S31Bus::new(),
-            pma_addr12: None,
+            pma: [None; 32],
         }
     }
     pub fn run(&mut self, budget: u64) -> Stop {
@@ -345,26 +345,43 @@ impl Probe {
                 Op::Csrrw | Op::Csrrs | Op::Csrrc | Op::Csrrwi | Op::Csrrsi | Op::Csrrci
             ) {
                 // ESP-IDF 9a97f6c5 components/riscv/include/riscv/csr.h:52-85:
-                // PMAADDR(12) = 0xbdc; NAPOT(0x2e000000, 0x8000) encodes
-                // 0x0b800fff. Pinned rev0 ROM riscv_pma_init_cfg at 0x2f83e838
-                // writes this value with rd=x0 before PMACFG12 at 0x2f83e844.
-                // Support only that first, no-read initialization transaction.
-                // Unknown reset readback, WARL, locks, reprogramming and enabled
-                // attribute effects remain unsupported, NOT generic CSR storage.
-                if insn.imm as u32 == 0xbdc {
-                    let value = if insn.rs1 == 0 {
+                // PMACFG(i)=0xbc0+i, PMAADDR(i)=0xbd0+i, PMA_L=bit 29.
+                // Retain raw attributes, without enforcing them or inventing WARL
+                // behavior. The strict S31 memory map remains the access authority.
+                // Zicsr 2.0: RW with rd=x0 suppresses reads; RS/RC always read,
+                // and suppress writes only for rs1/zimm=x0 (not a zero value).
+                let csr = insn.imm as u32;
+                if (0xbc0..=0xbdf).contains(&csr) {
+                    let index = (csr - 0xbc0) as usize;
+                    let immediate = matches!(insn.op, Op::Csrrwi | Op::Csrrsi | Op::Csrrci);
+                    let value = if immediate {
+                        insn.rs1 as u32
+                    } else if insn.rs1 == 0 {
                         0
                     } else {
                         self.cpu.x[insn.rs1 as usize]
                     };
-                    if insn.op != Op::Csrrw
-                        || insn.rd != 0
-                        || self.pma_addr12.is_some()
-                        || value != 0x0b80_0fff
-                    {
-                        return stop(StopReason::Csr(0xbdc), self.cpu.retired_count);
+                    let exchange = matches!(insn.op, Op::Csrrw | Op::Csrrwi);
+                    let reads = !exchange || insn.rd != 0;
+                    let writes = exchange || insn.rs1 != 0;
+                    let old = self.pma[index];
+                    // Locking an entry also guards its paired address. Address
+                    // bit 29 itself is address data, never a lock bit.
+                    let locked = self.pma[index % 16].is_some_and(|cfg| cfg & (1 << 29) != 0);
+                    if (reads && old.is_none()) || (writes && locked) {
+                        return stop(StopReason::Csr(csr), self.cpu.retired_count);
                     }
-                    self.pma_addr12 = Some(value);
+                    if writes {
+                        let new = match insn.op {
+                            Op::Csrrs | Op::Csrrsi => old.unwrap() | value,
+                            Op::Csrrc | Op::Csrrci => old.unwrap() & !value,
+                            _ => value,
+                        };
+                        self.pma[index] = Some(new);
+                    }
+                    if insn.rd != 0 {
+                        self.cpu.x[insn.rd as usize] = old.unwrap();
+                    }
                     self.cpu.pc = pc.wrapping_add(4);
                     self.cpu.retired_count += 1;
                     self.cpu.insn_count += 1;
@@ -560,76 +577,158 @@ mod tests {
         p.bus.write16(HP_SRAM.1 - 2, 0x0001).unwrap();
         assert_eq!(p.bus.fetch(HP_SRAM.1 - 2).unwrap(), [1, 0, 0, 0]);
     }
-    #[test]
-    fn pma_addr12_first_no_read_write_and_config_stop() {
-        let mut p = Probe::new();
-        p.cpu.pc = HP_SRAM.0;
-        p.cpu.x[15] = 0x0b80_0fff;
-        p.bus.write32(HP_SRAM.0, 0xbdc79073).unwrap();
-        p.bus.write32(HP_SRAM.0 + 4, 0xbcc49073).unwrap();
-        assert_eq!(p.pma_addr12, None); // Not a claimed silicon reset value.
-        assert_eq!(p.run(1).reason, StopReason::Budget);
-        assert_eq!(p.pma_addr12, Some(0x0b80_0fff));
-        assert_eq!(p.cpu.pc, HP_SRAM.0 + 4);
-        assert_eq!(p.cpu.x[0], 0);
-        assert_eq!(p.cpu.x[15], 0x0b80_0fff);
-        assert_eq!(
-            (p.cpu.retired_count, p.cpu.insn_count, p.cpu.cycle_count),
-            (1, 1, 1)
+    fn pma_insn(p: &mut Probe, csr: u32, funct: u32, source: u32, rd: u32) -> Stop {
+        p.bus
+            .write32(
+                p.cpu.pc,
+                (csr << 20) | (source << 15) | (funct << 12) | (rd << 7) | 0x73,
+            )
+            .unwrap();
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| p.run(1)));
+        assert!(
+            result.is_ok(),
+            "assertion: CSR execution must return a typed stop, not panic"
         );
-        assert!(!p.cpu.csr_other.contains_key(&0xbdc));
-        assert_eq!(
-            p.run(1),
-            Stop {
-                pc: HP_SRAM.0 + 4,
-                raw: 0xbcc49073,
-                retired: 1,
-                reason: StopReason::Csr(0xbcc),
-            }
-        );
-        assert!(!p.cpu.csr_other.contains_key(&0xbcc));
+        result.unwrap()
     }
     #[test]
-    fn pma_unknown_reads_values_operations_and_rewrites_stop_atomically() {
-        for raw in [
-            0xbdb79073, 0xbdd79073, // Neighbors aren't address entry 12.
-            0xbdc79173, // CSRRW rd!=x0 requests unknown old value.
-            0xbdc7a073, 0xbdc7b073, // Set/clear require old value.
-            0xbdc7d073, 0xbdc7e073, 0xbdc7f073, // Immediate forms unsupported.
-            0xbdc02073, // Read-only CSRRs x0 must not invent reset state.
-            0xbdc01073, // rs1=x0 is architectural zero, not x[0].
-        ] {
-            let mut p = Probe::new();
-            p.cpu.pc = HP_SRAM.0;
-            p.cpu.x[0] = 0x0b80_0fff; // Deliberately poisoned public storage.
-            p.cpu.x[15] = 0x0b80_0fff;
-            p.bus.write32(HP_SRAM.0, raw).unwrap();
-            assert_eq!(p.run(1).reason, StopReason::Csr(raw >> 20));
-            assert_eq!(p.pma_addr12, None);
-            assert_eq!(p.cpu.pc, HP_SRAM.0);
-            assert_eq!(
-                (p.cpu.retired_count, p.cpu.insn_count, p.cpu.cycle_count),
-                (0, 0, 0)
-            );
-        }
-        for (value, previous) in [
-            (0, None),
-            (0x0b80_0ffe, None),
-            (0x8b80_0fff, None),
-            (0x0b80_0fff, Some(0x0b80_0fff)),
-        ] {
-            let mut p = Probe::new();
-            p.cpu.pc = HP_SRAM.0;
+    fn pma_all_entries_mapping_values_and_counters() {
+        let mut p = Probe::new();
+        p.cpu.pc = HP_SRAM.0;
+        for csr in 0xbc0..=0xbdf {
+            let index = (csr - 0xbc0) as usize;
+            let value = 0xc000_0019 ^ (csr << 8); // no lock bit
             p.cpu.x[15] = value;
-            p.pma_addr12 = previous;
-            p.bus.write32(HP_SRAM.0, 0xbdc79073).unwrap();
-            assert_eq!(p.run(1).reason, StopReason::Csr(0xbdc));
-            assert_eq!(p.pma_addr12, previous);
-            assert_eq!(p.cpu.pc, HP_SRAM.0);
+            assert_eq!(p.pma[index], None);
+            assert_eq!(pma_insn(&mut p, csr, 1, 15, 0).reason, StopReason::Budget);
+            assert_eq!(p.pma[index], Some(value));
+            assert_eq!(p.cpu.x[15], value);
+            assert_eq!(p.cpu.x[0], 0);
+            assert!(!p.cpu.csr_other.contains_key(&csr));
+        }
+        for csr in 0xbc0..=0xbdf {
+            assert_eq!(pma_insn(&mut p, csr, 2, 0, 2).reason, StopReason::Budget);
+            assert_eq!(p.cpu.x[2], 0xc000_0019 ^ (csr << 8));
+        }
+        assert_eq!(p.cpu.pc, HP_SRAM.0 + 64 * 4);
+        assert_eq!(
+            (p.cpu.retired_count, p.cpu.insn_count, p.cpu.cycle_count),
+            (64, 64, 64)
+        );
+        // Preserve M1d's real ROM address/config transaction as a regression.
+        p.cpu.x[15] = 0x0b80_0fff;
+        assert_eq!(pma_insn(&mut p, 0xbdc, 1, 15, 0).reason, StopReason::Budget);
+        p.cpu.x[9] = 0xc000_0019;
+        assert_eq!(pma_insn(&mut p, 0xbcc, 1, 9, 0).reason, StopReason::Budget);
+        assert_eq!(p.pma[28], Some(0x0b80_0fff));
+        assert_eq!(p.pma[12], Some(0xc000_0019));
+    }
+    #[test]
+    fn pma_unknown_reads_stop_atomically() {
+        for csr in 0xbc0..=0xbdf {
+            for (funct, source, rd) in [
+                (1, 15, 2),
+                (5, 15, 2),
+                (2, 15, 0),
+                (3, 15, 0),
+                (6, 15, 0),
+                (7, 15, 0),
+                (2, 0, 0),
+                (6, 0, 2),
+            ] {
+                let mut p = Probe::new();
+                p.cpu.pc = HP_SRAM.0;
+                p.cpu.x[2] = 0x1234;
+                let s = pma_insn(&mut p, csr, funct, source, rd);
+                assert_eq!(s.reason, StopReason::Csr(csr));
+                assert_eq!(s.retired, 0);
+                assert_eq!(p.pma, [None; 32]);
+                assert_eq!(p.cpu.x[2], 0x1234);
+                assert_eq!(p.cpu.pc, HP_SRAM.0);
+                assert_eq!(
+                    (p.cpu.retired_count, p.cpu.insn_count, p.cpu.cycle_count),
+                    (0, 0, 0)
+                );
+            }
+        }
+        for csr in [0xbbf, 0xbe0] {
+            let mut p = Probe::new();
+            p.cpu.pc = HP_SRAM.0;
+            assert_eq!(pma_insn(&mut p, csr, 1, 0, 0).reason, StopReason::Csr(csr));
+        }
+    }
+    #[test]
+    fn pma_zicsr_operations_aliases_and_zero() {
+        for csr in 0xbc0..=0xbdf {
+            let mut p = Probe::new();
+            p.cpu.pc = HP_SRAM.0;
+            p.cpu.x[0] = 0xdeadbeef;
+            assert_eq!(pma_insn(&mut p, csr, 1, 0, 0).reason, StopReason::Budget);
+            assert_eq!(p.pma[(csr - 0xbc0) as usize], Some(0));
+            p.cpu.x[15] = 0x55;
+            for (funct, source, old, new) in [
+                (1, 15, 0, 0x55),
+                (2, 15, 0x55, 0x55),
+                (5, 31, 0x55, 31),
+                (7, 3, 31, 28),
+                (6, 2, 28, 30),
+                (3, 15, 30, 10),
+            ] {
+                assert_eq!(
+                    pma_insn(&mut p, csr, funct, source, 2).reason,
+                    StopReason::Budget
+                );
+                assert_eq!(p.cpu.x[2], old);
+                assert_eq!(p.pma[(csr - 0xbc0) as usize], Some(new));
+            }
+            // rd=rs1 reads the source before writing the old value back.
+            p.cpu.x[15] = 7;
+            assert_eq!(pma_insn(&mut p, csr, 1, 15, 15).reason, StopReason::Budget);
+            assert_eq!(p.cpu.x[15], 10);
+            assert_eq!(p.pma[(csr - 0xbc0) as usize], Some(7));
+        }
+    }
+    #[test]
+    fn pma_locks_guard_cfg_and_address_without_mutation() {
+        for entry in 0..16 {
+            let mut p = Probe::new();
+            p.cpu.pc = HP_SRAM.0;
+            p.cpu.x[15] = 1 << 29; // Address bit 29 is NOT a lock.
             assert_eq!(
-                (p.cpu.retired_count, p.cpu.insn_count, p.cpu.cycle_count),
-                (0, 0, 0)
+                pma_insn(&mut p, 0xbd0 + entry, 1, 15, 0).reason,
+                StopReason::Budget
             );
+            assert_eq!(
+                pma_insn(&mut p, 0xbd0 + entry, 5, 3, 0).reason,
+                StopReason::Budget
+            );
+            assert_eq!(
+                pma_insn(&mut p, 0xbc0 + entry, 1, 15, 0).reason,
+                StopReason::Budget
+            );
+            for csr in [0xbc0 + entry, 0xbd0 + entry] {
+                // Read-only set/clear register/immediate forms work while locked.
+                for funct in [2, 3, 6, 7] {
+                    assert_eq!(
+                        pma_insn(&mut p, csr, funct, 0, 2).reason,
+                        StopReason::Budget
+                    );
+                    assert_eq!(p.cpu.x[2], if csr < 0xbd0 { 1 << 29 } else { 3 });
+                }
+                for (funct, source) in [(1, 0), (5, 0), (2, 15), (3, 15), (6, 1), (7, 1)] {
+                    p.cpu.x[15] = 0; // nonzero rs1 still attempts a write.
+                    let state = p.pma;
+                    let pc = p.cpu.pc;
+                    let retired = p.cpu.retired_count;
+                    assert_eq!(
+                        pma_insn(&mut p, csr, funct, source, 2).reason,
+                        StopReason::Csr(csr)
+                    );
+                    assert_eq!(p.pma, state);
+                    assert_eq!(p.cpu.pc, pc);
+                    assert_eq!(p.cpu.retired_count, retired);
+                }
+            }
         }
     }
     #[test]
@@ -752,10 +851,10 @@ mod tests {
         assert_eq!(
             p.run(1_000_000),
             Stop {
-                pc: 0x2f83e844,
-                raw: 0xbcc49073,
-                retired: 6334,
-                reason: StopReason::Csr(0xbcc),
+                pc: 0x2f8046a4,
+                raw: 0x7c17a7f3,
+                retired: 6955,
+                reason: StopReason::Csr(0x7c1),
             }
         );
     }
