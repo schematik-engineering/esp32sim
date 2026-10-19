@@ -6,6 +6,7 @@ license.workspace = true
 description = "Experimental ESP32-S31 strict reset-path probe (not a bootable SoC)"
 
 [dependencies]
+esp-periph = { path = "../esp-periph" }
 emu-core = { path = "../emu-core" }
 esp-soc = { path = "../esp-soc" }
 riscv-rv32 = { path = "../riscv-rv32" }

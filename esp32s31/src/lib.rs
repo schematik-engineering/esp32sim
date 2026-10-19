@@ -2,6 +2,8 @@
 //! No guessed MMIO defaults, CLIC delivery, MMU, cache timing, FPU, or secondary core.
 use emu_core::{Bus, Core, Fault, StepKind};
 mod boot_regs;
+#[cfg(test)]
+mod entropy_tests;
 mod mhcr;
 use riscv_rv32::{
     decode::{decode, Op},
@@ -232,6 +234,9 @@ impl Bus for S31Bus {
         Ok(u16::from_le_bytes(self.read(a)?))
     }
     fn read32(&mut self, a: u32) -> Result<u32, Fault> {
+        if let Some(result) = self.boot_regs.read_entropy(a) {
+            return result.or_else(|fault| self.fail(a, 4, false, fault));
+        }
         if let Some(value) = self.boot_regs.read(a) {
             return Ok(value);
         }
@@ -413,6 +418,8 @@ impl Probe {
                     return stop(StopReason::Csr(insn.imm as u32), self.cpu.retired_count);
                 }
             }
+            // Snapshot before the access: the load itself has not retired yet.
+            self.bus.boot_regs.entropy.now = self.cpu.retired_count as u32;
             let outcome = self.cpu.step(&mut self.bus);
             if let Some(v) = self.cpu.csr_other.get_mut(&0x306) {
                 *v &= 7;
@@ -866,11 +873,11 @@ mod tests {
         assert_eq!(
             p.run(1_000_000),
             Stop {
-                pc: 0x2f80d052,
-                raw: 0x00004064,
-                retired: 7049,
+                pc: 0x2f805a5c,
+                raw: 0x00004398,
+                retired: 7254,
                 reason: StopReason::Access(AccessFault {
-                    address: 0x20814044,
+                    address: 0x2070410c,
                     width: 4,
                     write: false,
                     fault: Fault::Unmapped,
