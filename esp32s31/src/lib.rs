@@ -297,6 +297,9 @@ pub struct Stop {
 pub struct Probe {
     pub cpu: Cpu,
     pub bus: S31Bus,
+    // No reset readback is invented. Only the first ROM-used address write is
+    // supported; PMACFG12 still stops before enabling any memory attributes.
+    pma_addr12: Option<u32>,
 }
 impl Default for Probe {
     fn default() -> Self {
@@ -310,6 +313,7 @@ impl Probe {
         Self {
             cpu,
             bus: S31Bus::new(),
+            pma_addr12: None,
         }
     }
     pub fn run(&mut self, budget: u64) -> Stop {
@@ -340,6 +344,34 @@ impl Probe {
                 insn.op,
                 Op::Csrrw | Op::Csrrs | Op::Csrrc | Op::Csrrwi | Op::Csrrsi | Op::Csrrci
             ) {
+                // ESP-IDF 9a97f6c5 components/riscv/include/riscv/csr.h:52-85:
+                // PMAADDR(12) = 0xbdc; NAPOT(0x2e000000, 0x8000) encodes
+                // 0x0b800fff. Pinned rev0 ROM riscv_pma_init_cfg at 0x2f83e838
+                // writes this value with rd=x0 before PMACFG12 at 0x2f83e844.
+                // Support only that first, no-read initialization transaction.
+                // Unknown reset readback, WARL, locks, reprogramming and enabled
+                // attribute effects remain unsupported, NOT generic CSR storage.
+                if insn.imm as u32 == 0xbdc {
+                    let value = if insn.rs1 == 0 {
+                        0
+                    } else {
+                        self.cpu.x[insn.rs1 as usize]
+                    };
+                    if insn.op != Op::Csrrw
+                        || insn.rd != 0
+                        || self.pma_addr12.is_some()
+                        || value != 0x0b80_0fff
+                    {
+                        return stop(StopReason::Csr(0xbdc), self.cpu.retired_count);
+                    }
+                    self.pma_addr12 = Some(value);
+                    self.cpu.pc = pc.wrapping_add(4);
+                    self.cpu.retired_count += 1;
+                    self.cpu.insn_count += 1;
+                    self.cpu.cycle_count += 1;
+                    self.cpu.x[0] = 0;
+                    continue;
+                }
                 // Only the reset-prefix CSRs have audited semantics for this probe.
                 // Do not silently inherit the C3/C6 generic unknown-CSR readback.
                 // Standard mcounteren CY/TM/IR bits only. Lower privilege is not
@@ -529,6 +561,78 @@ mod tests {
         assert_eq!(p.bus.fetch(HP_SRAM.1 - 2).unwrap(), [1, 0, 0, 0]);
     }
     #[test]
+    fn pma_addr12_first_no_read_write_and_config_stop() {
+        let mut p = Probe::new();
+        p.cpu.pc = HP_SRAM.0;
+        p.cpu.x[15] = 0x0b80_0fff;
+        p.bus.write32(HP_SRAM.0, 0xbdc79073).unwrap();
+        p.bus.write32(HP_SRAM.0 + 4, 0xbcc49073).unwrap();
+        assert_eq!(p.pma_addr12, None); // Not a claimed silicon reset value.
+        assert_eq!(p.run(1).reason, StopReason::Budget);
+        assert_eq!(p.pma_addr12, Some(0x0b80_0fff));
+        assert_eq!(p.cpu.pc, HP_SRAM.0 + 4);
+        assert_eq!(p.cpu.x[0], 0);
+        assert_eq!(p.cpu.x[15], 0x0b80_0fff);
+        assert_eq!(
+            (p.cpu.retired_count, p.cpu.insn_count, p.cpu.cycle_count),
+            (1, 1, 1)
+        );
+        assert!(!p.cpu.csr_other.contains_key(&0xbdc));
+        assert_eq!(
+            p.run(1),
+            Stop {
+                pc: HP_SRAM.0 + 4,
+                raw: 0xbcc49073,
+                retired: 1,
+                reason: StopReason::Csr(0xbcc),
+            }
+        );
+        assert!(!p.cpu.csr_other.contains_key(&0xbcc));
+    }
+    #[test]
+    fn pma_unknown_reads_values_operations_and_rewrites_stop_atomically() {
+        for raw in [
+            0xbdb79073, 0xbdd79073, // Neighbors aren't address entry 12.
+            0xbdc79173, // CSRRW rd!=x0 requests unknown old value.
+            0xbdc7a073, 0xbdc7b073, // Set/clear require old value.
+            0xbdc7d073, 0xbdc7e073, 0xbdc7f073, // Immediate forms unsupported.
+            0xbdc02073, // Read-only CSRRs x0 must not invent reset state.
+            0xbdc01073, // rs1=x0 is architectural zero, not x[0].
+        ] {
+            let mut p = Probe::new();
+            p.cpu.pc = HP_SRAM.0;
+            p.cpu.x[0] = 0x0b80_0fff; // Deliberately poisoned public storage.
+            p.cpu.x[15] = 0x0b80_0fff;
+            p.bus.write32(HP_SRAM.0, raw).unwrap();
+            assert_eq!(p.run(1).reason, StopReason::Csr(raw >> 20));
+            assert_eq!(p.pma_addr12, None);
+            assert_eq!(p.cpu.pc, HP_SRAM.0);
+            assert_eq!(
+                (p.cpu.retired_count, p.cpu.insn_count, p.cpu.cycle_count),
+                (0, 0, 0)
+            );
+        }
+        for (value, previous) in [
+            (0, None),
+            (0x0b80_0ffe, None),
+            (0x8b80_0fff, None),
+            (0x0b80_0fff, Some(0x0b80_0fff)),
+        ] {
+            let mut p = Probe::new();
+            p.cpu.pc = HP_SRAM.0;
+            p.cpu.x[15] = value;
+            p.pma_addr12 = previous;
+            p.bus.write32(HP_SRAM.0, 0xbdc79073).unwrap();
+            assert_eq!(p.run(1).reason, StopReason::Csr(0xbdc));
+            assert_eq!(p.pma_addr12, previous);
+            assert_eq!(p.cpu.pc, HP_SRAM.0);
+            assert_eq!(
+                (p.cpu.retired_count, p.cpu.insn_count, p.cpu.cycle_count),
+                (0, 0, 0)
+            );
+        }
+    }
+    #[test]
     fn unknown_csr_does_not_use_generic_readback() {
         let mut p = Probe::new();
         p.cpu.pc = HP_SRAM.0;
@@ -648,10 +752,10 @@ mod tests {
         assert_eq!(
             p.run(1_000_000),
             Stop {
-                pc: 0x2f83e838,
-                raw: 0xbdc79073,
-                retired: 6331,
-                reason: StopReason::Csr(0xbdc),
+                pc: 0x2f83e844,
+                raw: 0xbcc49073,
+                retired: 6334,
+                reason: StopReason::Csr(0xbcc),
             }
         );
     }

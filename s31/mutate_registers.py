@@ -8,6 +8,17 @@ from pathlib import Path
 import subprocess
 
 MUTANTS = [
+    ('pma-address-map', 'if insn.imm as u32 == 0xbdc {', 'if insn.imm as u32 == 0xbdd {', 'pma_addr12_first_no_read_write_and_config_stop'),
+    ('pma-value-guard', '|| value != 0x0b80_0fff', '|| false', 'pma_unknown_reads_values_operations_and_rewrites_stop_atomically'),
+    ('pma-value-store', 'self.pma_addr12 = Some(value);', 'self.pma_addr12 = Some(0);', 'pma_addr12_first_no_read_write_and_config_stop'),
+    ('pma-no-read', '|| insn.rd != 0', '|| false', 'pma_unknown_reads_values_operations_and_rewrites_stop_atomically'),
+    ('pma-op', 'if insn.op != Op::Csrrw', 'if false', 'pma_unknown_reads_values_operations_and_rewrites_stop_atomically'),
+    ('pma-rewrite', '|| self.pma_addr12.is_some()', '|| false', 'pma_unknown_reads_values_operations_and_rewrites_stop_atomically'),
+    ('pma-zero-source', 'let value = if insn.rs1 == 0 {', 'let value = if false {', 'pma_unknown_reads_values_operations_and_rewrites_stop_atomically'),
+    ('pma-pc', 'self.cpu.pc = pc.wrapping_add(4);', 'self.cpu.pc = pc.wrapping_add(2);', 'pma_addr12_first_no_read_write_and_config_stop'),
+    ('pma-retired', 'self.cpu.retired_count += 1;', 'self.cpu.retired_count += 0;', 'pma_addr12_first_no_read_write_and_config_stop'),
+    ('pma-insns', 'self.cpu.insn_count += 1;', 'self.cpu.insn_count += 0;', 'pma_addr12_first_no_read_write_and_config_stop'),
+    ('pma-cycles', 'self.cpu.cycle_count += 1;', 'self.cpu.cycle_count += 0;', 'pma_addr12_first_no_read_write_and_config_stop'),
     ('reset-cause-map', 'HPCORE0_RESET_CAUSE: u32 = 0x2070_1030', 'HPCORE0_RESET_CAUSE: u32 = 0x2070_1034', 'reset_cause_mapping_and_write_triggers'),
     ('clic-config-map', 'CLIC_CONFIG: u32 = 0x1080_0000', 'CLIC_CONFIG: u32 = 0x1080_0004', 'clic_config_mapping_and_fields'),
     ('power-on-cause', 'POWER_ON_RESET: u32 = 1 << 1', 'POWER_ON_RESET: u32 = 0', 'reset_cause_mapping_and_write_triggers'),
