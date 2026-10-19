@@ -1,0 +1,45 @@
+{
+  "source_sha256": "28844bcf826d05ec7f09a9cf5fb03f906709ebee956f551f25983ac5a48bc001",
+  "command": [
+    "nice",
+    "-n",
+    "10",
+    "cargo",
+    "+1.99.0",
+    "test",
+    "-p",
+    "esp32s31",
+    "--lib",
+    "tests::map_pins_every_aperture_and_boundary",
+    "--",
+    "--exact"
+  ],
+  "baseline_exit": 0,
+  "restored_exit": 0,
+  "results": [
+    {
+      "mutation": "hp-sram-base",
+      "exit": 101,
+      "killed": true,
+      "test": "tests::map_pins_every_aperture_and_boundary"
+    },
+    {
+      "mutation": "rom-upper-bound",
+      "exit": 101,
+      "killed": true,
+      "test": "tests::map_pins_every_aperture_and_boundary"
+    },
+    {
+      "mutation": "flash-nc-offset",
+      "exit": 101,
+      "killed": true,
+      "test": "tests::map_pins_every_aperture_and_boundary"
+    },
+    {
+      "mutation": "psram-nc-offset",
+      "exit": 101,
+      "killed": true,
+      "test": "tests::map_pins_every_aperture_and_boundary"
+    }
+  ]
+}

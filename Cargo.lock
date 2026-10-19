@@ -62,6 +62,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "esp32s31"
+version = "0.2.0"
+dependencies = [
+ "emu-core",
+ "esp-soc",
+ "riscv-rv32",
+]
+
+[[package]]
 name = "esp32sim"
 version = "0.2.0"
 dependencies = [

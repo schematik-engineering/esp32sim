@@ -1,0 +1,709 @@
+{
+  "input_sha256": {
+    "app": "c16d55efdd65676282af02b39f879a0b7f3ed62ec56ce919c606895a3f82ae12",
+    "bootloader": "d38e48ad52800c79ef97613f9ab452296fbcbd731ef51a0f46919978adc9b664",
+    "rom": "a52ad7513deb656a910a5740125f1cce2c7941f11ce57213b7b43aea93d5ab87"
+  },
+  "objdump_version": "GNU objdump (crosstool-NG esp-15.2.0_20251204) 2.45",
+  "stages": [
+    {
+      "candidate": 12753,
+      "counts": {
+        "C/Zca": {
+          "all": 49182,
+          "all_accepted": 49182,
+          "candidate": 6137,
+          "candidate_accepted": 6137
+        },
+        "F": {
+          "all": 471,
+          "all_illegal": 471
+        },
+        "I": {
+          "all": 38704,
+          "all_accepted": 38704,
+          "candidate": 6489,
+          "candidate_accepted": 6489
+        },
+        "M": {
+          "all": 812,
+          "all_accepted": 812,
+          "candidate": 85,
+          "candidate_accepted": 85
+        },
+        "Zcf": {
+          "all": 59,
+          "all_illegal": 59
+        },
+        "Zicsr": {
+          "all": 142,
+          "all_accepted": 142,
+          "candidate": 42,
+          "candidate_accepted": 42
+        },
+        "privileged": {
+          "all": 1,
+          "all_accepted": 1
+        },
+        "unknown/data": {
+          "all": 9,
+          "all_accepted": 3,
+          "all_illegal": 6
+        }
+      },
+      "mnemonics": {
+        "C/Zca": {
+          "c.add": 2367,
+          "c.addi": 2892,
+          "c.addi16sp": 558,
+          "c.addi4spn": 741,
+          "c.and": 1060,
+          "c.andi": 1022,
+          "c.beqz": 1850,
+          "c.bnez": 1416,
+          "c.j": 2554,
+          "c.jal": 172,
+          "c.jalr": 1343,
+          "c.jr": 1734,
+          "c.li": 6417,
+          "c.lui": 896,
+          "c.lw": 4924,
+          "c.lwsp": 3638,
+          "c.mv": 5390,
+          "c.or": 1361,
+          "c.slli": 1506,
+          "c.srai": 188,
+          "c.srli": 904,
+          "c.sub": 369,
+          "c.sw": 2412,
+          "c.swsp": 3296,
+          "c.xor": 172
+        },
+        "F": {
+          "fadd.s": 7,
+          "fcvt.s.w": 13,
+          "fcvt.s.wu": 9,
+          "fcvt.w.s": 2,
+          "fcvt.wu.s": 2,
+          "fdiv.s": 14,
+          "feq.s": 18,
+          "fle.s": 6,
+          "flt.s": 26,
+          "flw": 237,
+          "fmadd.s": 5,
+          "fmsub.s": 3,
+          "fmul.s": 25,
+          "fmv.w.x": 15,
+          "fmv.x.w": 1,
+          "fsgnj.s": 43,
+          "fsgnjn.s": 1,
+          "fsgnjx.s": 16,
+          "fsub.s": 12,
+          "fsw": 16
+        },
+        "I": {
+          "add": 518,
+          "addi": 5856,
+          "and": 377,
+          "andi": 1438,
+          "auipc": 10,
+          "beq": 1238,
+          "bge": 344,
+          "bgeu": 710,
+          "blt": 320,
+          "bltu": 727,
+          "bne": 1517,
+          "fence": 3,
+          "jal": 6000,
+          "jalr": 3,
+          "lb": 121,
+          "lbu": 2135,
+          "lh": 88,
+          "lhu": 503,
+          "lui": 4731,
+          "lw": 4752,
+          "or": 464,
+          "ori": 518,
+          "sb": 1081,
+          "sh": 308,
+          "sll": 394,
+          "slli": 623,
+          "slt": 17,
+          "slti": 6,
+          "sltiu": 131,
+          "sltu": 317,
+          "sra": 38,
+          "srai": 97,
+          "srl": 240,
+          "srli": 538,
+          "sub": 656,
+          "sw": 1318,
+          "xor": 324,
+          "xori": 243
+        },
+        "M": {
+          "div": 100,
+          "divu": 86,
+          "mul": 507,
+          "mulh": 10,
+          "mulhu": 10,
+          "rem": 10,
+          "remu": 89
+        },
+        "Zcf": {
+          "c.flw": 4,
+          "c.flwsp": 22,
+          "c.fsw": 11,
+          "c.fswsp": 22
+        },
+        "Zicsr": {
+          "csrrc": 1,
+          "csrrs": 79,
+          "csrrsi": 9,
+          "csrrw": 51,
+          "csrrwi": 2
+        },
+        "privileged": {
+          "mret": 1
+        },
+        "unknown/data": {
+          ".insn": 1,
+          ".short": 4,
+          ".word": 2,
+          "c.unimp": 2
+        }
+      },
+      "name": "rom",
+      "root_instructions": {
+        "_start": "0x2f800000: 7100106f jal zero,2f801710 <_init>",
+        "ets_printf": "0x2f8055de: 715d c.addi16sp sp,-80",
+        "ets_run": "0x2f806c96: 4221a2ef jal t0,2f8210b8 <__riscv_save_4>",
+        "ets_run_flash_bootloader": "0x2f807102: 7a1192ef jal t0,2f8210a2 <__riscv_save_12>"
+      },
+      "roots": {
+        "_start": "0x2f800000",
+        "ets_printf": "0x2f8055de",
+        "ets_run": "0x2f806c96",
+        "ets_run_flash_bootloader": "0x2f807102"
+      },
+      "total": 89380,
+      "unresolved_count": 134,
+      "unresolved_examples": [
+        "0x2f80178c: indirect jalr",
+        "0x2f801fd4: indirect control transfer",
+        "0x2f8029c2: indirect control transfer",
+        "0x2f8029f8: indirect control transfer",
+        "0x2f802a00: indirect control transfer",
+        "0x2f802a2c: target outside disassembly",
+        "0x2f802d74: target outside disassembly",
+        "0x2f802d96: target outside disassembly",
+        "0x2f802db8: target outside disassembly",
+        "0x2f802dda: target outside disassembly",
+        "0x2f802e08: target outside disassembly",
+        "0x2f8036fa: target outside disassembly"
+      ],
+      "unsupported_examples": {}
+    },
+    {
+      "candidate": 5218,
+      "counts": {
+        "C/Zca": {
+          "all": 2553,
+          "all_accepted": 2553,
+          "candidate": 2553,
+          "candidate_accepted": 2553
+        },
+        "I": {
+          "all": 2234,
+          "all_accepted": 2234,
+          "candidate": 2234,
+          "candidate_accepted": 2234
+        },
+        "M": {
+          "all": 42,
+          "all_accepted": 42,
+          "candidate": 42,
+          "candidate_accepted": 42
+        },
+        "Zba": {
+          "all": 8,
+          "all_illegal": 8,
+          "candidate": 8,
+          "candidate_illegal": 8
+        },
+        "Zbb": {
+          "all": 15,
+          "all_illegal": 15,
+          "candidate": 15,
+          "candidate_illegal": 15
+        },
+        "Zbs": {
+          "all": 96,
+          "all_illegal": 96,
+          "candidate": 96,
+          "candidate_illegal": 96
+        },
+        "Zcb": {
+          "all": 47,
+          "all_illegal": 47,
+          "candidate": 47,
+          "candidate_illegal": 47
+        },
+        "Zcmp": {
+          "all": 156,
+          "all_illegal": 156,
+          "candidate": 156,
+          "candidate_illegal": 156
+        },
+        "Zicsr": {
+          "all": 67,
+          "all_accepted": 67,
+          "candidate": 67,
+          "candidate_accepted": 67
+        }
+      },
+      "mnemonics": {
+        "C/Zca": {
+          "c.add": 43,
+          "c.addi": 100,
+          "c.addi16sp": 4,
+          "c.addi4spn": 46,
+          "c.and": 28,
+          "c.andi": 65,
+          "c.beqz": 110,
+          "c.bnez": 65,
+          "c.ebreak": 1,
+          "c.j": 179,
+          "c.jal": 103,
+          "c.jalr": 1,
+          "c.jr": 110,
+          "c.li": 488,
+          "c.lui": 71,
+          "c.lw": 251,
+          "c.lwsp": 114,
+          "c.mv": 327,
+          "c.or": 41,
+          "c.slli": 27,
+          "c.srli": 37,
+          "c.sub": 5,
+          "c.sw": 196,
+          "c.swsp": 135,
+          "c.xor": 6
+        },
+        "I": {
+          "add": 15,
+          "addi": 532,
+          "and": 14,
+          "andi": 58,
+          "auipc": 149,
+          "beq": 127,
+          "bge": 8,
+          "bgeu": 33,
+          "blt": 16,
+          "bltu": 38,
+          "bne": 75,
+          "jal": 203,
+          "jalr": 149,
+          "lbu": 21,
+          "lhu": 7,
+          "lui": 459,
+          "lw": 105,
+          "or": 7,
+          "ori": 41,
+          "sb": 8,
+          "sh": 2,
+          "sll": 6,
+          "slli": 26,
+          "slt": 2,
+          "sltiu": 21,
+          "sltu": 21,
+          "srai": 3,
+          "srl": 3,
+          "srli": 12,
+          "sub": 20,
+          "sw": 43,
+          "xor": 6,
+          "xori": 4
+        },
+        "M": {
+          "divu": 18,
+          "mul": 7,
+          "mulhu": 2,
+          "remu": 15
+        },
+        "Zba": {
+          "sh2add": 4,
+          "sh3add": 4
+        },
+        "Zbb": {
+          "andn": 5,
+          "maxu": 1,
+          "minu": 3,
+          "orn": 1,
+          "rev8": 1,
+          "rori": 1,
+          "zext.h": 3
+        },
+        "Zbs": {
+          "bclri": 36,
+          "bext": 2,
+          "bexti": 7,
+          "binvi": 1,
+          "bset": 1,
+          "bseti": 49
+        },
+        "Zcb": {
+          "c.lbu": 11,
+          "c.lhu": 2,
+          "c.mul": 9,
+          "c.sb": 5,
+          "c.sh": 1,
+          "c.zext.b": 18,
+          "c.zext.h": 1
+        },
+        "Zcmp": {
+          "cm.mva01s": 7,
+          "cm.mvsa01": 5,
+          "cm.pop": 69,
+          "cm.push": 75
+        },
+        "Zicsr": {
+          "csrrs": 4,
+          "csrrw": 29,
+          "csrrwi": 34
+        }
+      },
+      "name": "bootloader",
+      "root_instructions": {
+        "image_entry": "0x2f06a2ba: b84e cm.push {ra},-64"
+      },
+      "roots": {
+        "image_entry": "0x2f06a2ba"
+      },
+      "total": 5218,
+      "unresolved_count": 44,
+      "unresolved_examples": [
+        "0x2f06a2c8: indirect jalr",
+        "0x2f06a2de: indirect jalr",
+        "0x2f06e08a: indirect control transfer",
+        "0x2f800018: target outside disassembly",
+        "0x2f800024: target outside disassembly",
+        "0x2f800030: target outside disassembly",
+        "0x2f80003c: target outside disassembly",
+        "0x2f800040: target outside disassembly",
+        "0x2f800044: target outside disassembly",
+        "0x2f800074: target outside disassembly",
+        "0x2f800078: target outside disassembly",
+        "0x2f800094: target outside disassembly"
+      ],
+      "unsupported_examples": {
+        "Zba": "0x2f06aa68: 20846633 sh3add a2,s0,s0",
+        "Zbb": "0x2f06d1be: 40f57533 andn a0,a0,a5",
+        "Zbs": "0x2f06a366: 28c71713 bseti a4,a4,0xc",
+        "Zcb": "0x2f06a75a: 807c c.lbu a5,3(s0)",
+        "Zcmp": "0x2f06a2ba: b84e cm.push {ra},-64"
+      }
+    },
+    {
+      "candidate": 21131,
+      "counts": {
+        "A": {
+          "all": 2,
+          "all_accepted": 2,
+          "candidate": 2,
+          "candidate_accepted": 2
+        },
+        "C/Zca": {
+          "all": 18657,
+          "all_accepted": 18657,
+          "candidate": 9987,
+          "candidate_accepted": 9987
+        },
+        "F": {
+          "all": 136,
+          "all_illegal": 136
+        },
+        "I": {
+          "all": 16047,
+          "all_accepted": 16047,
+          "candidate": 9367,
+          "candidate_accepted": 9367
+        },
+        "M": {
+          "all": 121,
+          "all_accepted": 121,
+          "candidate": 91,
+          "candidate_accepted": 91
+        },
+        "XespLoop CSR": {
+          "all": 12,
+          "all_accepted": 12
+        },
+        "XespV": {
+          "all": 34,
+          "all_illegal": 34
+        },
+        "Zba": {
+          "all": 599,
+          "all_illegal": 599,
+          "candidate": 360,
+          "candidate_illegal": 360
+        },
+        "Zbb": {
+          "all": 62,
+          "all_illegal": 62,
+          "candidate": 31,
+          "candidate_illegal": 31
+        },
+        "Zbs": {
+          "all": 441,
+          "all_illegal": 441,
+          "candidate": 271,
+          "candidate_illegal": 271
+        },
+        "Zcb": {
+          "all": 216,
+          "all_illegal": 216,
+          "candidate": 116,
+          "candidate_illegal": 116
+        },
+        "Zcf": {
+          "all": 24,
+          "all_illegal": 24
+        },
+        "Zcmp": {
+          "all": 1492,
+          "all_illegal": 1492,
+          "candidate": 699,
+          "candidate_illegal": 699
+        },
+        "Zicsr": {
+          "all": 344,
+          "all_accepted": 344,
+          "candidate": 206,
+          "candidate_accepted": 206
+        },
+        "privileged": {
+          "all": 4,
+          "all_accepted": 4
+        },
+        "unknown/data": {
+          "all": 53,
+          "all_illegal": 53,
+          "candidate": 1,
+          "candidate_illegal": 1
+        }
+      },
+      "mnemonics": {
+        "A": {
+          "lr.w": 1,
+          "sc.w": 1
+        },
+        "C/Zca": {
+          "c.add": 421,
+          "c.addi": 668,
+          "c.addi16sp": 61,
+          "c.addi4spn": 245,
+          "c.and": 190,
+          "c.andi": 424,
+          "c.beqz": 1015,
+          "c.bnez": 544,
+          "c.j": 1605,
+          "c.jal": 350,
+          "c.jalr": 234,
+          "c.jr": 1074,
+          "c.li": 2650,
+          "c.lui": 232,
+          "c.lw": 2280,
+          "c.lwsp": 658,
+          "c.mv": 2917,
+          "c.or": 287,
+          "c.slli": 292,
+          "c.srai": 26,
+          "c.srli": 143,
+          "c.sub": 124,
+          "c.sw": 1148,
+          "c.swsp": 1063,
+          "c.xor": 6
+        },
+        "F": {
+          "flw": 56,
+          "fsw": 80
+        },
+        "I": {
+          "add": 72,
+          "addi": 3925,
+          "and": 64,
+          "andi": 379,
+          "auipc": 1280,
+          "beq": 587,
+          "bge": 100,
+          "bgeu": 154,
+          "blt": 158,
+          "bltu": 246,
+          "bne": 316,
+          "ebreak": 2,
+          "jal": 1080,
+          "jalr": 1257,
+          "lb": 7,
+          "lbu": 149,
+          "lh": 8,
+          "lhu": 10,
+          "lui": 2866,
+          "lw": 1074,
+          "or": 96,
+          "ori": 197,
+          "sb": 173,
+          "sh": 35,
+          "sll": 29,
+          "slli": 165,
+          "slt": 13,
+          "slti": 25,
+          "sltiu": 196,
+          "sltu": 200,
+          "sra": 2,
+          "srai": 16,
+          "srl": 45,
+          "srli": 83,
+          "sub": 159,
+          "sw": 829,
+          "xor": 3,
+          "xori": 47
+        },
+        "M": {
+          "div": 10,
+          "divu": 18,
+          "mul": 49,
+          "mulh": 7,
+          "mulhu": 24,
+          "rem": 3,
+          "remu": 10
+        },
+        "XespLoop CSR": {
+          "csrrs": 6,
+          "csrrw": 6
+        },
+        "XespV": {
+          "esp.ld.qacc.h.h.128.ip": 1,
+          "esp.ld.qacc.h.l.128.ip": 1,
+          "esp.ld.qacc.l.h.128.ip": 1,
+          "esp.ld.qacc.l.l.128.ip": 1,
+          "esp.ld.ua.state.ip": 1,
+          "esp.ld.xacc.ip": 1,
+          "esp.movx.r.fft.bit.width": 1,
+          "esp.movx.r.sar": 1,
+          "esp.movx.r.sar.bytes": 1,
+          "esp.movx.w.fft.bit.width": 1,
+          "esp.movx.w.sar": 1,
+          "esp.movx.w.sar.bytes": 1,
+          "esp.st.qacc.h.h.128.ip": 1,
+          "esp.st.qacc.h.l.128.ip": 1,
+          "esp.st.qacc.l.h.128.ip": 1,
+          "esp.st.qacc.l.l.128.ip": 1,
+          "esp.st.u.xacc.ip": 1,
+          "esp.st.ua.state.ip": 1,
+          "esp.vld.128.ip": 8,
+          "esp.vst.128.ip": 8
+        },
+        "Zba": {
+          "sh1add": 34,
+          "sh2add": 481,
+          "sh3add": 84
+        },
+        "Zbb": {
+          "andn": 14,
+          "cpop": 4,
+          "ctz": 3,
+          "maxu": 6,
+          "minu": 20,
+          "orc.b": 1,
+          "orn": 1,
+          "rev8": 2,
+          "zext.h": 11
+        },
+        "Zbs": {
+          "bclr": 5,
+          "bclri": 184,
+          "bext": 7,
+          "bexti": 99,
+          "bset": 18,
+          "bseti": 128
+        },
+        "Zcb": {
+          "c.lbu": 62,
+          "c.lh": 10,
+          "c.lhu": 8,
+          "c.mul": 15,
+          "c.not": 2,
+          "c.sb": 30,
+          "c.sext.b": 1,
+          "c.sext.h": 1,
+          "c.sh": 5,
+          "c.zext.b": 60,
+          "c.zext.h": 22
+        },
+        "Zcf": {
+          "c.flw": 8,
+          "c.fsw": 16
+        },
+        "Zcmp": {
+          "cm.mva01s": 1,
+          "cm.mvsa01": 1,
+          "cm.pop": 738,
+          "cm.push": 752
+        },
+        "Zicsr": {
+          "csrrc": 27,
+          "csrrci": 7,
+          "csrrs": 172,
+          "csrrsi": 1,
+          "csrrw": 83,
+          "csrrwi": 54
+        },
+        "privileged": {
+          "mret": 3,
+          "wfi": 1
+        },
+        "unknown/data": {
+          ".insn": 49,
+          "c.unimp": 4
+        }
+      },
+      "name": "app",
+      "root_instructions": {
+        "app_main": "0x400084aa: b85a cm.push {ra,s0},-48",
+        "call_start_cpu0": "0x2f000a5e: b85a cm.push {ra,s0},-48",
+        "main_task": "0x400077aa: b856 cm.push {ra,s0},-32"
+      },
+      "roots": {
+        "app_main": "0x400084aa",
+        "call_start_cpu0": "0x2f000a5e",
+        "main_task": "0x400077aa"
+      },
+      "total": 38244,
+      "unresolved_count": 137,
+      "unresolved_examples": [
+        "0x2f000b3a: indirect control transfer",
+        "0x2f000cd0: indirect control transfer",
+        "0x2f004180: indirect control transfer",
+        "0x2f0041a2: indirect control transfer",
+        "0x2f0041c6: indirect control transfer",
+        "0x2f00609e: indirect control transfer",
+        "0x2f0060b8: unknown/data boundary",
+        "0x2f007fa6: indirect control transfer",
+        "0x2f007fb0: indirect control transfer",
+        "0x2f007fde: indirect control transfer",
+        "0x2f007fee: indirect control transfer",
+        "0x2f007ff8: indirect control transfer"
+      ],
+      "unsupported_examples": {
+        "Zba": "0x2f000b34: 20e7c7b3 sh2add a5,a5,a4",
+        "Zbb": "0x2f000a20: 40e67733 andn a4,a2,a4",
+        "Zbs": "0x2f001032: 28e41433 bset s0,s0,a4",
+        "Zcb": "0x2f000f7e: 9d5d c.mul a0,a5",
+        "Zcmp": "0x2f00066e: b842 cm.push {ra},-16",
+        "unknown/data": "0x2f0060b8: 0000 c.unimp "
+      }
+    }
+  ]
+}
