@@ -680,3 +680,4 @@ mod tests {
     }
 }
 pub mod isa_zb;
+pub mod isa_zc;
