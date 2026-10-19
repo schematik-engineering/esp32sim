@@ -1,5 +1,5 @@
 //! Strict, single-HP-core ESP32-S31 reset probe. Not native-ROM-to-application support.
-//! No guessed MMIO defaults, CLIC, MMU, cache timing, FPU, or secondary core.
+//! No guessed MMIO defaults, CLIC delivery, MMU, cache timing, FPU, or secondary core.
 use emu_core::{Bus, Core, Fault, StepKind};
 use riscv_rv32::{
     decode::{decode, Op},
@@ -19,6 +19,16 @@ pub const PSRAM: (u32, u32) = (0x5000_0000, 0x5400_0000);
 // components/esp_hw_support/port/esp32s31/cpu_region_protect.c:90-101.
 pub const FLASH_NC_OFFSET: u32 = 0x6000_0000;
 pub const PSRAM_NC_OFFSET: u32 = 0x7000_0000;
+
+// ESP-IDF 9a97f6c54ec638111ce55cd36581b3c192f15207,
+// components/soc/esp32s31/register/soc/reg_base.h:84 and
+// lp_clkrst_reg.h:291-339: cause [6:1], POR = 1, flag reset = 0.
+// This probe chooses power-on, not the M0 USB-UART reset (cause 0x17).
+pub const HPCORE0_RESET_CAUSE: u32 = 0x2070_1030;
+const POWER_ON_RESET: u32 = 1 << 1;
+// Same IDF, components/soc/esp32s31/include/soc/clic_reg.h:17-38:
+// NVBITS is RO 1, NMBITS is RO 0, NLBITS is RW [4:1], reset 0.
+pub const CLIC_CONFIG: u32 = 0x1080_0000;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Region {
@@ -51,7 +61,7 @@ pub fn locate(addr: u32) -> Option<(Region, usize)> {
             return Some((region, (addr - lo) as usize));
         }
     }
-    // Apertures only: every access faults until a defined device is implemented.
+    // Apertures only: accesses fault except the explicitly audited registers below.
     if (0x1000_0000..0x2000_0000).contains(&addr) || (0x2010_0000..0x2e00_0000).contains(&addr) {
         return Some((Region::Mmio, 0));
     }
@@ -71,6 +81,8 @@ pub struct S31Bus {
     rom_present: Vec<bool>,
     hp: Vec<u8>,
     lp: Vec<u8>,
+    reset_cause: u32,
+    clic_config: u32,
     /// First fault only, including width and direction; unknown MMIO never reads as zero.
     pub fault: Option<AccessFault>,
 }
@@ -87,6 +99,8 @@ impl S31Bus {
             rom_present: vec![false; (ROM.1 - ROM.0) as usize],
             hp: vec![0; (HP_SRAM.1 - HP_SRAM.0) as usize],
             lp: vec![0; (LP_SRAM.1 - LP_SRAM.0) as usize],
+            reset_cause: POWER_ON_RESET,
+            clic_config: 1,
             fault: None,
         }
     }
@@ -192,6 +206,11 @@ impl Bus for S31Bus {
         Ok(u16::from_le_bytes(self.read(a)?))
     }
     fn read32(&mut self, a: u32) -> Result<u32, Fault> {
+        match a {
+            HPCORE0_RESET_CAUSE => return Ok(self.reset_cause),
+            CLIC_CONFIG => return Ok(self.clic_config),
+            _ => {}
+        }
         Ok(u32::from_le_bytes(self.read(a)?))
     }
     fn write8(&mut self, a: u32, v: u8) -> Result<(), Fault> {
@@ -201,6 +220,28 @@ impl Bus for S31Bus {
         self.write(a, &v.to_le_bytes())
     }
     fn write32(&mut self, a: u32, v: u32) -> Result<(), Fault> {
+        match a {
+            HPCORE0_RESET_CAUSE => {
+                // WT clear bits; cause and flag are RO, reserved bits ignored.
+                if v & (1 << 30) != 0 {
+                    self.reset_cause &= !0x7e;
+                }
+                if v & (1 << 31) != 0 {
+                    self.reset_cause &= !1;
+                }
+                return Ok(());
+            }
+            CLIC_CONFIG => {
+                // The header documents at most eight level bits, but not the
+                // WARL behavior above eight. Fail closed instead of guessing it.
+                if ((v >> 1) & 0xf) > 8 {
+                    return self.fail(a, 4, true, Fault::Prohibited);
+                }
+                self.clic_config = (v & 0x1e) | 1;
+                return Ok(());
+            }
+            _ => {}
+        }
         self.write(a, &v.to_le_bytes())
     }
     fn fetch(&mut self, pc: u32) -> Result<[u8; 4], Fault> {
@@ -279,11 +320,17 @@ impl Probe {
             ) {
                 // Only the reset-prefix CSRs have audited semantics for this probe.
                 // Do not silently inherit the C3/C6 generic unknown-CSR readback.
-                if !matches!(insn.imm as u32, 0x300 | 0xf14) {
+                // Standard mcounteren CY/TM/IR bits only. Lower privilege is not
+                // implemented. mtvec stores mode 1; no interrupt is injected and
+                // no CLIC dispatch is claimed by this reset-prefix probe.
+                if !matches!(insn.imm as u32, 0x300 | 0x305 | 0x306 | 0xf14) {
                     return stop(StopReason::Csr(insn.imm as u32), self.cpu.retired_count);
                 }
             }
             let outcome = self.cpu.step(&mut self.bus);
+            if let Some(v) = self.cpu.csr_other.get_mut(&0x306) {
+                *v &= 7;
+            }
             if let Some(f) = self.bus.fault {
                 return stop(StopReason::Access(f), self.cpu.retired_count);
             }
@@ -306,6 +353,80 @@ impl Probe {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn reset_cause_mapping_and_write_triggers() {
+        let mut b = S31Bus::new();
+        assert_eq!(b.read32(0x20701030), Ok(2));
+        b.write32(0x20701030, 0x3fff_ffff).unwrap();
+        assert_eq!(b.read32(0x20701030), Ok(2)); // RO cause, no clear trigger
+        b.reset_cause |= 1; // Exercise flag clearing independently of cause.
+        b.write32(0x20701030, 1 << 31).unwrap();
+        assert_eq!(b.read32(0x20701030), Ok(2));
+        b.reset_cause |= 1;
+        b.write32(0x20701030, 1 << 30).unwrap();
+        assert_eq!(b.read32(0x20701030), Ok(1));
+        b.write32(0x20701030, 1 << 31).unwrap();
+        assert_eq!(b.read32(0x20701030), Ok(0));
+    }
+    #[test]
+    fn clic_config_mapping_and_fields() {
+        let mut b = S31Bus::new();
+        assert_eq!(b.read32(0x10800000), Ok(1));
+        for levels in 0..=8 {
+            b.write32(0x10800000, 0xffff_ffe0 | (levels << 1)).unwrap();
+            assert_eq!(b.read32(0x10800000), Ok(1 | (levels << 1)));
+        }
+        assert_eq!(b.write32(0x10800000, 9 << 1), Err(Fault::Prohibited));
+        assert_eq!(b.read32(0x10800000), Ok(17));
+    }
+    #[test]
+    fn mmio_unsupported_neighbors_widths_and_fetch_fail_closed() {
+        let mut b = S31Bus::new();
+        for a in [0x2070102c, 0x20701034, 0x10800004, 0x10810000] {
+            assert_eq!(b.read32(a), Err(Fault::Unmapped));
+            assert_eq!(b.write32(a, 0), Err(Fault::Unmapped));
+        }
+        for a in [0x20701030, 0x10800000] {
+            assert_eq!(b.read8(a), Err(Fault::Unmapped));
+            assert_eq!(b.read16(a), Err(Fault::Unmapped));
+            assert_eq!(b.read32(a + 1), Err(Fault::Unmapped));
+            assert_eq!(b.write8(a, 0), Err(Fault::Unmapped));
+            assert_eq!(b.write16(a, 0), Err(Fault::Unmapped));
+            assert_eq!(b.fetch(a), Err(Fault::Unmapped));
+        }
+    }
+    #[test]
+    fn reset_prefix_standard_csr_instructions() {
+        // Standard Zicsr encodings, not new S31 extension decoding. All six
+        // operations exercise explicit mcounteren storage; unknown CSRs stop.
+        let mut p = Probe::new();
+        p.cpu.pc = HP_SRAM.0;
+        p.cpu.x[1] = 0xffff_fffd;
+        for (i, (funct, source, expected_old, expected_new)) in [
+            (1, 1, 0, 5), // csrrw
+            (2, 1, 5, 5), // csrrs
+            (3, 1, 5, 0), // csrrc
+            (5, 7, 0, 7), // csrrwi
+            (7, 3, 7, 4), // csrrci
+            (6, 2, 4, 6), // csrrsi
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let pc = HP_SRAM.0 + i as u32 * 4;
+            let raw = (0x306 << 20) | (source << 15) | (funct << 12) | (2 << 7) | 0x73;
+            p.bus.write32(pc, raw).unwrap();
+            assert_eq!(p.run(1).reason, StopReason::Budget);
+            assert_eq!(p.cpu.x[2], expected_old);
+            assert_eq!(p.cpu.read_csr(0x306), expected_new);
+            assert_eq!(p.cpu.retired_count, i as u64 + 1);
+        }
+        // The ROM writes mtvec in standard mode 1; storage is not delivery.
+        p.cpu.x[1] = 0x2f801701;
+        p.bus.write32(p.cpu.pc, 0x30509073).unwrap();
+        assert_eq!(p.run(1).reason, StopReason::Budget);
+        assert_eq!(p.cpu.mtvec, 0x2f801701);
+    }
     #[test]
     fn map_pins_every_aperture_and_boundary() {
         for (region, lo, hi) in [
@@ -353,11 +474,11 @@ mod tests {
         b.fault = None;
         assert!(b.fetch(RESET).is_err());
         b.fault = None;
-        assert_eq!(b.read32(0x20701030), Err(Fault::Unmapped));
+        assert_eq!(b.read32(0x2070102c), Err(Fault::Unmapped));
         assert_eq!(
             b.fault,
             Some(AccessFault {
-                address: 0x20701030,
+                address: 0x2070102c,
                 width: 4,
                 write: false,
                 fault: Fault::Unmapped
@@ -389,8 +510,8 @@ mod tests {
     fn unknown_csr_does_not_use_generic_readback() {
         let mut p = Probe::new();
         p.cpu.pc = HP_SRAM.0;
-        p.bus.write32(HP_SRAM.0, 0x3063d073).unwrap();
-        assert_eq!(p.run(10).reason, StopReason::Csr(0x306));
+        p.bus.write32(HP_SRAM.0, 0x3073d073).unwrap();
+        assert_eq!(p.run(10).reason, StopReason::Csr(0x307));
         assert_eq!(p.cpu.retired_count, 0);
     }
     fn rom_fixture() -> Vec<u8> {
@@ -438,12 +559,12 @@ mod tests {
         assert_eq!(
             p.run(1000),
             Stop {
-                pc: 0x2f801724,
-                raw: 0x00032303,
-                retired: 6,
+                pc: 0x2f801728,
+                raw: 0,
+                retired: 7,
                 reason: StopReason::Access(AccessFault {
-                    address: 0x20701030,
-                    width: 4,
+                    address: 0x2f801728,
+                    width: 2,
                     write: false,
                     fault: Fault::Unmapped
                 })
@@ -478,11 +599,11 @@ mod tests {
         assert_eq!(
             p.run(1000),
             Stop {
-                pc: 0x2f801724,
-                raw: 0x00032303,
-                retired: 6,
+                pc: 0x2f801812,
+                raw: 0x0007a283,
+                retired: 44,
                 reason: StopReason::Access(AccessFault {
-                    address: 0x20701030,
+                    address: 0x2f83f700,
                     width: 4,
                     write: false,
                     fault: Fault::Unmapped

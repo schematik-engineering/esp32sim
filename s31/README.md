@@ -1,4 +1,12 @@
-# ESP32-S31 M1a: offline reset-path slice
+# ESP32-S31: offline reset-path slices
+
+Current slice: [M1b reset/CLIC registers and explicit missing-ROM-data stop](m1b.md).
+Use `bash s31/reproduce-m1b.sh` for the current executable. The M1a inventory
+below and `m1a-isa.*` retain the historical six-instruction result at base
+`9e2bc8a406e6e9aa7693a740cd34f58dc7b8ddd2`; reproduce that inventory on that
+commit, not by overwriting it with a later probe's dynamic count.
+
+## Historical M1a slice
 
 Base: upstream `f535f3b42293a76ab64c231a0425f35857ab6cf1`.
 Reference: accepted M0 in the separate evidence repository at `89bcd093039a7049d4e94aa3380572b410c9dc23`.
