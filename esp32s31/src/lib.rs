@@ -5,6 +5,9 @@ mod boot_regs;
 mod clic;
 #[cfg(test)]
 mod entropy_tests;
+mod io_mux;
+#[cfg(test)]
+mod m1j_tests;
 mod mhcr;
 use riscv_rv32::{
     decode::{decode, Op},
@@ -89,6 +92,7 @@ pub struct S31Bus {
     reset_cause: u32,
     clic_config: u32,
     clic: clic::Clic,
+    io_mux: io_mux::IoMux,
     boot_regs: boot_regs::BootRegs,
     /// First fault only, including width and direction; unknown MMIO never reads as zero.
     pub fault: Option<AccessFault>,
@@ -109,6 +113,7 @@ impl S31Bus {
             reset_cause: POWER_ON_RESET,
             clic_config: 1,
             clic: clic::Clic::default(),
+            io_mux: io_mux::IoMux::default(),
             boot_regs: boot_regs::BootRegs::default(),
             fault: None,
         }
@@ -240,6 +245,9 @@ impl Bus for S31Bus {
         Ok(u16::from_le_bytes(self.read(a)?))
     }
     fn read32(&mut self, a: u32) -> Result<u32, Fault> {
+        if let Some(value) = self.io_mux.read32(a) {
+            return Ok(value);
+        }
         if let Some(value) = self.clic.read32(a) {
             return Ok(value);
         }
@@ -266,6 +274,9 @@ impl Bus for S31Bus {
         self.write(a, &v.to_le_bytes())
     }
     fn write32(&mut self, a: u32, v: u32) -> Result<(), Fault> {
+        if let Some(result) = self.io_mux.write32(a, v) {
+            return result.or_else(|fault| self.fail(a, 4, true, fault));
+        }
         if let Some(result) = self.clic.write32(a, v) {
             return result.or_else(|fault| self.fail(a, 4, true, fault));
         }
@@ -888,11 +899,11 @@ mod tests {
         assert_eq!(
             p.run(1_000_000),
             Stop {
-                pc: 0x2f812022,
-                raw: 0x00004310,
-                retired: 7463,
+                pc: 0x2f83ee28,
+                raw: 0x0000411c,
+                retired: 7598,
                 reason: StopReason::Access(AccessFault {
-                    address: 0x205820e8,
+                    address: 0x2038a098,
                     width: 4,
                     write: false,
                     fault: Fault::Unmapped,

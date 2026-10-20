@@ -31,8 +31,21 @@ const UART0_CLOCK: u32 = 0x2058_7088;
 // Same IDF reg_base.h:78; hp_system_reg.h:1741-1769: all reset0.
 // ROM RMW clears LP_EN bit2; mode/force remain at their header reset.
 const UART0_MEMORY: u32 = 0x2058_628c;
+// Same IDF reg_base.h:83; lp_system_reg.h:1509-1519,
+// lp_system_struct.h:1044-1057: R/W GPIO62..40 hold, reset0.
+// ROM clears GPIO58/59 bits18/19; untouched fields remain reset. No electrical effect.
+const GPIO_HOLD1: u32 = 0x2070_0270;
+// Same IDF reg_base.h:31; uart_reg.h:1544-1579. TX/RX clock enables
+// reset1, core resets0; only enable fields retained (no reset/FIFO semantics).
+const UART0_CORE_CLOCK: u32 = 0x2038_a088;
+// Same IDF uart_reg.h:606-623, uart_struct.h:436-453: R/W divider,
+// integer reset694 and fraction reset0; stored config, not baud/timing.
+const UART0_DIVIDER: u32 = 0x2038_a014;
 
 pub(crate) struct BootRegs {
+    uart0_divider: u32,
+    uart0_core_clock: u32,
+    gpio_hold1: u32,
     uart0_clock: u32,
     uart0_memory: u32,
     efuse_wr_tim_conf2: u32,
@@ -49,6 +62,9 @@ pub(crate) struct BootRegs {
 impl Default for BootRegs {
     fn default() -> Self {
         Self {
+            uart0_divider: 694,
+            uart0_core_clock: 0x0300_0000,
+            gpio_hold1: 0,
             uart0_clock: 0x83,
             uart0_memory: 0,
             efuse_wr_tim_conf2: (240 << 16) | 480,
@@ -87,6 +103,9 @@ impl BootRegs {
     }
     pub(crate) fn read(&self, address: u32) -> Option<u32> {
         match address {
+            UART0_DIVIDER => Some(self.uart0_divider),
+            UART0_CORE_CLOCK => Some(self.uart0_core_clock),
+            GPIO_HOLD1 => Some(self.gpio_hold1),
             UART0_CLOCK => Some(self.uart0_clock),
             UART0_MEMORY => Some(self.uart0_memory),
             PAD_HOLD => Some(0),
@@ -103,6 +122,24 @@ impl BootRegs {
     }
     pub(crate) fn write(&mut self, address: u32, value: u32) -> Option<Result<(), Fault>> {
         match address {
+            UART0_DIVIDER => {
+                if value & !0x00f0_0fff != 0 {
+                    return Some(Err(Fault::Prohibited));
+                }
+                self.uart0_divider = value;
+            }
+            UART0_CORE_CLOCK => {
+                if value & !0x0300_0000 != 0 {
+                    return Some(Err(Fault::Prohibited));
+                }
+                self.uart0_core_clock = value;
+            }
+            GPIO_HOLD1 => {
+                if value & !0x000c_0000 != 0 {
+                    return Some(Err(Fault::Prohibited));
+                }
+                self.gpio_hold1 = value;
+            }
             UART0_CLOCK => {
                 if value & !0x8f != 0 {
                     return Some(Err(Fault::Prohibited));
@@ -221,13 +258,13 @@ mod tests {
             )
             .unwrap();
         let stop = p.run(1_000_000);
-        assert_eq!(stop.pc, 0x2f812022);
-        assert_eq!(stop.raw, 0x00004310);
-        assert_eq!(stop.retired, 7463);
+        assert_eq!(stop.pc, 0x2f83ee28);
+        assert_eq!(stop.raw, 0x0000411c);
+        assert_eq!(stop.retired, 7598);
         assert_eq!(
             stop.reason,
             crate::StopReason::Access(crate::AccessFault {
-                address: 0x205820e8,
+                address: 0x2038a098,
                 width: 4,
                 write: false,
                 fault: Fault::Unmapped,
