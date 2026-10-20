@@ -24,7 +24,7 @@ for n in 1 2; do
     "$CARGO_TARGET_DIR/release/esp32sim-s31" --chip esp32s31 --rom "$S31_ROM" --max-instructions 1000000 --rom-data "$S31_ROM_DATA" > "$OUT/stop-$n.txt"
 done
 cmp "$OUT/stop-1.txt" "$OUT/stop-2.txt"
-EXPECTED='[s31] chip=esp32s31 pc=0x2f8019a4 opcode=0x00050023 retired=7384 stop=access address=0x10801055 width=1 write=true fault=Unmapped'
+EXPECTED='[s31] chip=esp32s31 pc=0x2f812022 opcode=0x00004310 retired=7463 stop=access address=0x205820e8 width=4 write=false fault=Unmapped'
 printf '%s\n' "$EXPECTED" > "$OUT/expected.txt"
 cmp "$OUT/expected.txt" "$OUT/stop-1.txt"
 printf '%s\n' "$EXPECTED"

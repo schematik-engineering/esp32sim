@@ -25,8 +25,16 @@ const EFUSE_WR_TIM_CONF2: u32 = 0x2071_51f8;
 // Only reset reads are reached; clock-source/divider changes stay prohibited.
 const SOC_CLK_SEL: u32 = 0x2058_7000;
 const CPU_FREQ_CTRL0: u32 = 0x2058_7004;
+// Same IDF hp_sys_clkrst_reg.h:1369-1442: reset 0x83.
+// ROM uart_hal_init_reset touches only clock enables/reset bits0-3,7.
+const UART0_CLOCK: u32 = 0x2058_7088;
+// Same IDF reg_base.h:78; hp_system_reg.h:1741-1769: all reset0.
+// ROM RMW clears LP_EN bit2; mode/force remain at their header reset.
+const UART0_MEMORY: u32 = 0x2058_628c;
 
 pub(crate) struct BootRegs {
+    uart0_clock: u32,
+    uart0_memory: u32,
     efuse_wr_tim_conf2: u32,
     lp_hold_released: bool,
     hp_hold_released: bool,
@@ -41,6 +49,8 @@ pub(crate) struct BootRegs {
 impl Default for BootRegs {
     fn default() -> Self {
         Self {
+            uart0_clock: 0x83,
+            uart0_memory: 0,
             efuse_wr_tim_conf2: (240 << 16) | 480,
             lp_hold_released: false,
             hp_hold_released: false,
@@ -77,6 +87,8 @@ impl BootRegs {
     }
     pub(crate) fn read(&self, address: u32) -> Option<u32> {
         match address {
+            UART0_CLOCK => Some(self.uart0_clock),
+            UART0_MEMORY => Some(self.uart0_memory),
             PAD_HOLD => Some(0),
             SOC_CLK_SEL | CPU_FREQ_CTRL0 => Some(0),
             EFUSE_WR_TIM_CONF2 => Some(self.efuse_wr_tim_conf2),
@@ -91,6 +103,18 @@ impl BootRegs {
     }
     pub(crate) fn write(&mut self, address: u32, value: u32) -> Option<Result<(), Fault>> {
         match address {
+            UART0_CLOCK => {
+                if value & !0x8f != 0 {
+                    return Some(Err(Fault::Prohibited));
+                }
+                self.uart0_clock = value;
+            }
+            UART0_MEMORY => {
+                if value & !4 != 0 {
+                    return Some(Err(Fault::Prohibited));
+                }
+                self.uart0_memory = value;
+            }
             SOC_CLK_SEL | CPU_FREQ_CTRL0 => return Some(Err(Fault::Prohibited)),
             EFUSE_WR_TIM_CONF2 => {
                 if value & 0xffff != 480 {
@@ -149,6 +173,41 @@ mod tests {
     use crate::S31Bus;
     use emu_core::{Bus, Fault};
     #[test]
+    fn uart_clock_memory_resets_rmw_retention_and_rejections() {
+        let mut b = S31Bus::new();
+        for (a, reset, mask) in [(0x20587088, 0x83, 0x8f), (0x2058628c, 0, 4)] {
+            assert_eq!(b.read32(a), Ok(reset));
+            for v in 0..=255 {
+                if v & !mask == 0 {
+                    b.write32(a, v).unwrap();
+                    assert_eq!(b.read32(a), Ok(v));
+                }
+            }
+            b.write32(a, reset).unwrap();
+            for bit in 0..32 {
+                if (1 << bit) & mask == 0 {
+                    assert_eq!(b.write32(a, reset | (1 << bit)), Err(Fault::Prohibited));
+                    assert_eq!(b.read32(a), Ok(reset));
+                }
+            }
+            assert_eq!(b.read8(a), Err(Fault::Unmapped));
+            assert_eq!(b.read16(a), Err(Fault::Unmapped));
+            assert_eq!(b.read32(a + 1), Err(Fault::Unmapped));
+            assert_eq!(b.write8(a, 0), Err(Fault::Unmapped));
+            assert_eq!(b.write16(a, 0), Err(Fault::Unmapped));
+            assert_eq!(b.write32(a + 1, 0), Err(Fault::Unmapped));
+            assert_eq!(b.fetch(a), Err(Fault::Unmapped));
+        }
+        for v in [0x83, 0x83, 0x83, 0x87, 0x8f, 0x87, 0x83] {
+            b.write32(0x20587088, v).unwrap();
+            assert_eq!(b.read32(0x20587088), Ok(v));
+        }
+        for a in [0x20587084, 0x2058708c, 0x20586288, 0x20586290] {
+            assert_eq!(b.read32(a), Err(Fault::Unmapped));
+            assert_eq!(b.write32(a, 0), Err(Fault::Unmapped));
+        }
+    }
+    #[test]
     #[ignore = "set S31_ROM and S31_ROM_DATA to pinned public ELF and M1c dump"]
     fn external_native_rom_releases_pads_and_sets_timing() {
         let mut p = crate::Probe::new();
@@ -162,15 +221,15 @@ mod tests {
             )
             .unwrap();
         let stop = p.run(1_000_000);
-        assert_eq!(stop.pc, 0x2f8019a4);
-        assert_eq!(stop.raw, 0x00050023);
-        assert_eq!(stop.retired, 7384);
+        assert_eq!(stop.pc, 0x2f812022);
+        assert_eq!(stop.raw, 0x00004310);
+        assert_eq!(stop.retired, 7463);
         assert_eq!(
             stop.reason,
             crate::StopReason::Access(crate::AccessFault {
-                address: 0x10801055,
-                width: 1,
-                write: true,
+                address: 0x205820e8,
+                width: 4,
+                write: false,
                 fault: Fault::Unmapped,
             })
         );
@@ -262,7 +321,7 @@ mod tests {
             assert_eq!(b.read32(a), Err(Fault::Unmapped));
             assert_eq!(b.write32(a, 0), Err(Fault::Unmapped));
         }
-        assert_eq!(b.write8(0x10801055, 0), Err(Fault::Unmapped));
+        assert_eq!(b.write8(0x10801055, 0), Ok(()));
     }
     #[test]
     fn entropy_reset_gate_is_independent_of_sampling_reset() {

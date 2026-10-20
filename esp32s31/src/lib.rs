@@ -2,6 +2,7 @@
 //! No guessed MMIO defaults, CLIC delivery, MMU, cache timing, FPU, or secondary core.
 use emu_core::{Bus, Core, Fault, StepKind};
 mod boot_regs;
+mod clic;
 #[cfg(test)]
 mod entropy_tests;
 mod mhcr;
@@ -87,6 +88,7 @@ pub struct S31Bus {
     lp: Vec<u8>,
     reset_cause: u32,
     clic_config: u32,
+    clic: clic::Clic,
     boot_regs: boot_regs::BootRegs,
     /// First fault only, including width and direction; unknown MMIO never reads as zero.
     pub fault: Option<AccessFault>,
@@ -106,6 +108,7 @@ impl S31Bus {
             lp: vec![0; (LP_SRAM.1 - LP_SRAM.0) as usize],
             reset_cause: POWER_ON_RESET,
             clic_config: 1,
+            clic: clic::Clic::default(),
             boot_regs: boot_regs::BootRegs::default(),
             fault: None,
         }
@@ -228,12 +231,18 @@ impl S31Bus {
 
 impl Bus for S31Bus {
     fn read8(&mut self, a: u32) -> Result<u8, Fault> {
+        if let Some(value) = self.clic.read8(a) {
+            return Ok(value);
+        }
         Ok(self.read::<1>(a)?[0])
     }
     fn read16(&mut self, a: u32) -> Result<u16, Fault> {
         Ok(u16::from_le_bytes(self.read(a)?))
     }
     fn read32(&mut self, a: u32) -> Result<u32, Fault> {
+        if let Some(value) = self.clic.read32(a) {
+            return Ok(value);
+        }
         if let Some(result) = self.boot_regs.read_entropy(a) {
             return result.or_else(|fault| self.fail(a, 4, false, fault));
         }
@@ -248,12 +257,18 @@ impl Bus for S31Bus {
         Ok(u32::from_le_bytes(self.read(a)?))
     }
     fn write8(&mut self, a: u32, v: u8) -> Result<(), Fault> {
+        if let Some(result) = self.clic.write8(a, v) {
+            return result.or_else(|fault| self.fail(a, 1, true, fault));
+        }
         self.write(a, &[v])
     }
     fn write16(&mut self, a: u32, v: u16) -> Result<(), Fault> {
         self.write(a, &v.to_le_bytes())
     }
     fn write32(&mut self, a: u32, v: u32) -> Result<(), Fault> {
+        if let Some(result) = self.clic.write32(a, v) {
+            return result.or_else(|fault| self.fail(a, 4, true, fault));
+        }
         if let Some(result) = self.boot_regs.write(a, v) {
             return result.or_else(|fault| self.fail(a, 4, true, fault));
         }
@@ -873,13 +888,13 @@ mod tests {
         assert_eq!(
             p.run(1_000_000),
             Stop {
-                pc: 0x2f8019a4,
-                raw: 0x00050023,
-                retired: 7384,
+                pc: 0x2f812022,
+                raw: 0x00004310,
+                retired: 7463,
                 reason: StopReason::Access(AccessFault {
-                    address: 0x10801055,
-                    width: 1,
-                    write: true,
+                    address: 0x205820e8,
+                    width: 4,
+                    write: false,
                     fault: Fault::Unmapped,
                 }),
             }

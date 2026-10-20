@@ -30,8 +30,8 @@ fn external_stack_guard_uses_two_entropy_loads_without_bypass() {
             samples.push(value);
         }
         if s.reason != StopReason::Budget {
-            assert_eq!(s.pc, 0x2f8019a4);
-            assert_eq!(s.retired, 7384);
+            assert_eq!(s.pc, 0x2f812022);
+            assert_eq!(s.retired, 7463);
             assert_eq!(samples.len(), 2);
             assert_eq!(p.bus.read32(0x2f07fa38), Ok(samples[0] ^ samples[1]));
             assert_eq!(p.bus.read32(0x20814000).unwrap() & (3 << 30), 0);
