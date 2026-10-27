@@ -1,0 +1,11 @@
+{
+ "name": "calibration #239 (C6 IRQ refresh gate)",
+ "base": "63670bb128cf0a0c019a2009be62cfe56378ce0f",
+ "head": "729eb9ac0ffdfd1e82a1ab4d708d0adff351131e",
+ "toolchain": "1.99.0",
+ "pairs": 7, "warmup": 1, "repetitions": 2,
+ "runners": ["macos-14", "ubuntu-24.04-arm"],
+ "workloads": [{"name": "c6-hello", "seconds": 30}, {"name": "c3-hello", "seconds": 30}],
+ "reference": {"c6-hello": {"change": -48.1, "slower": 0}, "c3-hello": {"change": -0.3, "slower": 2}},
+ "reference_source": "maintainer review on #239, 2026-10-21: main 63670bb1 vs head 729eb9ac, loaded machine"
+}
