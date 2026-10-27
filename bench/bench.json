@@ -1,0 +1,11 @@
+{
+ "name": "calibration #246 (classic PSRAM, neutral)",
+ "base": "6cf190c67020161f4487273c88012e2eb3ed9b1d",
+ "head": "f8cfc039bcab9e75fb0542565efaadbfb51f2a41",
+ "toolchain": "1.99.0",
+ "pairs": 7, "warmup": 1, "repetitions": 2,
+ "runners": ["macos-14", "ubuntu-24.04-arm"],
+ "workloads": [{"name": "classic-hello", "seconds": 30}, {"name": "tdisplay-prices", "seconds": 60}],
+ "reference": {"classic-hello": {"change": 0.0, "slower": 0}, "tdisplay-prices": {"change": 0.0, "slower": 3}},
+ "reference_source": "maintainer review on #246, 2026-10-21: main 6cf190c6 vs head f8cfc039, user CPU, load gate 5"
+}
