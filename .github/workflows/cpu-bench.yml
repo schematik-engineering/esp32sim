@@ -1,0 +1,185 @@
+name: cpu-bench
+# Lives only on orphan bench/* branches of the fork (never on main). Inputs: bench/bench.json.
+# Method: retire/bench/run.py / upstream docs/evidence/p4-cpu/cpu_pairs.py — 1 warmup + 7
+# alternating pairs, child user CPU, identical instructions and console hashes or the job fails.
+on:
+  push:
+    branches: ['bench/**']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cpu-bench-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  FORK_URL: https://github.com/schematik-engineering/esp32sim
+  UPSTREAM_URL: https://github.com/mikroverk/esp32sim
+  CARGO_TERM_COLOR: never
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      runners: ${{ steps.p.outputs.runners }}
+      reps: ${{ steps.p.outputs.reps }}
+      toolchain: ${{ steps.p.outputs.toolchain }}
+      base: ${{ steps.p.outputs.base }}
+      head: ${{ steps.p.outputs.head }}
+      pocket: ${{ steps.p.outputs.pocket }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: p
+        run: |
+          python3 bench/bench.py --self-test
+          python3 - <<'EOF' >> "$GITHUB_OUTPUT"
+          import json
+          c = json.load(open('bench/bench.json'))
+          names = [w if isinstance(w, str) else w['name'] for w in c['workloads']]
+          assert len(c['base']) == 40 and len(c['head']) == 40, 'full SHAs required'
+          print('runners=' + json.dumps(c.get('runners', ['macos-14', 'ubuntu-24.04-arm'])))
+          print('reps=' + json.dumps(list(range(1, int(c.get('repetitions', 1)) + 1))))
+          print('toolchain=' + c.get('toolchain', '1.99.0'))
+          print('base=' + c['base']); print('head=' + c['head'])
+          print('pocket=' + ('1' if 'pocket-tank' in names else '0'))
+          EOF
+          cat bench/bench.json >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    needs: plan
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: ${{ fromJSON(needs.plan.outputs.runners) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 150
+    env:
+      TC: ${{ needs.plan.outputs.toolchain }}
+      BASE: ${{ needs.plan.outputs.base }}
+      HEAD: ${{ needs.plan.outputs.head }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: bench-src
+      - name: Rust toolchain
+        run: |
+          if ! command -v rustup >/dev/null; then
+            curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"; export PATH="$HOME/.cargo/bin:$PATH"
+          fi
+          rustup toolchain install "$TC" --profile minimal
+          rustc +"$TC" -Vv
+      - name: Fetch base and head trees
+        run: |
+          for side in base head; do
+            sha=$BASE; [ $side = head ] && sha=$HEAD
+            git init -q trees/$side
+            git -C trees/$side fetch -q --depth 1 "$FORK_URL" "$sha" || git -C trees/$side fetch -q --depth 1 "$UPSTREAM_URL" "$sha"
+            git -C trees/$side checkout -q --detach "$sha"
+            echo "$side $(git -C trees/$side rev-parse HEAD)"
+          done
+      - id: cbase
+        uses: actions/cache/restore@v4
+        with:
+          path: bins/base
+          key: cpu-bench-bins-v1-${{ matrix.runner }}-${{ env.TC }}-${{ env.BASE }}
+      - id: chead
+        uses: actions/cache/restore@v4
+        with:
+          path: bins/head
+          key: cpu-bench-bins-v1-${{ matrix.runner }}-${{ env.TC }}-${{ env.HEAD }}
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+          key: cpu-bench-cargo-${{ matrix.runner }}-${{ hashFiles('trees/*/Cargo.lock') }}
+          restore-keys: cpu-bench-cargo-${{ matrix.runner }}-
+      - name: Build base (cargo build --release --bins)
+        if: steps.cbase.outputs.cache-hit != 'true'
+        run: |
+          cd trees/base && CARGO_TARGET_DIR=$GITHUB_WORKSPACE/target-base cargo +"$TC" build --release --bins
+          mkdir -p ../../bins/base && cp ../../target-base/release/esp32sim ../../target-base/release/esp32sim-c3 ../../target-base/release/esp32sim-c6 ../../bins/base/
+          rustc +"$TC" -Vv > ../../bins/base/rustc.txt
+      - name: Build head (cargo build --release --bins)
+        if: steps.chead.outputs.cache-hit != 'true'
+        run: |
+          cd trees/head && CARGO_TARGET_DIR=$GITHUB_WORKSPACE/target-head cargo +"$TC" build --release --bins
+          mkdir -p ../../bins/head && cp ../../target-head/release/esp32sim ../../target-head/release/esp32sim-c3 ../../target-head/release/esp32sim-c6 ../../bins/head/
+          rustc +"$TC" -Vv > ../../bins/head/rustc.txt
+      - if: steps.cbase.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: bins/base
+          key: ${{ steps.cbase.outputs.cache-primary-key }}
+      - if: steps.chead.outputs.cache-hit != 'true' && env.HEAD != env.BASE
+        uses: actions/cache/save@v4
+        with:
+          path: bins/head
+          key: ${{ steps.chead.outputs.cache-primary-key }}
+      - name: Fetch ROMs and demo assets (pinned, base tree)
+        run: |
+          cd trees/base && tools/fetch-demo-assets.sh --no-linux
+          if [ "${{ needs.plan.outputs.pocket }}" = 1 ]; then tools/fetch-pocket-tank.sh; fi
+      - name: Bundle
+        run: |
+          shasum -a 256 bins/*/esp32sim* | tee bins/sha256.txt
+          tar czf bundle.tgz bins trees/base/web/wasm/fw
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.runner }}
+          path: bundle.tgz
+          retention-days: 7
+
+  bench:
+    needs: [plan, build]
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: ${{ fromJSON(needs.plan.outputs.runners) }}
+        rep: ${{ fromJSON(needs.plan.outputs.reps) }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: bench-src
+      - uses: actions/download-artifact@v4
+        with:
+          name: build-${{ matrix.runner }}
+      - name: Run pairs
+        env:
+          BENCH_RUNNER: ${{ matrix.runner }}
+        run: |
+          tar xzf bundle.tgz
+          export BENCH_RUSTC_VV="$(cat bins/base/rustc.txt)"
+          cmp -s bins/base/rustc.txt bins/head/rustc.txt || { echo "base and head built with different rustc" >&2; exit 1; }
+          python3 bench-src/bench/bench.py --config bench-src/bench/bench.json --base bins/base --head bins/head \
+            --fw trees/base --out out --label "${{ matrix.runner }}-r${{ matrix.rep }}"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: result-${{ matrix.runner }}-r${{ matrix.rep }}
+          path: out
+          retention-days: 90
+
+  report:
+    needs: [plan, bench]
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: result-*
+          path: results
+      - name: Aggregate
+        run: |
+          python3 bench/report.py results bench/bench.json summary
+          cat summary.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: summary
+          path: |
+            summary.md
+            summary.json
+          retention-days: 90

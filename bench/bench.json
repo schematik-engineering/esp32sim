@@ -1,0 +1,12 @@
+{
+ "name": "probe: macOS host counters on #290 (TIMG prescaler guard)",
+ "base": "2e36224d34decc2fc9d2bba5fa4c5fdf2171b0a6",
+ "head": "268caa4aef2fa7a0053132aa1ed15c2de2697e41",
+ "toolchain": "1.99.0",
+ "pairs": 7, "warmup": 1, "repetitions": 2,
+ "host_counters": true,
+ "runners": ["macos-14", "macos-15"],
+ "workloads": [{"name": "c3-hello", "seconds": 30}, {"name": "s3-hello", "seconds": 20}, {"name": "classic-hello", "seconds": 30}],
+ "reference": {"c3-hello": {"change": 1.68, "slower": 7}, "s3-hello": {"change": 0.0, "slower": 0}, "classic-hello": {"change": 0.0, "slower": 0}},
+ "reference_source": "maintainer cross-check on #290, 2026-10-26 (earlier head, same timg.rs code)"
+}
