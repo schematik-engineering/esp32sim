@@ -1,0 +1,13 @@
+{
+ "name": "calibration #290 (TIMG prescaler guard)",
+ "base": "2e36224d34decc2fc9d2bba5fa4c5fdf2171b0a6",
+ "head": "268caa4aef2fa7a0053132aa1ed15c2de2697e41",
+ "toolchain": "1.99.0",
+ "pairs": 7, "warmup": 1, "repetitions": 2,
+ "runners": ["macos-14", "ubuntu-24.04-arm"],
+ "workloads": [{"name": "c3-hello", "seconds": 30}, {"name": "c6-hello", "seconds": 20}, {"name": "s3-hello", "seconds": 20},
+               {"name": "classic-hello", "seconds": 30}, {"name": "tdisplay-prices", "seconds": 15}],
+ "reference": {"c3-hello": {"change": 1.68, "slower": 7}, "c6-hello": {"change": 0.92, "slower": 2}, "s3-hello": {"change": 0.0, "slower": 0},
+               "classic-hello": {"change": 0.0, "slower": 0}, "tdisplay-prices": {"change": -0.98, "slower": 0}},
+ "reference_source": "maintainer cross-check on #290, 2026-10-26 (earlier head, same timg.rs code): c3 +1.68% 7/7, repeat +2.11% 5/7; 18 cores, load ~3; toolchain not stated (his later note: C3 layout shift on 1.99.1/1.98.1, not on 1.99.0)"
+}
